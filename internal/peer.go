@@ -9,12 +9,15 @@ import (
 
 // Peer
 type Peer struct {
-	NodeName    string `json:"node_name"`
-	NodeId      string `json:"node_id"`
-	PrivKey     string `json:"priv_key"`
-	NodeAddress string `json:"node_address"`
-	P2PPort     uint16 `json:"p2p_port"`
-	IsValidator bool   `json:"is_validator"`
+	NodeName       string `json:"node_name"`
+	NodeId         string `json:"node_id"`
+	PrivKey        string `json:"priv_key"`
+	NodeAddress    string `json:"node_address"`
+	P2PPort        uint16 `json:"p2p_port"`
+	RPCPort        uint16 `json:"rpc_port"`
+	ABCIPort       uint16 `json:"abci_port"`
+	WebServicePort uint16 `json:"webservice_port"`
+	IsValidator    bool   `json:"is_validator"`
 }
 
 type PeerList []Peer

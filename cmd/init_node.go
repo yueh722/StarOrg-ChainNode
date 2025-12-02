@@ -1,5 +1,7 @@
 package cmd
 
+// when initialize a chain from scratch, we need to use command 'init-node' to initialize node one by one.
+
 import (
 	"NodeCLI/internal"
 	"encoding/json"
@@ -19,20 +21,16 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 var (
-	chainId string
-	nodeId  string
-	//nodeAddress    string // ip or domain
-	//nodePrvKey     string
-	peers          string //json string that includes private key, p2p address of all nodes
-	p2pPort        uint16
-	rpcPort        uint16
-	abciPort       uint16
-	webServicePort uint16
+	chainId     string
+	genesisTime int64
+	nodeId      string
 
-	logger = log.NewLogger(os.Stdout)
+	//json string that includes private key, p2p address of all nodes
+	peers string
 )
 
 const (
@@ -43,6 +41,8 @@ const (
 
 	nodeDirPerm = 0o755
 )
+
+var logger = log.NewLogger(os.Stdout)
 
 var InitNodeFilesCmd = &cobra.Command{
 	Use:   "init-node",
@@ -69,6 +69,10 @@ func init() {
 	InitNodeFilesCmd.Flags().StringVar(&chainId, "chain-id", "",
 		"chain id that will be used to initialize a chain")
 
+	InitNodeFilesCmd.Flags().Int64Var(&genesisTime, "genesis-time", 0, "genesis time")
+
+	InitNodeFilesCmd.Flags().StringVar(&nodeId, "node-id", "", "node id")
+
 	//InitNodeFilesCmd.Flags().StringVar(&nodeName, "node-name", "", "node name ")
 
 	//InitNodeFilesCmd.Flags().StringVar(&nodeAddress, "node-address", "", "node domain or ip address")
@@ -78,20 +82,30 @@ func init() {
 	InitNodeFilesCmd.Flags().StringVar(&peers, "peers", "",
 		"peers that will be used to sync block between nodes.")
 
-	InitNodeFilesCmd.Flags().Uint16Var(&p2pPort, "p2p-port", defaultP2PPort,
-		"p2p port for Cometbft node")
+	/*
+		InitNodeFilesCmd.Flags().Uint16Var(&p2pPort, "p2p-port", defaultP2PPort,
+			"p2p port for Cometbft node")
 
-	InitNodeFilesCmd.Flags().Uint16Var(&rpcPort, "rpc-port", defaultRPCPort,
-		"rpc port for Cometbft node")
+		InitNodeFilesCmd.Flags().Uint16Var(&rpcPort, "rpc-port", defaultRPCPort,
+			"rpc port for Cometbft node")
 
-	InitNodeFilesCmd.Flags().Uint16Var(&abciPort, "abci-port", defaultABCIPort,
-		"application blockchain interface port for cometbft node")
+		InitNodeFilesCmd.Flags().Uint16Var(&abciPort, "abci-port", defaultABCIPort,
+			"application blockchain interface port for cometbft node")
 
-	InitNodeFilesCmd.Flags().Uint16Var(&webServicePort, "web-service-port", defaultWebServicePort,
-		"web service port that cometbft app will listen.")
+		InitNodeFilesCmd.Flags().Uint16Var(&webServicePort, "web-service-port", defaultWebServicePort,
+			"web service port that cometbft app will listen.")
+	*/
+}
+
+func genesisTimeFromUnix() time.Time {
+	return cmttime.Canonical(time.Unix(0, genesisTime))
 }
 
 func initnodeFiles(*cobra.Command, []string) error {
+
+	if genesisTime == 0 {
+		return errors.New("genesis time is required")
+	}
 
 	// ### Parse peer addresses.
 	peerList := ConvertJsonToPeers(peers)
@@ -127,7 +141,7 @@ func initnodeFiles(*cobra.Command, []string) error {
 	genDoc := &types.GenesisDoc{
 		ChainID:         "chain-" + chainId,
 		ConsensusParams: types.DefaultConsensusParams(),
-		GenesisTime:     cmttime.Now(),
+		GenesisTime:     genesisTimeFromUnix(),
 		InitialHeight:   0,
 		Validators:      peerList.BuildValidators(),
 	}
@@ -138,27 +152,20 @@ func initnodeFiles(*cobra.Command, []string) error {
 		return err
 	}
 
-	// Gather persistent peer addresses.
-	//persistentPeers, err := persistentPeersString(config)
-	if err != nil {
-		_ = os.RemoveAll(nodeDir)
-		return err
-	}
-
 	// Overwrite default config.
-	config.RPC.ListenAddress, err = updatePort(config.RPC.ListenAddress, rpcPort)
+	config.RPC.ListenAddress, err = updatePort(config.RPC.ListenAddress, currPeer.RPCPort)
 	if err != nil {
 		_ = os.RemoveAll(nodeDir)
 		return errors.Wrap(err, "failed to update rpc listen address")
 	}
 
-	config.BaseConfig.ProxyApp, err = updatePort(config.BaseConfig.ProxyApp, abciPort)
+	config.BaseConfig.ProxyApp, err = updatePort(config.BaseConfig.ProxyApp, currPeer.ABCIPort)
 	if err != nil {
 		_ = os.RemoveAll(nodeDir)
 		return errors.Wrap(err, "failed to update ABCI port")
 	}
 
-	config.P2P.ListenAddress, err = updatePort(config.P2P.ListenAddress, p2pPort)
+	config.P2P.ListenAddress, err = updatePort(config.P2P.ListenAddress, currPeer.P2PPort)
 	if err != nil {
 		_ = os.RemoveAll(nodeDir)
 		return errors.Wrap(err, "failed to update P2P listen address")
