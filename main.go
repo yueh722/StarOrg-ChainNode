@@ -11,7 +11,10 @@ import (
 
 func main() {
 
-	rootCmd := cmd.InitNodeFilesCmd
+	rootCmd := cmd.RootCmd
+	rootCmd.AddCommand(
+		cmd.CreateAddNodeFileCommand(),
+		cmd.InitNodeFilesCmd)
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)

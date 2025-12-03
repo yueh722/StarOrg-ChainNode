@@ -1,5 +1,11 @@
 package cmd
 
+import (
+	"NodeCLI/internal"
+	"fmt"
+	"github.com/spf13/cobra"
+)
+
 // when you want to add a new node into a exist chain that already running for a while. you need to use
 // command 'add-node' for the new node.
 
@@ -21,11 +27,66 @@ Copy the genesis file and the new priv_validator_key.json to the ~/.cometbft/con
 Now run cometbft node on both machines, and use either --p2p.persistent_peers or the /dial_peers to get them to peer up.
 */
 
-var (
-	_nodeId string
-
+type AddNodeArg struct {
+	NodeId string
 	//json string that includes private key, p2p address of all nodes
-	_peers string
+	Peers      string
+	GenesisDoc string
+}
 
-	_genesis string
-)
+var addNodeArg = &AddNodeArg{}
+
+var AddNodeFileCmd = &cobra.Command{
+	Use:   "add-node",
+	Short: "Initialize a node and join it into a CometBFT private chain",
+	Long: `add-node will create one node.
+
+Example:
+
+	nodecli add-node --home .\node
+	`,
+	RunE: addnodeFiles,
+}
+
+func CreateAddNodeFileCommand() *cobra.Command {
+	cmd := AddNodeFileCmd
+	arg := addNodeArg
+
+	cmd.Flags().StringVar(&arg.NodeId, "node-id", "", "node id")
+
+	cmd.Flags().StringVar(&arg.Peers, "peers", "",
+		"peers that will be used to sync block between nodes.")
+
+	cmd.Flags().StringVar(&arg.GenesisDoc, "genesis-doc", "",
+		"the chain need genesis-doc to start and sync blocks between nodes.")
+
+	return cmd
+}
+
+func addnodeFiles(*cobra.Command, []string) error {
+
+	// ### Parse peer addresses.
+	peerList := ConvertJsonToPeers(addNodeArg.Peers)
+	if len(peerList) == 0 {
+		return fmt.Errorf("no peer found, please provide all peers information that includes private key, id, name and p2p address.")
+	}
+
+	currPeer := peerList.GetPeerByNodeId(addNodeArg.NodeId)
+
+	peerConfig, err := internal.NewPeerConfig(currPeer, peerList.BuildPersistentPeers(), "")
+	if err != nil {
+		return err
+	}
+
+	if err := peerConfig.SetGenesis(addNodeArg.GenesisDoc); err != nil {
+		return err
+	}
+
+	if err := peerConfig.SaveFiles(); err != nil {
+		return err
+	}
+
+	fmt.Printf("Successfully initialized node '%v' directories\n", currPeer.NodeName)
+
+	return nil
+}
