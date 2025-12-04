@@ -17,14 +17,14 @@ import (
 	"time"
 )
 
-var (
+type NodeInitializationArguments struct {
 	chainId     string
 	genesisTime int64
 	nodeId      string
 
 	//json string that includes private key, p2p address of all nodes
 	peers string
-)
+}
 
 const (
 	defaultP2PPort        uint16 = 26656
@@ -35,16 +35,33 @@ const (
 
 var RootCmd = &cobra.Command{}
 
-var InitNodeFilesCmd = &cobra.Command{
-	Use:   "init-node",
-	Short: "Initialize a node for a CometBFT private chain",
-	Long: `init-node will create one node.
+var nodeInitArgs = &NodeInitializationArguments{}
+
+func CreateInitNodeFileCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "init-node",
+		Short: "Initialize a node for a CometBFT private chain",
+		Long: `init-node will create one node.
 
 Example:
 
 	nodecli init-node --home .\node
 	`,
-	RunE: initnodeFiles,
+		RunE: initnodeFiles,
+	}
+
+	arg := nodeInitArgs
+
+	cmd.Flags().StringVar(&arg.chainId, "chain-id", "",
+		"chain id that will be used to initialize a chain")
+
+	cmd.Flags().Int64Var(&arg.genesisTime, "genesis-time", 0, "genesis time")
+
+	cmd.Flags().StringVar(&arg.nodeId, "node-id", "", "node id")
+	cmd.Flags().StringVar(&arg.peers, "peers", "",
+		"peers that will be used to sync block between nodes.")
+
+	return cmd
 }
 
 func init() {
@@ -57,21 +74,11 @@ func init() {
 		e.	Prvkey			private key string
 	*/
 
-	InitNodeFilesCmd.Flags().StringVar(&chainId, "chain-id", "",
-		"chain id that will be used to initialize a chain")
-
-	InitNodeFilesCmd.Flags().Int64Var(&genesisTime, "genesis-time", 0, "genesis time")
-
-	InitNodeFilesCmd.Flags().StringVar(&nodeId, "node-id", "", "node id")
-
 	//InitNodeFilesCmd.Flags().StringVar(&nodeName, "node-name", "", "node name ")
 
 	//InitNodeFilesCmd.Flags().StringVar(&nodeAddress, "node-address", "", "node domain or ip address")
 
 	//InitNodeFilesCmd.Flags().StringVar(&nodePrvKey, "node-prvkey", "", "node private key")
-
-	InitNodeFilesCmd.Flags().StringVar(&peers, "peers", "",
-		"peers that will be used to sync block between nodes.")
 
 	/*
 		InitNodeFilesCmd.Flags().Uint16Var(&p2pPort, "p2p-port", defaultP2PPort,
@@ -95,24 +102,26 @@ func genesisTimeFromUnix(nsec int64) time.Time {
 
 func initnodeFiles(*cobra.Command, []string) error {
 
-	if genesisTime == 0 {
+	arg := nodeInitArgs
+
+	if arg.genesisTime == 0 {
 		return errors.New("genesis time is required")
 	}
 
 	// ### Parse peer addresses.
-	peerList := ConvertJsonToPeers(peers)
+	peerList := ConvertJsonToPeers(arg.peers)
 	if len(peerList) == 0 {
 		return fmt.Errorf("no peer found, please provide all peers information that includes private key, id, name and p2p address.")
 	}
 
-	currPeer := peerList.GetPeerByNodeId(nodeId)
+	currPeer := peerList.GetPeerByNodeId(arg.nodeId)
 
 	peerConfig, err := internal.NewPeerConfig(currPeer, peerList.BuildPersistentPeers(), "")
 	if err != nil {
 		return err
 	}
 
-	if err := peerConfig.NewGensis(chainId, genesisTimeFromUnix(genesisTime), peerList.BuildValidators()); err != nil {
+	if err := peerConfig.NewGensis(arg.chainId, genesisTimeFromUnix(arg.genesisTime), peerList.BuildValidators()); err != nil {
 		return err
 	}
 
