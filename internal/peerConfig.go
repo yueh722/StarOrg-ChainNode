@@ -5,7 +5,6 @@ import (
 	cometbftConfig "github.com/cometbft/cometbft/v2/config"
 	"github.com/cometbft/cometbft/v2/crypto"
 	"github.com/cometbft/cometbft/v2/crypto/ed25519"
-	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
 	"github.com/cometbft/cometbft/v2/libs/log"
 	"github.com/cometbft/cometbft/v2/p2p"
 	"github.com/cometbft/cometbft/v2/privval"
@@ -25,7 +24,7 @@ var nodeDirPerm os.FileMode = 0o755
 type PeerConfig struct {
 	config  *cometbftConfig.Config
 	genesis *types.GenesisDoc
-	privKey string
+	privKey crypto.PrivKey
 	nodeId  string
 	nodeDir string
 }
@@ -75,7 +74,7 @@ func NewPeerConfig(currPeer *Peer, persistentPeers, nodeDir string) (*PeerConfig
 	return &PeerConfig{
 		config:  config,
 		nodeDir: nodeDir,
-		privKey: currPeer.PrivKey,
+		privKey: currPeer.PrivateKey(),
 		nodeId:  currPeer.NodeId,
 		genesis: nil,
 	}, nil
@@ -97,9 +96,13 @@ func (cfg *PeerConfig) NewGensis(chainId string, genesisTime time.Time, validato
 
 func (cfg *PeerConfig) SetGenesis(genesisDoc string) error {
 
-	return cmtjson.Unmarshal([]byte(genesisDoc), cfg.genesis)
+	genesis, err := types.GenesisDocFromJSON([]byte(genesisDoc))
+	if err != nil {
+		return err
+	}
 
-	//cfg.genesis = genesis
+	cfg.genesis = genesis
+	return nil
 }
 
 func (cfg *PeerConfig) SaveFiles() error {
@@ -160,9 +163,9 @@ func (cfg *PeerConfig) writeNodeKeyFile() error {
 }
 
 // ed25519.KeyType
-func genPrivKeyFromString(prvkey string) func() (crypto.PrivKey, error) {
+func genPrivKeyFromString(prvkey crypto.PrivKey) func() (crypto.PrivKey, error) {
 	return func() (crypto.PrivKey, error) {
-		return ed25519.PrivKey(prvkey), nil
+		return prvkey, nil
 	}
 }
 

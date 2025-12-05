@@ -1,8 +1,11 @@
 package internal
 
 import (
+	"encoding/base64"
 	"fmt"
+	"github.com/cometbft/cometbft/v2/crypto"
 	"github.com/cometbft/cometbft/v2/crypto/ed25519"
+	"github.com/cometbft/cometbft/v2/p2p"
 	"github.com/cometbft/cometbft/v2/types"
 	"strings"
 )
@@ -18,6 +21,14 @@ type Peer struct {
 	ABCIPort       uint16 `json:"abci_port"`
 	WebServicePort uint16 `json:"webservice_port"`
 	IsValidator    bool   `json:"is_validator"`
+}
+
+func (p *Peer) PrivateKey() crypto.PrivKey {
+
+	if key, err := base64.StdEncoding.DecodeString(p.PrivKey); err == nil {
+		return ed25519.PrivKey(key)
+	}
+	return nil
 }
 
 type PeerList []Peer
@@ -62,4 +73,18 @@ func (peers PeerList) BuildValidators() []types.GenesisValidator {
 	}
 
 	return genVals
+}
+
+func NewNodeId() string {
+	nodeKey := &p2p.NodeKey{
+		PrivKey: ed25519.GenPrivKey(),
+	}
+
+	return nodeKey.ID()
+}
+
+func NewPrivKey() string {
+	prvKey := ed25519.GenPrivKey()
+
+	return base64.StdEncoding.EncodeToString(prvKey.Bytes())
 }

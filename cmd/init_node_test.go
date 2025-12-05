@@ -2,8 +2,77 @@ package cmd
 
 import (
 	"NodeCLI/internal"
+	"encoding/json"
+	"fmt"
 	"testing"
+	"time"
 )
+
+func TestInitNodeFiles(t *testing.T) {
+
+	peers := []internal.Peer{
+		{
+			NodeName:       "node01",
+			NodeId:         internal.NewNodeId(),
+			PrivKey:        internal.NewPrivKey(),
+			NodeAddress:    "192.168.1.1",
+			P2PPort:        26656,
+			RPCPort:        26657,
+			ABCIPort:       26658,
+			WebServicePort: 8000,
+			IsValidator:    true,
+		},
+		{
+			NodeName:       "node02",
+			NodeId:         internal.NewNodeId(),
+			PrivKey:        internal.NewPrivKey(),
+			NodeAddress:    "192.168.1.2",
+			P2PPort:        26656,
+			RPCPort:        26657,
+			ABCIPort:       26658,
+			WebServicePort: 8000,
+			IsValidator:    true,
+		},
+		{
+			NodeName:       "node03",
+			NodeId:         internal.NewNodeId(),
+			PrivKey:        internal.NewPrivKey(),
+			NodeAddress:    "192.168.1.3",
+			P2PPort:        26656,
+			RPCPort:        26657,
+			ABCIPort:       26658,
+			WebServicePort: 8000,
+			IsValidator:    true,
+		},
+		{
+			NodeName:       "node04",
+			NodeId:         internal.NewNodeId(),
+			PrivKey:        internal.NewPrivKey(),
+			NodeAddress:    "192.168.1.4",
+			P2PPort:        26656,
+			RPCPort:        26657,
+			ABCIPort:       26658,
+			WebServicePort: 8000,
+			IsValidator:    true,
+		},
+	}
+
+	peersByte, _ := json.Marshal(peers)
+
+	genesisTime := time.Now().UnixNano()
+
+	for _, peer := range peers {
+		nodeInitArgs = &NodeInitializationArguments{
+			chainId:     "chain-abc",
+			genesisTime: genesisTime,
+			nodeId:      peer.NodeId,
+			peers:       string(peersByte),
+		}
+
+		err := initnodeFiles(nil, []string{})
+		fmt.Println("initnodeFile for peer", peer.NodeName, err)
+	}
+}
 
 // 测试ConvertJsonToPeer函数
 func TestConvertJsonToPeer(t *testing.T) {
