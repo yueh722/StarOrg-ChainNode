@@ -4,6 +4,9 @@ import (
 	"NodeCLI/internal"
 	"encoding/json"
 	"fmt"
+	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
+	"github.com/cometbft/cometbft/v2/types"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
@@ -70,8 +73,103 @@ func TestInitNodeFiles(t *testing.T) {
 		}
 
 		err := initnodeFiles(nil, []string{})
-		fmt.Println("initnodeFile for peer", peer.NodeName, err)
+		if err != nil {
+			assert.Error(t, err)
+		}
+		fmt.Printf("initnodeFile for peer %v, %v\n", peer.NodeName, err)
 	}
+}
+
+func TestAddNodeFiles(t *testing.T) {
+
+	peers := internal.PeerList{
+		{
+			NodeName:       "node01",
+			NodeId:         internal.NewNodeId(),
+			PrivKey:        internal.NewPrivKey(),
+			NodeAddress:    "192.168.1.1",
+			P2PPort:        26656,
+			RPCPort:        26657,
+			ABCIPort:       26658,
+			WebServicePort: 8000,
+			IsValidator:    true,
+		},
+		{
+			NodeName:       "node02",
+			NodeId:         internal.NewNodeId(),
+			PrivKey:        internal.NewPrivKey(),
+			NodeAddress:    "192.168.1.2",
+			P2PPort:        26656,
+			RPCPort:        26657,
+			ABCIPort:       26658,
+			WebServicePort: 8000,
+			IsValidator:    true,
+		},
+		{
+			NodeName:       "node03",
+			NodeId:         internal.NewNodeId(),
+			PrivKey:        internal.NewPrivKey(),
+			NodeAddress:    "192.168.1.3",
+			P2PPort:        26656,
+			RPCPort:        26657,
+			ABCIPort:       26658,
+			WebServicePort: 8000,
+			IsValidator:    true,
+		},
+		{
+			NodeName:       "node04",
+			NodeId:         internal.NewNodeId(),
+			PrivKey:        internal.NewPrivKey(),
+			NodeAddress:    "192.168.1.4",
+			P2PPort:        26656,
+			RPCPort:        26657,
+			ABCIPort:       26658,
+			WebServicePort: 8000,
+			IsValidator:    true,
+		},
+		{
+			NodeName:       "node05",
+			NodeId:         internal.NewNodeId(),
+			PrivKey:        internal.NewPrivKey(),
+			NodeAddress:    "192.168.1.5",
+			P2PPort:        26656,
+			RPCPort:        26657,
+			ABCIPort:       26658,
+			WebServicePort: 8000,
+			IsValidator:    true,
+		},
+	}
+
+	peersByte, _ := json.Marshal(peers)
+
+	//load genesisDoc from file
+	genesisDoc, err := types.GenesisDocFromFile("./node01/config/genesis.json")
+	if err != nil {
+		assert.Error(t, err)
+		return
+	}
+
+	//update validators of genesis
+	genesisDoc.Validators = peers.BuildValidators()
+
+	genDocBytes, err := cmtjson.Marshal(genesisDoc)
+	if err != nil {
+		assert.Error(t, err)
+	}
+
+	nodeAddArgs = &NodeAddArguments{
+		NodeId:     peers.GetPeerByNodeName("node05").NodeId,
+		Peers:      string(peersByte),
+		GenesisDoc: string(genDocBytes),
+	}
+
+	err = addnodeFiles(nil, []string{})
+	if err != nil {
+		assert.Error(t, err)
+	}
+
+	fmt.Printf("addnodeFile for peer %v, %v\n", "node05", err)
+
 }
 
 // 测试ConvertJsonToPeer函数

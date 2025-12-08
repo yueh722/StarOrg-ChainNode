@@ -44,7 +44,7 @@ func CreateAddNodeFileCommand() *cobra.Command {
 
 Example:
 
-	nodecli add-node --home .\node
+	nodecli add-node [subcommand]
 	`,
 		RunE: addnodeFiles,
 	}

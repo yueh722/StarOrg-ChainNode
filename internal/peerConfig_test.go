@@ -28,8 +28,6 @@ func newNodeId() string {
 func newPrivKey() string {
 	prvKey := ed25519.GenPrivKey()
 
-	fmt.Println("prvKey", prvKey)
-
 	return base64.StdEncoding.EncodeToString(prvKey.Bytes())
 }
 

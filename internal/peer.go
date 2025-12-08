@@ -55,6 +55,16 @@ func (peers PeerList) GetPeerByNodeId(nodeId string) *Peer {
 	return nil
 }
 
+func (peers PeerList) GetPeerByNodeName(nodeName string) *Peer {
+	for _, peer := range peers {
+		if peer.NodeName == nodeName {
+			return &peer
+		}
+	}
+
+	return nil
+}
+
 func (peers PeerList) BuildValidators() []types.GenesisValidator {
 
 	genVals := make([]types.GenesisValidator, len(peers))

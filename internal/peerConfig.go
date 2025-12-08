@@ -29,6 +29,19 @@ type PeerConfig struct {
 	nodeDir string
 }
 
+// load config from config.toml
+//  viper.AddConfigPath(filepath.Join(home, "config"))
+//  viper.SetConfigName("config")
+// 	if err := viper.ReadInConfig(); err != nil {
+//		return nil, nil, nil, err
+//	}
+//
+//	cmtcfg = config.DefaultConfig()
+//
+//	if err := viper.Unmarshal(cmtcfg); err != nil {
+//		return nil, nil, nil, err
+//	}
+
 func NewPeerConfig(currPeer *Peer, persistentPeers, nodeDir string) (*PeerConfig, error) {
 	var err error
 

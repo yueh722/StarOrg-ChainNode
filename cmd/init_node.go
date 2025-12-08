@@ -45,7 +45,7 @@ func CreateInitNodeFileCommand() *cobra.Command {
 
 Example:
 
-	nodecli init-node --home .\node
+	nodecli init-node [subcommand]
 	`,
 		RunE: initnodeFiles,
 	}
