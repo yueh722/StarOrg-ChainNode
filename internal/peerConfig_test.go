@@ -207,7 +207,7 @@ func TestPeerConfig_SetGenesis(t *testing.T) {
 
 		genesisDoc = fmt.Sprintf(genesisDoc, address, pubKey)
 
-		err := peerConfig.SetGenesis(genesisDoc)
+		err := peerConfig.SetGenesis(genesisDoc, nil)
 		require.NoError(t, err)
 
 		assert.NotNil(t, peerConfig.genesis)
@@ -234,7 +234,7 @@ func TestPeerConfig_SetGenesis(t *testing.T) {
 
 		genesisDoc = fmt.Sprintf(genesisDoc, address, pubKey)
 
-		err := peerConfig.SetGenesis(genesisDoc)
+		err := peerConfig.SetGenesis(genesisDoc, nil)
 		assert.Error(t, err)
 	})
 
@@ -242,7 +242,7 @@ func TestPeerConfig_SetGenesis(t *testing.T) {
 	t.Run("genesisDoc为空的情况", func(t *testing.T) {
 		var genesisDoc string
 
-		err := peerConfig.SetGenesis(genesisDoc)
+		err := peerConfig.SetGenesis(genesisDoc, nil)
 		assert.Error(t, err)
 	})
 }

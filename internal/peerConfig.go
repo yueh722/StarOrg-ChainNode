@@ -2,6 +2,12 @@ package internal
 
 import (
 	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strconv"
+	"time"
+
 	cometbftConfig "github.com/cometbft/cometbft/v2/config"
 	"github.com/cometbft/cometbft/v2/crypto"
 	"github.com/cometbft/cometbft/v2/crypto/ed25519"
@@ -10,11 +16,6 @@ import (
 	"github.com/cometbft/cometbft/v2/privval"
 	"github.com/cometbft/cometbft/v2/types"
 	"github.com/pkg/errors"
-	"net/url"
-	"os"
-	"path/filepath"
-	"strconv"
-	"time"
 )
 
 var logger = log.NewLogger(os.Stdout)
@@ -28,19 +29,6 @@ type PeerConfig struct {
 	nodeId  string
 	nodeDir string
 }
-
-// load config from config.toml
-//  viper.AddConfigPath(filepath.Join(home, "config"))
-//  viper.SetConfigName("config")
-// 	if err := viper.ReadInConfig(); err != nil {
-//		return nil, nil, nil, err
-//	}
-//
-//	cmtcfg = config.DefaultConfig()
-//
-//	if err := viper.Unmarshal(cmtcfg); err != nil {
-//		return nil, nil, nil, err
-//	}
 
 func NewPeerConfig(currPeer *Peer, persistentPeers, nodeDir string) (*PeerConfig, error) {
 	var err error
@@ -58,8 +46,10 @@ func NewPeerConfig(currPeer *Peer, persistentPeers, nodeDir string) (*PeerConfig
 	config := cometbftConfig.DefaultConfig()
 
 	if nodeDir == "" {
-		nodeDir = "./" + currPeer.NodeName
+		nodeDir = "./"
 	}
+
+	nodeDir = filepath.Join(nodeDir, currPeer.NodeName)
 
 	config.SetRoot(nodeDir)
 
@@ -107,11 +97,15 @@ func (cfg *PeerConfig) NewGensis(chainId string, genesisTime time.Time, validato
 	return nil
 }
 
-func (cfg *PeerConfig) SetGenesis(genesisDoc string) error {
+func (cfg *PeerConfig) SetGenesis(genesisDoc string, validators []types.GenesisValidator) error {
 
 	genesis, err := types.GenesisDocFromJSON([]byte(genesisDoc))
 	if err != nil {
 		return err
+	}
+
+	if validators != nil && len(validators) > 0 {
+		genesis.Validators = validators
 	}
 
 	cfg.genesis = genesis
@@ -216,5 +210,17 @@ func updatePort(urlStr string, newPort uint16) (string, error) {
 
 	u.Host = u.Hostname() + ":" + strconv.Itoa(int(newPort))
 
+	return u.String(), nil
+}
+
+func updateHost(urlStr string, newHost string) (string, error) {
+	if newHost == "" || newHost == "0.0.0.0" {
+		return urlStr, nil
+	}
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse URL: %w", err)
+	}
+	u.Host = u.Hostname() + ":" + u.Port()
 	return u.String(), nil
 }

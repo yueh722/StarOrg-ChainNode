@@ -4,17 +4,14 @@ package cmd
 
 import (
 	"NodeCLI/internal"
-	"encoding/json"
 	"fmt"
+
 	cfg "github.com/cometbft/cometbft/v2/config"
 	"github.com/cometbft/cometbft/v2/crypto/ed25519"
 	"github.com/cometbft/cometbft/v2/p2p"
 	"github.com/cometbft/cometbft/v2/privval"
-	cmttime "github.com/cometbft/cometbft/v2/types/time"
 	"github.com/duke-git/lancet/v2/fileutil"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"time"
 )
 
 type NodeInitializationArguments struct {
@@ -22,7 +19,7 @@ type NodeInitializationArguments struct {
 	genesisTime int64
 	nodeId      string
 
-	//json string that includes private key, p2p address of all nodes
+	//JSON string that includes private key, p2p address of all nodes
 	peers string
 }
 
@@ -32,6 +29,8 @@ const (
 	defaultABCIPort       uint16 = 26658
 	defaultWebServicePort uint16 = 8080
 )
+
+var home string
 
 var RootCmd = &cobra.Command{}
 
@@ -65,73 +64,23 @@ Example:
 }
 
 func init() {
-
-	/*
-		a.	ChainId			alpha.com
-		b.	NodeName		node01
-		c.	NodeDomain		node01.alpha.com. need to be resolved by dns
-		d.	NodeP2P			node-id(encode of pub address)@IP1:26656:node-id-2@IP2:P2P-PORT
-		e.	Prvkey			private key string
-	*/
-
-	//InitNodeFilesCmd.Flags().StringVar(&nodeName, "node-name", "", "node name ")
-
-	//InitNodeFilesCmd.Flags().StringVar(&nodeAddress, "node-address", "", "node domain or ip address")
-
-	//InitNodeFilesCmd.Flags().StringVar(&nodePrvKey, "node-prvkey", "", "node private key")
-
-	/*
-		InitNodeFilesCmd.Flags().Uint16Var(&p2pPort, "p2p-port", defaultP2PPort,
-			"p2p port for Cometbft node")
-
-		InitNodeFilesCmd.Flags().Uint16Var(&rpcPort, "rpc-port", defaultRPCPort,
-			"rpc port for Cometbft node")
-
-		InitNodeFilesCmd.Flags().Uint16Var(&abciPort, "abci-port", defaultABCIPort,
-			"application blockchain interface port for cometbft node")
-
-		InitNodeFilesCmd.Flags().Uint16Var(&webServicePort, "web-service-port", defaultWebServicePort,
-			"web service port that cometbft app will listen.")
-	*/
-
-}
-
-func genesisTimeFromUnix(nsec int64) time.Time {
-	return cmttime.Canonical(time.Unix(0, nsec))
+	RootCmd.Flags().StringVar(&home, "home", "", "directory for current node")
 }
 
 func initnodeFiles(*cobra.Command, []string) error {
-
 	arg := nodeInitArgs
 
-	if arg.genesisTime == 0 {
-		return errors.New("genesis time is required")
+	err := internal.InitializeChainNode(arg.genesisTime, arg.peers, arg.chainId, arg.nodeId, home)
+	if err == nil {
+		currPeer := internal.ConvertJsonToPeers(arg.peers).GetPeerByNodeId(arg.nodeId)
+		var nodeName string
+		if currPeer != nil {
+			nodeName = currPeer.NodeName
+		}
+		fmt.Printf("Successfully initialized node '%v' directories\n", nodeName)
 	}
 
-	// ### Parse peer addresses.
-	peerList := ConvertJsonToPeers(arg.peers)
-	if len(peerList) == 0 {
-		return fmt.Errorf("no peer found, please provide all peers information that includes private key, id, name and p2p address.")
-	}
-
-	currPeer := peerList.GetPeerByNodeId(arg.nodeId)
-
-	peerConfig, err := internal.NewPeerConfig(currPeer, peerList.BuildPersistentPeers(), "")
-	if err != nil {
-		return err
-	}
-
-	if err := peerConfig.NewGensis(arg.chainId, genesisTimeFromUnix(arg.genesisTime), peerList.BuildValidators()); err != nil {
-		return err
-	}
-
-	if err := peerConfig.SaveFiles(); err != nil {
-		return err
-	}
-
-	fmt.Printf("Successfully initialized node '%v' directories\n", currPeer.NodeName)
-
-	return nil
+	return err
 }
 
 func initFilesWithConfig(config *cfg.Config, prvkey, nodeId string) error {
@@ -146,7 +95,7 @@ func initFilesWithConfig(config *cfg.Config, prvkey, nodeId string) error {
 		var err error
 		//pv, err = privval.GenFilePV(privValKeyFile, privValStateFile, genPrivKeyFromString(prvkey))
 		if err != nil {
-			return fmt.Errorf("can't generate file pv: %w", err)
+			return fmt.Errorf("can't generate file pv: %v", err)
 		}
 		pv.Save()
 		//logger.Info("Generated private validator", "keyFile", privValKeyFile, "stateFile", privValStateFile)
@@ -168,13 +117,4 @@ func initFilesWithConfig(config *cfg.Config, prvkey, nodeId string) error {
 	}
 
 	return nil
-}
-
-func ConvertJsonToPeers(jsonStr string) internal.PeerList {
-	var peers []internal.Peer
-	err := json.Unmarshal([]byte(jsonStr), &peers)
-	if err != nil {
-		fmt.Println("Error while parsing json string", err)
-	}
-	return peers
 }

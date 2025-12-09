@@ -4,11 +4,12 @@ import (
 	"NodeCLI/internal"
 	"encoding/json"
 	"fmt"
+	"testing"
+	"time"
+
 	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
 	"github.com/cometbft/cometbft/v2/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func TestInitNodeFiles(t *testing.T) {
@@ -138,6 +139,17 @@ func TestAddNodeFiles(t *testing.T) {
 			WebServicePort: 8000,
 			IsValidator:    true,
 		},
+		{
+			NodeName:       "node06",
+			NodeId:         internal.NewNodeId(),
+			PrivKey:        internal.NewPrivKey(),
+			NodeAddress:    "192.168.1.6",
+			P2PPort:        26656,
+			RPCPort:        26657,
+			ABCIPort:       26658,
+			WebServicePort: 8000,
+			IsValidator:    false,
+		},
 	}
 
 	peersByte, _ := json.Marshal(peers)
@@ -149,16 +161,13 @@ func TestAddNodeFiles(t *testing.T) {
 		return
 	}
 
-	//update validators of genesis
-	genesisDoc.Validators = peers.BuildValidators()
-
 	genDocBytes, err := cmtjson.Marshal(genesisDoc)
 	if err != nil {
 		assert.Error(t, err)
 	}
 
 	nodeAddArgs = &NodeAddArguments{
-		NodeId:     peers.GetPeerByNodeName("node05").NodeId,
+		NodeId:     peers.GetPeerByNodeName("node06").NodeId,
 		Peers:      string(peersByte),
 		GenesisDoc: string(genDocBytes),
 	}
@@ -198,7 +207,7 @@ func TestConvertJsonToPeer(t *testing.T) {
 		IsValidator:    true,
 	}
 
-	peers := ConvertJsonToPeers(jsonStr)
+	peers := internal.ConvertJsonToPeers(jsonStr)
 
 	actualPeer := peers[0]
 

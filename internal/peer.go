@@ -2,15 +2,16 @@ package internal
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"strings"
+
 	"github.com/cometbft/cometbft/v2/crypto"
 	"github.com/cometbft/cometbft/v2/crypto/ed25519"
 	"github.com/cometbft/cometbft/v2/p2p"
 	"github.com/cometbft/cometbft/v2/types"
-	"strings"
 )
 
-// Peer
 type Peer struct {
 	NodeName       string `json:"node_name"`
 	NodeId         string `json:"node_id"`
@@ -70,6 +71,11 @@ func (peers PeerList) BuildValidators() []types.GenesisValidator {
 	genVals := make([]types.GenesisValidator, len(peers))
 
 	for i, peer := range peers {
+
+		if !peer.IsValidator {
+			continue
+		}
+
 		pv := ed25519.PrivKey(peer.PrivKey)
 
 		pubKey := pv.PubKey()
@@ -97,4 +103,13 @@ func NewPrivKey() string {
 	prvKey := ed25519.GenPrivKey()
 
 	return base64.StdEncoding.EncodeToString(prvKey.Bytes())
+}
+
+func ConvertJsonToPeers(jsonStr string) PeerList {
+	var peers []Peer
+	err := json.Unmarshal([]byte(jsonStr), &peers)
+	if err != nil {
+		fmt.Println("Error while parsing json string", err)
+	}
+	return peers
 }
