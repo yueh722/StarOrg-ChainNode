@@ -3,7 +3,7 @@ package cmd
 // when initialize a chain from scratch, we need to use command 'init-node' to initialize node one by one.
 
 import (
-	"NodeCLI/internal"
+	"NodeCLI/nodelib"
 	"fmt"
 
 	cfg "github.com/cometbft/cometbft/v2/config"
@@ -30,9 +30,16 @@ const (
 	defaultWebServicePort uint16 = 8080
 )
 
-var home string
+var (
+	home         string
+	stdoutFormat string
+)
 
-var RootCmd = &cobra.Command{}
+var RootCmd = &cobra.Command{
+	Use:   "NodeCLI",
+	Short: "Command line utilize for cometbft node",
+	Long:  `Command line utilize for cometbft node`,
+}
 
 var nodeInitArgs = &NodeInitializationArguments{}
 
@@ -58,21 +65,22 @@ Example:
 
 	cmd.Flags().StringVar(&arg.nodeId, "node-id", "", "node id")
 	cmd.Flags().StringVar(&arg.peers, "peers", "",
-		"peers that will be used to sync block between nodes.")
+		"a JSON string that includes peer information, for example: name, id, private key, server address, rpc port and etc.")
 
 	return cmd
 }
 
 func init() {
 	RootCmd.Flags().StringVar(&home, "home", "", "directory for current node")
+	RootCmd.Flags().StringVar(&stdoutFormat, "stdout-format", "plant", "stdout format. text or JSON")
 }
 
 func initnodeFiles(*cobra.Command, []string) error {
 	arg := nodeInitArgs
 
-	err := internal.InitializeChainNode(arg.genesisTime, arg.peers, arg.chainId, arg.nodeId, home)
+	err := nodelib.InitializeChainNode(arg.genesisTime, arg.peers, arg.chainId, arg.nodeId, home)
 	if err == nil {
-		currPeer := internal.ConvertJsonToPeers(arg.peers).GetPeerByNodeId(arg.nodeId)
+		currPeer := nodelib.ConvertJsonToPeers(arg.peers).GetPeerByNodeId(arg.nodeId)
 		var nodeName string
 		if currPeer != nil {
 			nodeName = currPeer.NodeName

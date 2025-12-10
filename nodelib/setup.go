@@ -1,24 +1,22 @@
-package internal
+package nodelib
 
 import (
 	"errors"
 	"fmt"
-	"github.com/duke-git/lancet/v2/slice"
-	"github.com/spf13/viper"
 	"path/filepath"
 	"time"
 
-	"github.com/cometbft/cometbft/v2/config"
 	"github.com/cometbft/cometbft/v2/types"
 	cmttime "github.com/cometbft/cometbft/v2/types/time"
 )
 
+const peerConfigFile = "peer_config.json"
+
 type NodeServerInfo struct {
-	NodeName  string
-	RPCAddr   string
-	GRPCAddr  string
-	ProxyApp  string
-	Validator bool
+	NodeName       string
+	RPCAddr        string
+	WebServiceAddr string
+	Validator      bool
 }
 
 func genesisTimeFromUnix(nsec int64) time.Time {
@@ -97,7 +95,8 @@ func AddChainNode(peers, genesisDoc, nodeId, nodeDir string) error {
 	return nil
 }
 
-func GetNodeRPCServer(nodeDir string) (*NodeServerInfo, error) {
+/*
+func GetNodeServer(nodeDir string) (*NodeServerInfo, error) {
 
 	// load config from config.toml in nodeDir
 	viper.AddConfigPath(filepath.Join(nodeDir, "config"))
@@ -117,8 +116,6 @@ func GetNodeRPCServer(nodeDir string) (*NodeServerInfo, error) {
 		return nil, fmt.Errorf("error in config file: %w", err)
 	}
 
-	//update listen address with node address
-
 	genesisDoc, err := types.GenesisDocFromFile(cmtcfg.GenesisFile())
 	if err != nil {
 		return nil, err
@@ -128,11 +125,45 @@ func GetNodeRPCServer(nodeDir string) (*NodeServerInfo, error) {
 		return item.Name == cmtcfg.Moniker
 	})
 
+	//update listen address with node address
+	nodeKey, err := p2p.LoadNodeKey(cmtcfg.NodeKeyFile())
+	if err != nil {
+		return nil, err
+	}
+	nodeHost := NewPersistentPeers(cmtcfg.P2P.PersistentPeers).GetNodeHostById(nodeKey.ID())
+	RPCAddress, err := updateHost(cmtcfg.RPC.ListenAddress, nodeHost)
+	if err != nil {
+		return nil, err
+	}
+
 	return &NodeServerInfo{
 		NodeName:  cmtcfg.Moniker,
-		RPCAddr:   cmtcfg.RPC.ListenAddress,
-		GRPCAddr:  cmtcfg.GRPC.ListenAddress,
+		RPCAddr:   RPCAddress,
 		ProxyApp:  cmtcfg.ProxyApp,
 		Validator: isValidator,
 	}, nil
 }
+*/
+
+func GetNodeServer(nodeDir string) (*NodeServerInfo, error) {
+	peer := Peer{}
+
+	if err := peer.Load(filepath.Join(nodeDir, peerConfigFile)); err != nil {
+		return nil, err
+	}
+
+	return &NodeServerInfo{
+		NodeName:       peer.NodeName,
+		RPCAddr:        fmt.Sprintf("http://%s:%d", peer.NodeAddress, peer.RPCPort),
+		WebServiceAddr: fmt.Sprintf("http://%s:%d", peer.NodeAddress, peer.WebServicePort),
+		Validator:      peer.IsValidator,
+	}, nil
+}
+
+//run node with monitor
+
+//run app with monitor
+
+//stop node
+
+//stop app

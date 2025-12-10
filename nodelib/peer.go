@@ -1,9 +1,10 @@
-package internal
+package nodelib
 
 import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/cometbft/cometbft/v2/crypto"
@@ -30,6 +31,38 @@ func (p *Peer) PrivateKey() crypto.PrivKey {
 		return ed25519.PrivKey(key)
 	}
 	return nil
+}
+
+func (p *Peer) Save(peerFile string) error {
+
+	jsonBytes, err := json.MarshalIndent(p, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error marshal peerConfig at %s: %w", peerFile, err)
+	}
+
+	err = os.WriteFile(peerFile, jsonBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("error writing peer config at %s: %w", peerFile, err)
+	}
+
+	return nil
+}
+
+func (p *Peer) Load(peerFile string) error {
+	jsonBlob, err := os.ReadFile(peerFile)
+	if err != nil {
+		return fmt.Errorf("couldn't read peer config file: %w", err)
+	}
+
+	err = json.Unmarshal(jsonBlob, p)
+	if err != nil {
+		return fmt.Errorf("error unmarshal peer Config at %s: %w", peerFile, err)
+	}
+	return nil
+}
+
+func (p *Peer) valid() bool {
+	return true
 }
 
 type PeerList []Peer

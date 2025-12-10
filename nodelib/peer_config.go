@@ -1,4 +1,4 @@
-package internal
+package nodelib
 
 import (
 	"fmt"
@@ -23,11 +23,12 @@ var logger = log.NewLogger(os.Stdout)
 var nodeDirPerm os.FileMode = 0o755
 
 type PeerConfig struct {
-	config  *cometbftConfig.Config
-	genesis *types.GenesisDoc
-	privKey crypto.PrivKey
-	nodeId  string
-	nodeDir string
+	config   *cometbftConfig.Config
+	genesis  *types.GenesisDoc
+	privKey  crypto.PrivKey
+	nodeId   string
+	nodeDir  string
+	currPeer *Peer
 }
 
 func NewPeerConfig(currPeer *Peer, persistentPeers, nodeDir string) (*PeerConfig, error) {
@@ -75,11 +76,12 @@ func NewPeerConfig(currPeer *Peer, persistentPeers, nodeDir string) (*PeerConfig
 	config.Moniker = currPeer.NodeName
 
 	return &PeerConfig{
-		config:  config,
-		nodeDir: nodeDir,
-		privKey: currPeer.PrivateKey(),
-		nodeId:  currPeer.NodeId,
-		genesis: nil,
+		config:   config,
+		nodeDir:  nodeDir,
+		privKey:  currPeer.PrivateKey(),
+		nodeId:   currPeer.NodeId,
+		genesis:  nil,
+		currPeer: currPeer,
 	}, nil
 }
 
@@ -148,6 +150,11 @@ func (cfg *PeerConfig) SaveFiles() error {
 
 	// ### Write node_key file.
 	if err := cfg.writeNodeKeyFile(); err != nil {
+		return err
+	}
+
+	// ### Write peer config file
+	if err := cfg.currPeer.Save(filepath.Join(nodeDir, peerConfigFile)); err != nil {
 		return err
 	}
 

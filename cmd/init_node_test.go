@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"NodeCLI/internal"
+	"NodeCLI/nodelib"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -14,11 +14,11 @@ import (
 
 func TestInitNodeFiles(t *testing.T) {
 
-	peers := []internal.Peer{
+	peers := []nodelib.Peer{
 		{
 			NodeName:       "node01",
-			NodeId:         internal.NewNodeId(),
-			PrivKey:        internal.NewPrivKey(),
+			NodeId:         nodelib.NewNodeId(),
+			PrivKey:        nodelib.NewPrivKey(),
 			NodeAddress:    "192.168.1.1",
 			P2PPort:        26656,
 			RPCPort:        26657,
@@ -28,8 +28,8 @@ func TestInitNodeFiles(t *testing.T) {
 		},
 		{
 			NodeName:       "node02",
-			NodeId:         internal.NewNodeId(),
-			PrivKey:        internal.NewPrivKey(),
+			NodeId:         nodelib.NewNodeId(),
+			PrivKey:        nodelib.NewPrivKey(),
 			NodeAddress:    "192.168.1.2",
 			P2PPort:        26656,
 			RPCPort:        26657,
@@ -39,8 +39,8 @@ func TestInitNodeFiles(t *testing.T) {
 		},
 		{
 			NodeName:       "node03",
-			NodeId:         internal.NewNodeId(),
-			PrivKey:        internal.NewPrivKey(),
+			NodeId:         nodelib.NewNodeId(),
+			PrivKey:        nodelib.NewPrivKey(),
 			NodeAddress:    "192.168.1.3",
 			P2PPort:        26656,
 			RPCPort:        26657,
@@ -50,8 +50,8 @@ func TestInitNodeFiles(t *testing.T) {
 		},
 		{
 			NodeName:       "node04",
-			NodeId:         internal.NewNodeId(),
-			PrivKey:        internal.NewPrivKey(),
+			NodeId:         nodelib.NewNodeId(),
+			PrivKey:        nodelib.NewPrivKey(),
 			NodeAddress:    "192.168.1.4",
 			P2PPort:        26656,
 			RPCPort:        26657,
@@ -83,11 +83,11 @@ func TestInitNodeFiles(t *testing.T) {
 
 func TestAddNodeFiles(t *testing.T) {
 
-	peers := internal.PeerList{
+	peers := nodelib.PeerList{
 		{
 			NodeName:       "node01",
-			NodeId:         internal.NewNodeId(),
-			PrivKey:        internal.NewPrivKey(),
+			NodeId:         nodelib.NewNodeId(),
+			PrivKey:        nodelib.NewPrivKey(),
 			NodeAddress:    "192.168.1.1",
 			P2PPort:        26656,
 			RPCPort:        26657,
@@ -97,8 +97,8 @@ func TestAddNodeFiles(t *testing.T) {
 		},
 		{
 			NodeName:       "node02",
-			NodeId:         internal.NewNodeId(),
-			PrivKey:        internal.NewPrivKey(),
+			NodeId:         nodelib.NewNodeId(),
+			PrivKey:        nodelib.NewPrivKey(),
 			NodeAddress:    "192.168.1.2",
 			P2PPort:        26656,
 			RPCPort:        26657,
@@ -108,8 +108,8 @@ func TestAddNodeFiles(t *testing.T) {
 		},
 		{
 			NodeName:       "node03",
-			NodeId:         internal.NewNodeId(),
-			PrivKey:        internal.NewPrivKey(),
+			NodeId:         nodelib.NewNodeId(),
+			PrivKey:        nodelib.NewPrivKey(),
 			NodeAddress:    "192.168.1.3",
 			P2PPort:        26656,
 			RPCPort:        26657,
@@ -119,8 +119,8 @@ func TestAddNodeFiles(t *testing.T) {
 		},
 		{
 			NodeName:       "node04",
-			NodeId:         internal.NewNodeId(),
-			PrivKey:        internal.NewPrivKey(),
+			NodeId:         nodelib.NewNodeId(),
+			PrivKey:        nodelib.NewPrivKey(),
 			NodeAddress:    "192.168.1.4",
 			P2PPort:        26656,
 			RPCPort:        26657,
@@ -130,8 +130,8 @@ func TestAddNodeFiles(t *testing.T) {
 		},
 		{
 			NodeName:       "node05",
-			NodeId:         internal.NewNodeId(),
-			PrivKey:        internal.NewPrivKey(),
+			NodeId:         nodelib.NewNodeId(),
+			PrivKey:        nodelib.NewPrivKey(),
 			NodeAddress:    "192.168.1.5",
 			P2PPort:        26656,
 			RPCPort:        26657,
@@ -141,8 +141,8 @@ func TestAddNodeFiles(t *testing.T) {
 		},
 		{
 			NodeName:       "node06",
-			NodeId:         internal.NewNodeId(),
-			PrivKey:        internal.NewPrivKey(),
+			NodeId:         nodelib.NewNodeId(),
+			PrivKey:        nodelib.NewPrivKey(),
 			NodeAddress:    "192.168.1.6",
 			P2PPort:        26656,
 			RPCPort:        26657,
@@ -195,7 +195,7 @@ func TestConvertJsonToPeer(t *testing.T) {
 		"is_validator": true
 	}]`
 
-	expectedPeer := &internal.Peer{
+	expectedPeer := &nodelib.Peer{
 		NodeName:       "peer123",
 		NodeId:         "id123",
 		PrivKey:        "privatekey123",
@@ -207,7 +207,7 @@ func TestConvertJsonToPeer(t *testing.T) {
 		IsValidator:    true,
 	}
 
-	peers := internal.ConvertJsonToPeers(jsonStr)
+	peers := nodelib.ConvertJsonToPeers(jsonStr)
 
 	actualPeer := peers[0]
 

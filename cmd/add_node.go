@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"NodeCLI/internal"
+	"NodeCLI/nodelib"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -54,10 +54,10 @@ Example:
 	cmd.Flags().StringVar(&arg.NodeId, "node-id", "", "node id")
 
 	cmd.Flags().StringVar(&arg.Peers, "peers", "",
-		"peers that will be used to sync block between nodes.")
+		"a JSON string that includes peer information, for example: name, id, private key, server address, rpc port and etc..")
 
 	cmd.Flags().StringVar(&arg.GenesisDoc, "genesis-doc", "",
-		"the chain need genesis-doc to start and sync blocks between nodes.")
+		"a JSON string that includes context of genesis.toml which already exist in config directory of other nodes.")
 
 	return cmd
 }
@@ -65,9 +65,9 @@ Example:
 func addnodeFiles(*cobra.Command, []string) error {
 
 	arg := nodeAddArgs
-	err := internal.AddChainNode(arg.Peers, arg.GenesisDoc, arg.NodeId, home)
+	err := nodelib.AddChainNode(arg.Peers, arg.GenesisDoc, arg.NodeId, home)
 	if err == nil {
-		currPeer := internal.ConvertJsonToPeers(arg.Peers).GetPeerByNodeId(arg.NodeId)
+		currPeer := nodelib.ConvertJsonToPeers(arg.Peers).GetPeerByNodeId(arg.NodeId)
 		var nodeName string
 		if currPeer != nil {
 			nodeName = currPeer.NodeName
