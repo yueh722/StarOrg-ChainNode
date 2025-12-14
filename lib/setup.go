@@ -1,8 +1,9 @@
-package nodelib
+package lib
 
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -17,6 +18,10 @@ type NodeServerInfo struct {
 	RPCAddr        string
 	WebServiceAddr string
 	Validator      bool
+}
+
+func GetNodeBaseDir(node string) string {
+	return "./"
 }
 
 func genesisTimeFromUnix(nsec int64) time.Time {
@@ -90,6 +95,20 @@ func AddChainNode(peers, genesisDoc, nodeId, nodeDir string) error {
 
 	if err := peerConfig.SaveFiles(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func CheckChainNode(nodeId, nodeDir string) bool {
+
+	return false
+}
+
+func PurgeChainNode(nodeId, nodeDir string) error {
+	err := os.RemoveAll(nodeDir)
+	if err != nil {
+		return fmt.Errorf("purge chain node path [%v] failed: %v", nodeDir, err)
 	}
 
 	return nil

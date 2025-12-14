@@ -1,4 +1,4 @@
-package nodelib
+package lib
 
 type PersistentPeer struct {
 	NodeId      string

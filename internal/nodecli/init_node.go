@@ -1,9 +1,9 @@
-package cmd
+package nodecli
 
 // when initialize a chain from scratch, we need to use command 'init-node' to initialize node one by one.
 
 import (
-	"NodeCLI/nodelib"
+	"NodeCLI/lib"
 	"fmt"
 
 	cfg "github.com/cometbft/cometbft/v2/config"
@@ -78,9 +78,9 @@ func init() {
 func initnodeFiles(*cobra.Command, []string) error {
 	arg := nodeInitArgs
 
-	err := nodelib.InitializeChainNode(arg.genesisTime, arg.peers, arg.chainId, arg.nodeId, home)
+	err := lib.InitializeChainNode(arg.genesisTime, arg.peers, arg.chainId, arg.nodeId, home)
 	if err == nil {
-		currPeer := nodelib.ConvertJsonToPeers(arg.peers).GetPeerByNodeId(arg.nodeId)
+		currPeer := lib.ConvertJsonToPeers(arg.peers).GetPeerByNodeId(arg.nodeId)
 		var nodeName string
 		if currPeer != nil {
 			nodeName = currPeer.NodeName

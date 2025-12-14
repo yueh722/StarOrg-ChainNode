@@ -1,4 +1,4 @@
-package nodelib
+package lib
 
 import (
 	"encoding/base64"

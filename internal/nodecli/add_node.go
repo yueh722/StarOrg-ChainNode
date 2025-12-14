@@ -1,7 +1,7 @@
-package cmd
+package nodecli
 
 import (
-	"NodeCLI/nodelib"
+	"NodeCLI/lib"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -65,9 +65,9 @@ Example:
 func addnodeFiles(*cobra.Command, []string) error {
 
 	arg := nodeAddArgs
-	err := nodelib.AddChainNode(arg.Peers, arg.GenesisDoc, arg.NodeId, home)
+	err := lib.AddChainNode(arg.Peers, arg.GenesisDoc, arg.NodeId, home)
 	if err == nil {
-		currPeer := nodelib.ConvertJsonToPeers(arg.Peers).GetPeerByNodeId(arg.NodeId)
+		currPeer := lib.ConvertJsonToPeers(arg.Peers).GetPeerByNodeId(arg.NodeId)
 		var nodeName string
 		if currPeer != nil {
 			nodeName = currPeer.NodeName
