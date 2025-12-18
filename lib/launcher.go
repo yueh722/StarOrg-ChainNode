@@ -1,7 +1,7 @@
 package lib
 
 import (
-	"NodeCLI/lib/log"
+	"Chain/lib/log"
 	"fmt"
 	"os"
 	"os/exec"

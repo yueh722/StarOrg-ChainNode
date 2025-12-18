@@ -1,7 +1,7 @@
 package nodecli
 
 import (
-	"NodeCLI/lib"
+	"Chain/lib"
 	"fmt"
 
 	"github.com/spf13/cobra"

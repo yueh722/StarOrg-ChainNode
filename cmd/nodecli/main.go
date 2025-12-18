@@ -1,7 +1,7 @@
 package main
 
 import (
-	"NodeCLI/internal/nodecli"
+	"Chain/internal/nodecli"
 	"fmt"
 	"os"
 )

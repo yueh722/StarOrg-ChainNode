@@ -1,7 +1,7 @@
 package nodecli
 
 import (
-	"NodeCLI/lib"
+	"Chain/lib"
 	"encoding/json"
 	"fmt"
 	"testing"

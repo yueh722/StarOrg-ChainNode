@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package lib
 
 import (
-	"NodeCLI/lib/log"
+	"Chain/lib/log"
 	"bufio"
 	"io"
 	"os"

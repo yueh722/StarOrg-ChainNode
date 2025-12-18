@@ -194,6 +194,10 @@ func (m *Manager) Status() (string, error) {
 	return strconv.Itoa(int(status)), nil
 }
 
+func (m *Manager) GetServiceName() string {
+	return m.config.Name
+}
+
 // WithName 设置服务名称
 func WithName(name string) Option {
 	return func(c *Config) {

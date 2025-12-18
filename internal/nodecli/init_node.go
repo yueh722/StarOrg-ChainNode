@@ -3,7 +3,7 @@ package nodecli
 // when initialize a chain from scratch, we need to use command 'init-node' to initialize node one by one.
 
 import (
-	"NodeCLI/lib"
+	"Chain/lib"
 	"fmt"
 
 	cfg "github.com/cometbft/cometbft/v2/config"
