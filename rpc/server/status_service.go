@@ -9,14 +9,26 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+type NodeStatusCallback func(status *common.StatusNode)
+type NodeStorageCallback func(status *common.StatusStorage)
+
 type StatusService struct {
-	mu sync.Mutex
+	mu        sync.Mutex
+	fnStatus  NodeStatusCallback
+	fnStorage NodeStorageCallback
 }
 
 func NewStatusService() *StatusService {
 	return &StatusService{
-		mu: sync.Mutex{},
+		mu:        sync.Mutex{},
+		fnStatus:  nil,
+		fnStorage: nil,
 	}
+}
+
+func (s *StatusService) SetCallback(fnStatus NodeStatusCallback, fnStorage NodeStorageCallback) {
+	s.fnStatus = fnStatus
+	s.fnStorage = fnStorage
 }
 
 func (s *StatusService) RegisterService(server *rpc.Server) error {
@@ -27,14 +39,22 @@ func (s *StatusService) RegisterService(server *rpc.Server) error {
 	return nil
 }
 
-func (s *StatusService) ReportNodeStatus(status common.StatusNode) error {
+func (s *StatusService) ReportNodeStatus(status *common.StatusNode) error {
 
-	log.Printf("[NodeStatus] %+v\n", status)
+	if s.fnStatus != nil {
+		s.fnStatus(status)
+	}
+
+	log.Printf("[NodeStatus] %v\n", status)
 	return nil
 }
 
-func (s *StatusService) ReportStorageStatus(status common.StatusStorage) error {
+func (s *StatusService) ReportStorageStatus(status *common.StatusStorage) error {
 
-	log.Printf("[StorageStatus] %+v\n", status)
+	if s.fnStorage != nil {
+		s.fnStorage(status)
+	}
+
+	log.Printf("[StorageStatus] %v\n", status)
 	return nil
 }

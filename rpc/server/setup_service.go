@@ -1,6 +1,7 @@
 package server
 
 import (
+	"Chain/rpc/commandlog"
 	"Chain/rpc/common"
 	"encoding/json"
 	"fmt"
@@ -127,10 +128,10 @@ func (s *SetupService) GetNotifierByNodeID(nodeID string) map[rpc.ID]*ClientSub 
 	return notifiers
 }
 
-func (s *SetupService) ReportCommandResult(res common.CommandResult) error {
+func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 
 	log.Printf("[CommandResult] cmd=%s id=%s node=%s status=%s progress=%.1f msg=%q err=%q",
-		res.Cmd, res.CommandID, res.NodeID, res.Status, res.Progress, res.Message, res.Error)
+		res.Cmd, res.CommandID, res.NodeID, res.Status, res.Message, res.Error)
 
 	return nil
 }

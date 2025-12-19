@@ -35,12 +35,11 @@ func NewServer(addr string) (*Server, error) {
 	server := rpc.NewServer()
 
 	setup := NewSetupService()
-	status := NewStatusService()
-
 	if err := setup.RegisterService(server); err != nil {
 		return nil, err
 	}
 
+	status := NewStatusService()
 	if err := status.RegisterService(server); err != nil {
 		return nil, err
 	}
