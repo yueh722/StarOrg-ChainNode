@@ -9,6 +9,10 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+func NewStreamSugaredLogger(nodeID string) *zap.SugaredLogger {
+	return nil
+}
+
 // NewZapSugaredLogger 创建一个配置灵活的 zap.SugaredLogger
 // 参数:
 //   - logPath: 日志输出路径数组，如 ["app.log", "stdout"]，支持多个输出目标

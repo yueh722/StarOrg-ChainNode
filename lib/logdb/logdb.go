@@ -1,32 +1,67 @@
 package logdb
 
 import (
-	"errors"
 	"io"
+	"time"
 )
 
-// Record 是 LogDB 层存储的最小单位：key + nodeid + value(bytes)
-// value 由上层（Repo）决定序列化格式，比如 JSON。
 type Record struct {
+	Day    string // YYYY-MM-DD（来源于文件名）
+	Time   int64  // UnixMilli（来自每行内容）
 	Key    string
 	NodeID string
 	Value  []byte
 }
 
-// LogDB：存储引擎最小接口
-// - Append：追加一条记录（事件溯源）
-// - Replay：从磁盘/存储回放所有记录（用于重建索引）
-// - LatestByKey：按 key 取最新记录（不要求 O(1)，但引擎可优化）
-// - ScanByNode：按 node 回放/扫描该节点的记录
-type LogDB interface {
-	Append(key, nodeID string, value []byte) error
-	Replay(days []string, fn func(rec Record) error) error
-	LatestByKey(key string) (*Record, error)
-	ScanByNode(nodeID string, days []string, fn func(rec Record) error) error
-	io.Closer
+// RangeQuery：更贴“从后往前扫一段时间”
+// - NDays==0 => 扫描所有日志文件（列目录）
+// - NDays>0  => 从 StartDay 往前扫 NDays 天（按天倒序），遇到文件不存在就终止
+type RangeQuery struct {
+	StartDay string // YYYY-MM-DD；空则默认今天（loc 决定）
+	NDays    int    // 0 表示 all
+
+	NodeID string
+	Key    string
+
+	Limit int // <=0 不限制（注意：本实现是“边扫边回调”，并不保证严格最近 N 条）
+	Loc   *time.Location
 }
 
-var (
-	ErrCommandNotFound = errors.New("command not found")
-	ErrInvalidResult   = errors.New("invalid command result")
-)
+type Option func(*RangeQuery)
+
+func WithStartDay(day string) Option {
+	return func(q *RangeQuery) { q.StartDay = day }
+}
+
+// WithNDays: 从 StartDay 往前扫 NDays 天；n==0 表示扫全部
+func WithNDays(n int) Option {
+	return func(q *RangeQuery) { q.NDays = n }
+}
+
+func WithRecentDays(n int, loc *time.Location) Option {
+	return func(q *RangeQuery) {
+		q.NDays = n
+		q.Loc = loc
+		q.StartDay = "" // 让引擎用“今天”作为 StartDay
+	}
+}
+
+func WithNode(nodeID string) Option {
+	return func(q *RangeQuery) { q.NodeID = nodeID }
+}
+
+func WithKey(key string) Option {
+	return func(q *RangeQuery) { q.Key = key }
+}
+
+func WithLimit(n int) Option {
+	return func(q *RangeQuery) { q.Limit = n }
+}
+
+// LogDB：存储引擎最小接口
+type LogDBRange interface {
+	Append(key, nodeID string, value []byte) error
+	Latest(opts ...Option) (Record, error)
+	Scan(fn func(rec Record) error, opts ...Option) error
+	io.Closer
+}

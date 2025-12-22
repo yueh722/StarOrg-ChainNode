@@ -14,11 +14,21 @@ import (
 	"go.uber.org/zap"
 )
 
+func GetLogPath(appName string) string {
+	return filepath.Join()
+}
+
 // NewLogger creates a logger that delegates to the zap.SugaredLogger.
 func NewLogger(name string) *Logger {
 
 	return &Logger{
-		s: NewZapSugaredLogger([]string{filepath.Join("./log", name)}, "json"),
+		s: NewZapSugaredLogger([]string{filepath.Join("./log/", name)}, "json"),
+	}
+}
+
+func NewCometbftNodeLogger(nodeID string) *Logger {
+	return &Logger{
+		s: NewZapSugaredLogger([]string{filepath.Join("./log/node", nodeID)}, "json"),
 	}
 }
 

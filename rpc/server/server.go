@@ -1,6 +1,7 @@
 package server
 
 import (
+	"Chain/lib/queuestore"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -41,6 +42,11 @@ func NewServer(addr string) (*Server, error) {
 
 	status := NewStatusService()
 	if err := status.RegisterService(server); err != nil {
+		return nil, err
+	}
+
+	logSrv := NewLogService(queuestore.NewInMemoryStore(), queuestore.NewBroker())
+	if err := logSrv.RegisterService(server); err != nil {
 		return nil, err
 	}
 

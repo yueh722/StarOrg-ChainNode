@@ -4,9 +4,18 @@ import (
 	"Chain/lib/logdb"
 	"Chain/rpc/common"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
+)
+
+var (
+	ErrInvalidCommand  = errors.New("invalid command")
+	ErrCommandIdEmpty  = errors.New("command id empty")
+	ErrCommandNotFound = errors.New("command not found")
+
+	DefaultLoadLogDays = 30
 )
 
 type CommandStatus string
@@ -39,33 +48,32 @@ type CommandEventRepo interface {
 	Update(r CommandResult) error
 	Complete(commandID string, success bool, message string, errStr string, output json.RawMessage) (CommandResult, error)
 
-	GetLatest(commandID string) (CommandResult, error)
-	ListLatestByNode(nodeID string) ([]CommandResult, error)
+	GetCommand(commandID string) (CommandResult, error)
+	ListCommandByNode(nodeID string) ([]CommandResult, error)
 
-	History(commandID string) ([]CommandResult, error)
-	HistoryFromDisk(commandID string) ([]CommandResult, error)
+	//HistoryFromDiskByNode(nodeID string) ([]CommandResult, error)
 
 	Close() error
 }
 
 type CommandRepo struct {
-	db           logdb.LogDB
+	store        logdb.CommandLogStore
 	mu           sync.RWMutex
 	latestByID   map[string]CommandResult
-	latestByNode map[string]map[string]CommandResult
+	latestByNode map[string]map[string]CommandResult // node_name -> map: command_id -> commandResult
 	historyByID  map[string][]CommandResult
 }
 
-func NewCommandRepo(db logdb.LogDB) (*CommandRepo, error) {
+func NewCommandRepo(store logdb.CommandLogStore) (*CommandRepo, error) {
 	r := &CommandRepo{
-		db:           db,
+		store:        store,
 		latestByID:   make(map[string]CommandResult),
 		latestByNode: make(map[string]map[string]CommandResult),
 		historyByID:  make(map[string][]CommandResult),
 	}
 
-	// build memory record of history
-	if err := db.Replay(func(rec logdb.Record) error {
+	// load all history records of command log
+	if err := store.Scan(func(rec logdb.CommandLogRow) error {
 		var e CommandResult
 		if err := json.Unmarshal(rec.Value, &e); err != nil {
 			return nil // 日志容错：坏行跳过
@@ -75,14 +83,14 @@ func NewCommandRepo(db logdb.LogDB) (*CommandRepo, error) {
 		}
 		r.apply(e)
 		return nil
-	}); err != nil {
+	}, logdb.Query{}); err != nil {
 		return nil, err
 	}
 
 	return r, nil
 }
 
-func (r *CommandRepo) Close() error { return r.db.Close() }
+func (r *CommandRepo) Close() error { return r.store.Close() }
 
 func (r *CommandRepo) Update(e CommandResult) error {
 	if err := validateBasic(e); err != nil {
@@ -100,7 +108,7 @@ func (r *CommandRepo) Update(e CommandResult) error {
 	if err != nil {
 		return err
 	}
-	if err := r.db.Append(e.CommandID, e.NodeID, b); err != nil {
+	if err := r.store.Append(e.CommandID, e.NodeID, b); err != nil {
 		return err
 	}
 
@@ -111,23 +119,10 @@ func (r *CommandRepo) Update(e CommandResult) error {
 }
 
 func (r *CommandRepo) Complete(commandID string, success bool, message string, errStr string, output json.RawMessage) (CommandResult, error) {
-	if commandID == "" {
-		return CommandResult{}, fmt.Errorf("%w: command_id empty", logdb.ErrInvalidResult)
-	}
-
-	// 先读最新状态（用内存索引更快；若索引没有也可 db.LatestByKey）
-	r.mu.RLock()
-	cur, ok := r.latestByID[commandID]
-	r.mu.RUnlock()
-
-	if !ok {
-		rec, err := r.db.LatestByKey(commandID)
-		if err != nil {
-			return CommandResult{}, err
-		}
-		if err := json.Unmarshal(rec.Value, &cur); err != nil || cur.CommandID == "" {
-			return CommandResult{}, logdb.ErrCommandNotFound
-		}
+	cur, err := r.GetCommand(commandID)
+	if err != nil {
+		// command does not exist in the memory, ignore status update.
+		return cur, err
 	}
 
 	now := time.Now().UnixMilli()
@@ -151,7 +146,7 @@ func (r *CommandRepo) Complete(commandID string, success bool, message string, e
 	if err != nil {
 		return CommandResult{}, err
 	}
-	if err := r.db.Append(cur.CommandID, cur.NodeID, b); err != nil {
+	if err := r.store.Append(cur.CommandID, cur.NodeID, b); err != nil {
 		return CommandResult{}, err
 	}
 
@@ -161,7 +156,11 @@ func (r *CommandRepo) Complete(commandID string, success bool, message string, e
 	return cur, nil
 }
 
-func (r *CommandRepo) GetLatest(commandID string) (CommandResult, error) {
+func (r *CommandRepo) GetCommand(commandID string) (CommandResult, error) {
+	if commandID == "" {
+		return CommandResult{}, ErrCommandIdEmpty
+	}
+
 	r.mu.RLock()
 	v, ok := r.latestByID[commandID]
 	r.mu.RUnlock()
@@ -169,18 +168,10 @@ func (r *CommandRepo) GetLatest(commandID string) (CommandResult, error) {
 		return v, nil
 	}
 
-	rec, err := r.db.LatestByKey(commandID)
-	if err != nil {
-		return CommandResult{}, err
-	}
-	var e CommandResult
-	if err := json.Unmarshal(rec.Value, &e); err != nil || e.CommandID == "" {
-		return CommandResult{}, logdb.ErrCommandNotFound
-	}
-	return e, nil
+	return CommandResult{}, ErrInvalidCommand
 }
 
-func (r *CommandRepo) ListLatestByNode(nodeID string) ([]CommandResult, error) {
+func (r *CommandRepo) ListCommandByNode(nodeID string) ([]CommandResult, error) {
 	r.mu.RLock()
 	m := r.latestByNode[nodeID]
 	r.mu.RUnlock()
@@ -194,7 +185,7 @@ func (r *CommandRepo) ListLatestByNode(nodeID string) ([]CommandResult, error) {
 	}
 
 	last := map[string]CommandResult{}
-	if err := r.db.ScanByNode(nodeID, func(rec logdb.Record) error {
+	if err := r.store.Scan(func(rec logdb.CommandLogRow) error {
 		var e CommandResult
 		if err := json.Unmarshal(rec.Value, &e); err != nil {
 			return nil
@@ -203,7 +194,7 @@ func (r *CommandRepo) ListLatestByNode(nodeID string) ([]CommandResult, error) {
 			last[e.CommandID] = e
 		}
 		return nil
-	}); err != nil {
+	}, logdb.Query{NodeID: nodeID}); err != nil {
 		return nil, err
 	}
 
@@ -214,50 +205,11 @@ func (r *CommandRepo) ListLatestByNode(nodeID string) ([]CommandResult, error) {
 	return out, nil
 }
 
-func (r *CommandRepo) History(commandID string) ([]CommandResult, error) {
-	r.mu.RLock()
-	h, ok := r.historyByID[commandID]
-	r.mu.RUnlock()
-
-	if ok {
-		out := make([]CommandResult, len(h))
-		copy(out, h)
-		return out, nil
-	}
-	return r.HistoryFromDisk(commandID)
-}
-
-func (r *CommandRepo) HistoryFromDisk(commandID string) ([]CommandResult, error) {
-	if commandID == "" {
-		return nil, fmt.Errorf("%w: command_id empty", logdb.ErrInvalidResult)
-	}
-
-	var out []CommandResult
-	err := r.db.Replay(func(rec logdb.Record) error {
-		if rec.Key != commandID {
-			return nil
-		}
-		var e CommandResult
-		if err := json.Unmarshal(rec.Value, &e); err != nil {
-			return nil
-		}
-		out = append(out, e)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(out) == 0 {
-		return nil, logdb.ErrCommandNotFound
-	}
-	return out, nil
-}
-
 // --- internal helpers ---
 
 func validateBasic(e CommandResult) error {
 	if e.CommandID == "" || e.NodeID == "" || e.Cmd == "" || e.Status == "" {
-		return fmt.Errorf("%w: command_id/node_id/cmd/status required", logdb.ErrInvalidResult)
+		return fmt.Errorf("%w: command_id/node_id/cmd/status required", ErrInvalidCommand)
 	}
 	return nil
 }
