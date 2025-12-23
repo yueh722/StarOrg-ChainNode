@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+// Subscription
 func (s *SetupService) SubscribeCommand(ctx context.Context, nodeID string) (*rpc.Subscription, error) {
 
 	notifier, ok := rpc.NotifierFromContext(ctx)
@@ -43,6 +44,7 @@ func (s *SetupService) AddOrUpdateSubscription(subID rpc.ID, clientSub *ClientSu
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// find subscription of current node that already exist.
 	notifiers := maputil.Filter(s.subs, func(_ rpc.ID, sub *ClientSub) bool {
 		return sub.NodeID == clientSub.NodeID
 	})
@@ -52,5 +54,4 @@ func (s *SetupService) AddOrUpdateSubscription(subID rpc.ID, clientSub *ClientSu
 	}
 
 	s.subs[subID] = clientSub
-
 }

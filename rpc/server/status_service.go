@@ -12,6 +12,8 @@ import (
 type NodeStatusCallback func(status *common.StatusNode)
 type NodeStorageCallback func(status *common.StatusStorage)
 
+// SetupService is designed for nodeproxy reportting status about node to NodeMaster.
+// Request from: NodeProxy
 type StatusService struct {
 	mu        sync.Mutex
 	fnStatus  NodeStatusCallback
@@ -39,6 +41,7 @@ func (s *StatusService) RegisterService(server *rpc.Server) error {
 	return nil
 }
 
+// Method
 func (s *StatusService) ReportNodeStatus(status *common.StatusNode) error {
 
 	if s.fnStatus != nil {
@@ -49,12 +52,32 @@ func (s *StatusService) ReportNodeStatus(status *common.StatusNode) error {
 	return nil
 }
 
+// Method
+
+// Method
 func (s *StatusService) ReportStorageStatus(status *common.StatusStorage) error {
 
 	if s.fnStorage != nil {
 		s.fnStorage(status)
 	}
 
+	//info, _ := disk.Usage(utils.GetStorageDrive())
+	//data, _ := json.MarshalIndent(info, "", "  ")
+
 	log.Printf("[StorageStatus] %v\n", status)
 	return nil
+}
+
+func convertBytesTraditional(size int64) string {
+	if size < 1024 {
+		return fmt.Sprintf("%d B", size)
+	} else if size < 1024*1024 {
+		return fmt.Sprintf("%.2f KB", float64(size)/1024)
+	} else if size < 1024*1024*1024 {
+		return fmt.Sprintf("%.2f MB", float64(size)/(1024*1024))
+	} else if size < 1024*1024*1024*1024 {
+		return fmt.Sprintf("%.2f GB", float64(size)/(1024*1024*1024))
+	} else {
+		return fmt.Sprintf("%.2f TB", float64(size)/(1024*1024*1024*1024))
+	}
 }

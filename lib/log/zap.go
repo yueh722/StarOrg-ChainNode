@@ -7,28 +7,31 @@ SPDX-License-Identifier: Apache-2.0
 package log
 
 import (
+	"Chain/lib/queuestore"
+	"Chain/utils"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"go.uber.org/zap"
 )
 
-func GetLogPath(appName string) string {
-	return filepath.Join()
-}
-
 // NewLogger creates a logger that delegates to the zap.SugaredLogger.
-func NewLogger(name string) *Logger {
-
+func NewLogger(appName string) *Logger {
 	return &Logger{
-		s: NewZapSugaredLogger([]string{filepath.Join("./log/", name)}, "json"),
+		//s: NewZapSugaredLogger([]string{utils.GetLogPath(appName, "")}, "json"),
+		s: NewZapSugaredLogger(
+			[]OutputSpec{
+				{
+					Target: utils.GetLogPath(appName, ""),
+					Format: "json",
+				},
+			}),
 	}
 }
 
-func NewCometbftNodeLogger(nodeID string) *Logger {
+func NewCometbftNodeLogger(nodeID string, store queuestore.QueueStore) *Logger {
 	return &Logger{
-		s: NewZapSugaredLogger([]string{filepath.Join("./log/node", nodeID)}, "json"),
+		s: NewStreamSugaredLogger(nodeID, store),
 	}
 }
 

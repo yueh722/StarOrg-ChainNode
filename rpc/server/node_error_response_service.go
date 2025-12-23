@@ -8,13 +8,16 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+//
+// LogService is designed for webserver getting notification from cometbft-node and cometbft-app.
+// Request from: WebServer
+
 type LogService struct {
-	store  queuestore.QueueStore
-	broker *queuestore.Broker
+	nodeStreamStore queuestore.QueueStore
 }
 
-func NewLogService(store queuestore.QueueStore, broker *queuestore.Broker) *LogService {
-	return &LogService{store: store, broker: broker}
+func NewLogService(store queuestore.QueueStore) *LogService {
+	return &LogService{nodeStreamStore: store}
 }
 
 func (s *LogService) RegisterService(server *rpc.Server) error {
@@ -38,11 +41,11 @@ func (s *LogService) SubscribeErrors(ctx context.Context, args SubscribeArgs) (*
 	}
 	sub := notifier.CreateSubscription()
 
-	ch := s.broker.Subscribe(256)
+	ch := s.nodeStreamStore.GetBroker().Subscribe(256)
 
 	// notify all events that had not sent.
 	if args.Since == "" || args.Since == "unsent" {
-		_ = s.store.ScanUnsent(0, func(e queuestore.PersistedEvent) error {
+		_ = s.nodeStreamStore.ScanUnsent(0, func(e queuestore.PersistedEvent) error {
 			notifier.Notify(sub.ID, e)
 			return nil
 		})
@@ -50,7 +53,7 @@ func (s *LogService) SubscribeErrors(ctx context.Context, args SubscribeArgs) (*
 
 	//create go routine for notifying new event.
 	go func() {
-		defer s.broker.Unsubscribe(ch)
+		defer s.nodeStreamStore.GetBroker().Unsubscribe(ch)
 		for {
 			select {
 			case <-sub.Err(): // client disconnected
@@ -69,7 +72,7 @@ func (s *LogService) SubscribeErrors(ctx context.Context, args SubscribeArgs) (*
 
 // Ack：client call Ack to confirm that event has received. method: "log_ack", params: [event_id]
 func (s *LogService) Ack(eventID string) (bool, error) {
-	if err := s.store.MarkSent(eventID); err != nil {
+	if err := s.nodeStreamStore.MarkSent(eventID); err != nil {
 		return false, err
 	}
 	return true, nil

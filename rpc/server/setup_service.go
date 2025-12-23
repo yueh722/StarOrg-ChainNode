@@ -1,11 +1,14 @@
 package server
 
 import (
+	"Chain/lib/logdb"
 	"Chain/rpc/commandlog"
 	"Chain/rpc/common"
+	"Chain/utils"
 	"encoding/json"
 	"fmt"
 	"log"
+	"path"
 	"sync"
 	"time"
 
@@ -13,12 +16,14 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+// SetupService is designed for nodeproxy getting setup command dispatched from NodeMaster.
+// Request from: NodeProxy
 type SetupService struct {
 	mu   sync.Mutex
 	subs map[rpc.ID]*ClientSub
 
-	// optional: store last result per command
-	// results map[string]common.CommandResult
+	//
+	cmdEvent commandlog.CommandEventRepo
 }
 
 type ClientSub struct {
@@ -27,8 +32,26 @@ type ClientSub struct {
 }
 
 func NewSetupService() *SetupService {
+
+	cmdLogStore, err := logdb.NewSqliteCommandLogStore(logdb.Config{
+		Path:        path.Join(utils.GetAppDataPath(""), "setup.db"),
+		Loc:         nil,
+		InitTimeout: 0,
+		OpTimeout:   0,
+		BusyTimeout: 0,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cmdEvent, err := commandlog.NewCommandRepo(cmdLogStore)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return &SetupService{
-		subs: make(map[rpc.ID]*ClientSub),
+		subs:     make(map[rpc.ID]*ClientSub),
+		cmdEvent: cmdEvent,
 	}
 }
 
@@ -40,6 +63,7 @@ func (s *SetupService) RegisterService(server *rpc.Server) error {
 	return nil
 }
 
+// Method
 // Broadcast: "init all clients" with per-client NodeID assignment.
 func (s *SetupService) BroadcastInitializeChainNode(
 	chainID string,
@@ -74,7 +98,21 @@ func (s *SetupService) BroadcastInitializeChainNode(
 			IssuedAt:  time.Now().Unix(),
 		}
 
+		//notify all client to initialize node
 		if err := clientSub.Notifier.Notify(subID, env); err != nil {
+			return err
+		}
+
+		//put command record into database
+		err = s.cmdEvent.Update(commandlog.CommandResult{
+			CommandID: cmdID,
+			Cmd:       env.Cmd,
+			NodeID:    nodeID,
+			Status:    commandlog.CmdRunning,
+			Message:   string(payload),
+			StartedAt: time.Now().Unix(),
+		})
+		if err != nil {
 			return err
 		}
 	}
@@ -82,6 +120,8 @@ func (s *SetupService) BroadcastInitializeChainNode(
 	return nil
 }
 
+// Method
+// send start,stop,restart command to specified node
 func (s *SetupService) ControlNodes(ctlNodes ...common.SetupControlNode) error {
 
 	s.mu.Lock()
@@ -118,9 +158,6 @@ func (s *SetupService) ControlNodes(ctlNodes ...common.SetupControlNode) error {
 
 func (s *SetupService) GetNotifierByNodeID(nodeID string) map[rpc.ID]*ClientSub {
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	notifiers := maputil.Filter(s.subs, func(_ rpc.ID, clientSub *ClientSub) bool {
 		return clientSub.NodeID == nodeID
 	})
@@ -128,10 +165,14 @@ func (s *SetupService) GetNotifierByNodeID(nodeID string) map[rpc.ID]*ClientSub 
 	return notifiers
 }
 
+// Method
+// complete command that sent to node before
 func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 
 	log.Printf("[CommandResult] cmd=%s id=%s node=%s status=%s progress=%.1f msg=%q err=%q",
 		res.Cmd, res.CommandID, res.NodeID, res.Status, res.Message, res.Error)
 
-	return nil
+	_, err := s.cmdEvent.Complete(res.CommandID, res.Status == commandlog.CmdSuccess, res.Message, res.Error, res.Output)
+
+	return err
 }

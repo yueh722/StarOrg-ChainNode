@@ -9,8 +9,9 @@ import (
 var ErrEmptyEventID = errors.New("event_id empty")
 
 type InMemoryStore struct {
-	mu sync.Mutex
-	m  map[string]*memItem
+	mu     sync.Mutex
+	m      map[string]*memItem
+	broker *Broker
 }
 
 type memItem struct {
@@ -19,13 +20,23 @@ type memItem struct {
 }
 
 func NewInMemoryStore() *InMemoryStore {
-	return &InMemoryStore{m: make(map[string]*memItem)}
+	return &InMemoryStore{
+		m:      make(map[string]*memItem),
+		broker: NewBroker(),
+	}
+}
+
+func (s *InMemoryStore) GetBroker() *Broker {
+	return s.broker
 }
 
 func (s *InMemoryStore) Put(e PersistedEvent) error {
 	if e.EventID == "" {
 		return ErrEmptyEventID
 	}
+
+	s.broker.Publish(e)
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

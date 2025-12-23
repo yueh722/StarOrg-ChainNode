@@ -45,20 +45,21 @@ func fromRow(r errorEventRow) PersistedEvent {
 
 func (errorEventRow) TableName() string { return "error_events" }
 
-type GormSQLiteStore struct {
-	db    *gorm.DB
-	sqlDB interface{ Close() error }
-	opTO  time.Duration
+type SQLiteStore struct {
+	db     *gorm.DB
+	sqlDB  interface{ Close() error }
+	opTO   time.Duration
+	broker *Broker
 }
 
-type GormSQLiteConfig struct {
+type SQLiteConfig struct {
 	Path        string
 	Migrate     bool
 	OpTimeout   time.Duration
 	InitTimeout time.Duration
 }
 
-func NewGormSQLiteStore_Official(cfg GormSQLiteConfig) (*GormSQLiteStore, error) {
+func NewSQLiteStore(cfg SQLiteConfig) (*SQLiteStore, error) {
 	if cfg.Path == "" {
 		return nil, errors.New("sqlite path is empty")
 	}
@@ -101,20 +102,32 @@ func NewGormSQLiteStore_Official(cfg GormSQLiteConfig) (*GormSQLiteStore, error)
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetMaxIdleConns(1)
 
-	return &GormSQLiteStore{db: db, sqlDB: sqlDB, opTO: cfg.OpTimeout}, nil
+	return &SQLiteStore{
+		db:     db,
+		sqlDB:  sqlDB,
+		opTO:   cfg.OpTimeout,
+		broker: NewBroker(),
+	}, nil
 }
 
-func (s *GormSQLiteStore) Close() error {
+func (s *SQLiteStore) GetBroker() *Broker {
+	return s.broker
+}
+
+func (s *SQLiteStore) Close() error {
 	if s.sqlDB != nil {
 		return s.sqlDB.Close()
 	}
 	return nil
 }
 
-func (s *GormSQLiteStore) Put(e PersistedEvent) error {
+func (s *SQLiteStore) Put(e PersistedEvent) error {
 	if e.EventID == "" {
 		return ErrEmptyEventID
 	}
+
+	s.broker.Publish(e)
+
 	ctx, cancel := context.WithTimeout(context.Background(), s.opTO)
 	defer cancel()
 
@@ -127,7 +140,7 @@ func (s *GormSQLiteStore) Put(e PersistedEvent) error {
 		Create(&row).Error
 }
 
-func (s *GormSQLiteStore) MarkSent(eventID string) error {
+func (s *SQLiteStore) MarkSent(eventID string) error {
 	if eventID == "" {
 		return ErrEmptyEventID
 	}
@@ -140,7 +153,7 @@ func (s *GormSQLiteStore) MarkSent(eventID string) error {
 		Update("sent", true).Error
 }
 
-func (s *GormSQLiteStore) ScanUnsent(limit int, fn func(PersistedEvent) error) error {
+func (s *SQLiteStore) ScanUnsent(limit int, fn func(PersistedEvent) error) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

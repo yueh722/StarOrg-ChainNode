@@ -52,10 +52,11 @@ type StatusNode struct {
 // each client will report storage information of host to server freqently
 // method: RPC
 type StatusStorage struct {
-	TotalSpace     int64
-	FreeSpace      int64
-	UsedSpace      int64
-	FreePercentage int64
+	Path        string
+	TotalSpace  int64
+	FreeSpace   int64
+	UsedSpace   int64
+	UsedPercent float64
 }
 
 type CmdType string

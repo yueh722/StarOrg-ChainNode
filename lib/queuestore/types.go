@@ -13,5 +13,6 @@ type QueueStore interface {
 	Put(e PersistedEvent) error
 	MarkSent(eventID string) error
 	ScanUnsent(limit int, fn func(PersistedEvent) error) error
+	GetBroker() *Broker
 	Close() error
 }

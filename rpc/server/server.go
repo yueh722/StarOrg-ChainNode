@@ -18,6 +18,11 @@ type Server struct {
 	addr          string
 }
 
+type ServerConfig struct {
+	Addr     string
+	LogStore queuestore.QueueStore
+}
+
 func newCommandID() (string, error) {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
@@ -26,11 +31,11 @@ func newCommandID() (string, error) {
 	return hex.EncodeToString(b[:]), nil
 }
 
-func NewServer(addr string) (*Server, error) {
+func NewServer(cfg ServerConfig) (*Server, error) {
 	//check addr
-	parts := strings.SplitN(addr, "://", 2)
+	parts := strings.SplitN(cfg.Addr, "://", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid server address: %s", addr)
+		return nil, fmt.Errorf("invalid server address: %s", cfg.Addr)
 	}
 
 	server := rpc.NewServer()
@@ -45,7 +50,7 @@ func NewServer(addr string) (*Server, error) {
 		return nil, err
 	}
 
-	logSrv := NewLogService(queuestore.NewInMemoryStore(), queuestore.NewBroker())
+	logSrv := NewLogService(cfg.LogStore)
 	if err := logSrv.RegisterService(server); err != nil {
 		return nil, err
 	}
@@ -65,7 +70,7 @@ func NewServer(addr string) (*Server, error) {
 		SetupService:  setup,
 		StatusService: status,
 		mux:           mux,
-		addr:          addr,
+		addr:          cfg.Addr,
 	}, nil
 }
 

@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type PersistQueueCore struct {
+type StreamWriter struct {
 	enc      zapcore.Encoder
 	minLevel zapcore.LevelEnabler
 
@@ -25,15 +25,17 @@ type PersistQueueCore struct {
 	mu sync.Mutex
 }
 
-func NewPersistQueueCore(nodeID string, store queuestore.QueueStore) (*PersistQueueCore, error) {
+func NewStreamWriter(nodeID string, store queuestore.QueueStore) (*StreamWriter, error) {
 	if store == nil {
 		return nil, errors.New("store nil")
 	}
 
 	minLevel := zapcore.ErrorLevel
 	encCfg := zap.NewProductionEncoderConfig()
+	encCfg.TimeKey = "time"
+	encCfg.EncodeTime = zapcore.EpochMillisTimeEncoder
 
-	return &PersistQueueCore{
+	return &StreamWriter{
 		enc:      zapcore.NewJSONEncoder(encCfg),
 		minLevel: minLevel,
 		store:    store,
@@ -41,9 +43,9 @@ func NewPersistQueueCore(nodeID string, store queuestore.QueueStore) (*PersistQu
 	}, nil
 }
 
-func (c *PersistQueueCore) Enabled(lvl zapcore.Level) bool { return c.minLevel.Enabled(lvl) }
+func (c *StreamWriter) Enabled(lvl zapcore.Level) bool { return c.minLevel.Enabled(lvl) }
 
-func (c *PersistQueueCore) With(fields []zapcore.Field) zapcore.Core {
+func (c *StreamWriter) With(fields []zapcore.Field) zapcore.Core {
 	c.mu.Lock()
 	enc2 := c.enc.Clone()
 	c.mu.Unlock()
@@ -51,7 +53,7 @@ func (c *PersistQueueCore) With(fields []zapcore.Field) zapcore.Core {
 	for i := range fields {
 		fields[i].AddTo(enc2)
 	}
-	return &PersistQueueCore{
+	return &StreamWriter{
 		enc:      enc2,
 		minLevel: c.minLevel,
 		store:    c.store,
@@ -60,14 +62,14 @@ func (c *PersistQueueCore) With(fields []zapcore.Field) zapcore.Core {
 	}
 }
 
-func (c *PersistQueueCore) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+func (c *StreamWriter) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
 	if c.Enabled(ent.Level) {
 		return ce.AddCore(ent, c)
 	}
 	return ce
 }
 
-func (c *PersistQueueCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
+func (c *StreamWriter) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	if !c.Enabled(ent.Level) {
 		return nil
 	}
@@ -106,7 +108,7 @@ func (c *PersistQueueCore) Write(ent zapcore.Entry, fields []zapcore.Field) erro
 	return c.store.Put(e)
 }
 
-func (c *PersistQueueCore) Sync() error { return nil }
+func (c *StreamWriter) Sync() error { return nil }
 
 func injectSeq(raw string, seq uint64) (string, error) {
 	var m map[string]any

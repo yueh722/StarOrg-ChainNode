@@ -1,6 +1,8 @@
 package log
 
 import (
+	"Chain/lib/queuestore"
+	"Chain/utils"
 	"os"
 	"strings"
 
@@ -9,8 +11,51 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-func NewStreamSugaredLogger(nodeID string) *zap.SugaredLogger {
-	return nil
+type OutputSpec struct {
+	Target string // "stdout" | "stderr" | file path
+	Format string // "console" | "json"
+}
+
+// NewStreamSugaredLogger creates a logger target to a store:
+// - Info+ => file (JSON, rotated)
+// - Error+ => QueueStore via StreamWriter
+func NewStreamSugaredLogger(nodeID string, store queuestore.QueueStore) *zap.SugaredLogger {
+
+	filePath := utils.GetLogPath("node", nodeID)
+
+	encCfg := zap.NewProductionEncoderConfig()
+	encCfg.TimeKey = "time"
+	encCfg.EncodeTime = zapcore.EpochMillisTimeEncoder
+
+	fileEnc := zapcore.NewJSONEncoder(encCfg)
+	fileWS := zapcore.AddSync(&lumberjack.Logger{
+		Filename:  filePath,
+		MaxSize:   100,
+		MaxAge:    365,
+		Compress:  true,
+		LocalTime: true,
+	})
+
+	fileCore := zapcore.NewCore(
+		fileEnc,
+		fileWS,
+		zap.LevelEnablerFunc(func(l zapcore.Level) bool { return l >= zapcore.InfoLevel }),
+	)
+
+	// 2) queue core：Error+
+	streamWriter, _ := NewStreamWriter(nodeID, store)
+
+	// 3) migration cores: file and store
+	tee := zapcore.NewTee(fileCore, streamWriter)
+
+	zl := zap.New(
+		tee,
+		zap.AddCaller(),
+		zap.AddCallerSkip(1),
+		zap.AddStacktrace(zapcore.ErrorLevel),
+	)
+
+	return zl.Sugar()
 }
 
 // NewZapSugaredLogger 创建一个配置灵活的 zap.SugaredLogger
@@ -18,12 +63,13 @@ func NewStreamSugaredLogger(nodeID string) *zap.SugaredLogger {
 //   - logPath: 日志输出路径数组，如 ["app.log", "stdout"]，支持多个输出目标
 //   - logFormat: 日志格式，"plant" 或 "json"
 func NewZapSugaredLogger(
-	logPath []string,
-	logFormat string,
+	targets []OutputSpec,
 ) *zap.SugaredLogger {
 
-	if logPath == nil || len(logPath) == 0 {
-		logPath = []string{"stdout"}
+	if targets == nil || len(targets) == 0 {
+		targets = []OutputSpec{
+			{Target: "stdout", Format: "console"},
+		}
 	}
 
 	// 1. 配置日志级别
@@ -37,10 +83,10 @@ func NewZapSugaredLogger(
 	var cores []zapcore.Core
 	var encoder zapcore.Encoder
 
-	for _, path := range logPath {
+	for _, target := range targets {
 		var writeSyncer zapcore.WriteSyncer
 
-		switch path {
+		switch target.Target {
 		case "stdout":
 			writeSyncer = zapcore.AddSync(os.Stdout)
 			encoder = zapcore.NewConsoleEncoder(encoderConfig)
@@ -51,14 +97,14 @@ func NewZapSugaredLogger(
 			// 文件输出
 			// 使用 lumberjack 进行日志轮转
 			writeSyncer = zapcore.AddSync(&lumberjack.Logger{
-				Filename:  path,
+				Filename:  target.Target,
 				MaxSize:   100,  // MB
 				MaxAge:    365,  // 保留天数
 				Compress:  true, // 压缩旧日志
 				LocalTime: true, // 使用本地时间
 			})
 
-			encoder = getEncoder(encoderConfig, logFormat)
+			encoder = getEncoder(encoderConfig, target.Format)
 		}
 
 		// 创建 core
@@ -79,9 +125,6 @@ func NewZapSugaredLogger(
 		zap.AddCallerSkip(1),
 		zap.AddStacktrace(zapcore.ErrorLevel),
 	)
-
-	// 6. 替换全局 logger
-	zap.ReplaceGlobals(logger)
 
 	return logger.Sugar()
 }
@@ -149,8 +192,12 @@ func NewLoggerWithConfig(config LogConfig) *zap.SugaredLogger {
 
 	// 创建基础 Logger
 	logger := NewZapSugaredLogger(
-		config.Paths,
-		config.Format,
+		[]OutputSpec{
+			{
+				Target: config.Paths[0],
+				Format: config.Format,
+			},
+		},
 	)
 
 	// 如果不是 plant 格式，直接返回
@@ -192,21 +239,37 @@ func NewLoggerWithConfig(config LogConfig) *zap.SugaredLogger {
 // 提供一些预设的快捷函数
 func NewDevelopmentLogger() *zap.SugaredLogger {
 	return NewZapSugaredLogger(
-		[]string{"stdout"},
-		"plant",
+		[]OutputSpec{
+			{
+				Target: "stdout",
+				Format: "console",
+			},
+		},
 	)
 }
 
 func NewProductionLogger(logFile string) *zap.SugaredLogger {
 	return NewZapSugaredLogger(
-		[]string{logFile, "stdout"},
-		"json",
+		[]OutputSpec{
+			{
+				Target: "stdout",
+				Format: "console",
+			},
+			{
+				Target: logFile,
+				Format: "json",
+			},
+		},
 	)
 }
 
 func NewTestLogger() *zap.SugaredLogger {
 	return NewZapSugaredLogger(
-		[]string{"test.log"},
-		"json",
+		[]OutputSpec{
+			{
+				Target: "test.json",
+				Format: "json",
+			},
+		},
 	)
 }
