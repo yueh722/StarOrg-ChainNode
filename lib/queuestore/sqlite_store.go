@@ -1,11 +1,11 @@
 package queuestore
 
 import (
+	"chain/utils"
 	"context"
 	"errors"
 	"time"
 
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -73,7 +73,12 @@ func NewSQLiteStore(cfg SQLiteConfig) (*SQLiteStore, error) {
 		cfg.Migrate = true
 	}
 
-	db, err := gorm.Open(sqlite.Open(cfg.Path), &gorm.Config{})
+	conn, err := utils.SqliteOpen(cfg.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := gorm.Open(conn, &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}

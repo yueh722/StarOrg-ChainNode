@@ -1,11 +1,26 @@
 package lib
 
 import (
+	"Chain/lib/log"
+	"Chain/lib/queuestore"
+	"Chain/utils"
 	"testing"
 	"time"
 )
 
 func TestInstance_StartNode(t *testing.T) {
+
+	core, err := queuestore.NewSQLiteStore(
+		queuestore.SQLiteConfig{
+			Path:        utils.GetLogPath("nodeproxy", "node01"),
+			Migrate:     true,
+			OpTimeout:   5 * time.Second,
+			InitTimeout: 3 * time.Second,
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	instance := NewInstance(
 		&Launcher{
 			Name:        "Start-Cometbft-Node-id",
@@ -15,7 +30,7 @@ func TestInstance_StartNode(t *testing.T) {
 				"--home": "./node01",
 			},
 			Envs:   nil,
-			Logger: nil,
+			Logger: log.NewCometbftNodeLogger("node01", core),
 		},
 	)
 

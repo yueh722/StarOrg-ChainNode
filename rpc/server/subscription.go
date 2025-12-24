@@ -1,7 +1,7 @@
 package server
 
 import (
-	"Chain/lib"
+	"chain/lib"
 	"context"
 
 	"github.com/duke-git/lancet/v2/maputil"

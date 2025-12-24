@@ -1,10 +1,12 @@
 package server
 
 import (
-	"Chain/lib/queuestore"
+	"chain/lib/logdb"
+	"chain/lib/queuestore"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 
@@ -19,8 +21,10 @@ type Server struct {
 }
 
 type ServerConfig struct {
-	Addr     string
-	LogStore queuestore.QueueStore
+	AppName       string
+	Addr          string
+	NodelogStore  queuestore.QueueStore
+	SetuplogStore logdb.CommandLogStore
 }
 
 func newCommandID() (string, error) {
@@ -33,14 +37,14 @@ func newCommandID() (string, error) {
 
 func NewServer(cfg ServerConfig) (*Server, error) {
 	//check addr
-	parts := strings.SplitN(cfg.Addr, "://", 2)
+	parts := strings.SplitN(cfg.Addr, ":", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid server address: %s", cfg.Addr)
 	}
 
 	server := rpc.NewServer()
 
-	setup := NewSetupService()
+	setup := NewSetupService(cfg.SetuplogStore)
 	if err := setup.RegisterService(server); err != nil {
 		return nil, err
 	}
@@ -50,7 +54,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		return nil, err
 	}
 
-	logSrv := NewLogService(cfg.LogStore)
+	logSrv := NewNodeLogService(cfg.NodelogStore)
 	if err := logSrv.RegisterService(server); err != nil {
 		return nil, err
 	}
@@ -63,8 +67,10 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		fmt.Fprintf(w, "RPC Server is running\n")
 	})
 
-	fmt.Printf("WebSocket endpoint: ws://%s:%s/ws", parts[0], parts[1])
-	fmt.Printf("HTTP RPC endpoint:  http://%s:%s/rpc", parts[0], parts[1])
+	localAddr := net.JoinHostPort("localhost", parts[1])
+	fmt.Printf("WebSocket endpoint: ws://%s/ws\n", localAddr)
+	fmt.Printf("HTTP RPC endpoint:  http://%s/rpc\n", localAddr)
+	fmt.Printf("HTTP endpoint:  http://%s\n", localAddr)
 
 	return &Server{
 		SetupService:  setup,
@@ -75,6 +81,6 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 }
 
 func (s *Server) Serve() error {
-	fmt.Println("Server starting on :", s.addr)
+	fmt.Println("Server starting on", s.addr)
 	return http.ListenAndServe(s.addr, s.mux)
 }

@@ -1,8 +1,8 @@
 package commandlog
 
 import (
-	"Chain/lib/logdb"
-	"Chain/rpc/common"
+	"chain/lib/logdb"
+	"chain/rpc/common"
 	"encoding/json"
 	"errors"
 	"fmt"

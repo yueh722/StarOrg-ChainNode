@@ -1,14 +1,12 @@
 package server
 
 import (
-	"Chain/lib/logdb"
-	"Chain/rpc/commandlog"
-	"Chain/rpc/common"
-	"Chain/utils"
+	"chain/lib/logdb"
+	"chain/rpc/commandlog"
+	"chain/rpc/common"
 	"encoding/json"
 	"fmt"
 	"log"
-	"path"
 	"sync"
 	"time"
 
@@ -31,20 +29,9 @@ type ClientSub struct {
 	NodeID   string
 }
 
-func NewSetupService() *SetupService {
+func NewSetupService(store logdb.CommandLogStore) *SetupService {
 
-	cmdLogStore, err := logdb.NewSqliteCommandLogStore(logdb.Config{
-		Path:        path.Join(utils.GetAppDataPath(""), "setup.db"),
-		Loc:         nil,
-		InitTimeout: 0,
-		OpTimeout:   0,
-		BusyTimeout: 0,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	cmdEvent, err := commandlog.NewCommandRepo(cmdLogStore)
+	cmdEvent, err := commandlog.NewCommandRepo(store)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,7 +1,7 @@
 package lib
 
 import (
-	"Chain/lib/log"
+	"chain/lib/log"
 	"fmt"
 	"os"
 	"os/exec"

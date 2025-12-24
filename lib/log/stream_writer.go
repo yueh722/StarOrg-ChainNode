@@ -1,7 +1,7 @@
 package log
 
 import (
-	"Chain/lib/queuestore"
+	"chain/lib/queuestore"
 	"encoding/json"
 	"errors"
 	"strconv"

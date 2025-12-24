@@ -1,8 +1,8 @@
 package log
 
 import (
-	"Chain/lib/queuestore"
-	"Chain/utils"
+	"chain/lib/queuestore"
+	"chain/utils"
 	"os"
 	"strings"
 

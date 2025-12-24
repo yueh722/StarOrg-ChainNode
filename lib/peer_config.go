@@ -220,7 +220,7 @@ func updatePort(urlStr string, newPort uint16) (string, error) {
 	return u.String(), nil
 }
 
-func updateHost(urlStr string, newHost string) (string, error) {
+func UpdateHost(urlStr string, newHost string) (string, error) {
 	if newHost == "" || newHost == "0.0.0.0" {
 		return urlStr, nil
 	}

@@ -29,15 +29,22 @@ func GetStorageDrive() string {
 	return basePath[:len("c:/")]
 }
 
-func GetLogPath(appName, moduleName string) string {
+func GetLogPath(appName string, moduleNames ...string) string {
 	var basePath = os.Getenv("CHAIN_NODE_LOG_PATH")
 	if basePath == "" {
 		basePath = GetAppDataPath(appName)
 	}
 
-	basePath = filepath.Join(basePath, "log")
+	if len(moduleNames) == 0 {
+		basePath = filepath.Join(basePath, "log")
+	} else {
+		for _, m := range moduleNames {
+			basePath = filepath.Join(basePath, m)
+		}
+		basePath = filepath.Join(basePath, "log")
+	}
 
-	logPath := filepath.Join(basePath, moduleName+".log")
+	logPath := basePath
 	if logPath != "" {
 		if err := os.MkdirAll(logPath, os.ModePerm); err != nil {
 			fmt.Printf("can not create log directory: %v, err: %v\n", logPath, err)

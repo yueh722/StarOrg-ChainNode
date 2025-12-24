@@ -1,13 +1,13 @@
 package logdb
 
 import (
+	"chain/utils"
 	"context"
 	"errors"
 	"io"
 	"strconv"
 	"time"
 
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -78,7 +78,12 @@ func NewSqliteCommandLogStore(cfg Config) (*SqliteCommandLogStore, error) {
 		opTO = 3 * time.Second
 	}
 
-	gdb, err := gorm.Open(sqlite.Open(cfg.Path), &gorm.Config{})
+	conn, err := utils.SqliteOpen(cfg.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	gdb, err := gorm.Open(conn, &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}

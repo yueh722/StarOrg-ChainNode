@@ -1,7 +1,7 @@
 package commandlog
 
 import (
-	"Chain/lib/logdb"
+	"chain/lib/logdb"
 	"sort"
 	"testing"
 )

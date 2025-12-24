@@ -7,8 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package log
 
 import (
-	"Chain/lib/queuestore"
-	"Chain/utils"
+	"chain/lib/queuestore"
+	"chain/utils"
 	"fmt"
 	"strings"
 
@@ -22,7 +22,7 @@ func NewLogger(appName string) *Logger {
 		s: NewZapSugaredLogger(
 			[]OutputSpec{
 				{
-					Target: utils.GetLogPath(appName, ""),
+					Target: utils.GetLogPath(appName),
 					Format: "json",
 				},
 			}),

@@ -30,7 +30,7 @@ func startClient(t *testing.T) {
 	// go-ethereum的客户端会自动检测协议
 
 	// 方式1: 使用自定义的DialContext（推荐）
-	client, err := rpc.DialContext(context.Background(), "ws://localhost:1111/ws")
+	client, err := rpc.DialContext(context.Background(), "ws://localhost:8080/ws")
 	if err != nil {
 		t.Fatal("Failed to connect:", err)
 	}

@@ -1,7 +1,7 @@
 package server
 
 import (
-	"Chain/rpc/common"
+	"chain/rpc/common"
 	"fmt"
 	"log"
 	"sync"
@@ -51,8 +51,6 @@ func (s *StatusService) ReportNodeStatus(status *common.StatusNode) error {
 	log.Printf("[NodeStatus] %v\n", status)
 	return nil
 }
-
-// Method
 
 // Method
 func (s *StatusService) ReportStorageStatus(status *common.StatusStorage) error {
