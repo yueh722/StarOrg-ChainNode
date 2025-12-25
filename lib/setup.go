@@ -100,6 +100,21 @@ func AddChainNode(peers, genesisDoc, nodeId, nodeDir string) error {
 	return nil
 }
 
+func StartNode(nodeID string) error {
+	return nil
+
+}
+
+func StopNode(nodeID string) error {
+	return nil
+
+}
+
+func RestartNode(nodeID string) error {
+	return nil
+
+}
+
 func CheckChainNode(nodeId, nodeDir string) bool {
 
 	return false

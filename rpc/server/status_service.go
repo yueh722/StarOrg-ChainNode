@@ -3,7 +3,6 @@ package server
 import (
 	"chain/rpc/common"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -41,6 +40,10 @@ func (s *StatusService) RegisterService(server *rpc.Server) error {
 	return nil
 }
 
+func (s *StatusService) GetServiceName() string {
+	return "status"
+}
+
 // Method
 func (s *StatusService) ReportNodeStatus(status *common.StatusNode) error {
 
@@ -48,7 +51,7 @@ func (s *StatusService) ReportNodeStatus(status *common.StatusNode) error {
 		s.fnStatus(status)
 	}
 
-	log.Printf("[NodeStatus] %v\n", status)
+	fmt.Printf("[NodeStatus] %v\n", status)
 	return nil
 }
 
@@ -59,10 +62,7 @@ func (s *StatusService) ReportStorageStatus(status *common.StatusStorage) error 
 		s.fnStorage(status)
 	}
 
-	//info, _ := disk.Usage(utils.GetStorageDrive())
-	//data, _ := json.MarshalIndent(info, "", "  ")
-
-	log.Printf("[StorageStatus] %v\n", status)
+	fmt.Printf("[StorageStatus] %v\n", status)
 	return nil
 }
 

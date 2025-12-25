@@ -50,6 +50,14 @@ func (s *SetupService) RegisterService(server *rpc.Server) error {
 	return nil
 }
 
+func (s *SetupService) GetNamesapceString() string {
+	return "chain"
+}
+
+func (s *SetupService) GetSubscriptionName() string {
+	return "subscribeCommand"
+}
+
 // Method
 // Broadcast: "init all clients" with per-client NodeID assignment.
 func (s *SetupService) BroadcastInitializeChainNode(
@@ -105,6 +113,43 @@ func (s *SetupService) BroadcastInitializeChainNode(
 	}
 
 	return nil
+}
+
+// Method
+func (s *SetupService) BroadcastAddChainNode(peers, genesisDoc, nodeId string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	cmdID, err := newCommandID()
+	if err != nil {
+		return err
+	}
+
+	notifiers := s.GetNotifierByNodeID(nodeId)
+
+	for subID, clientSub := range notifiers {
+
+		payloadStruct := common.SetupAddChainNode{
+			NodeID:     nodeId,
+			NodeArray:  peers,
+			GenesisDoc: genesisDoc,
+		}
+		payload, _ := json.Marshal(payloadStruct)
+
+		env := common.CommandEnvelope{
+			CommandID: cmdID,
+			Cmd:       common.CmdAddChainNode,
+			NodeID:    nodeId,
+			Payload:   payload,
+			IssuedAt:  time.Now().Unix(),
+		}
+
+		if err = clientSub.Notifier.Notify(subID, env); err == nil {
+			break
+		}
+	}
+
+	return err
 }
 
 // Method

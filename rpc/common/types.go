@@ -13,7 +13,7 @@ type SetupInitializeChainNode struct {
 
 // method: Subscription
 type SetupAddChainNode struct {
-	NodeId     string
+	NodeID     string
 	NodeArray  string
 	GenesisDoc string
 }
@@ -53,9 +53,9 @@ type StatusNode struct {
 // method: RPC
 type StatusStorage struct {
 	Path        string
-	TotalSpace  int64
-	FreeSpace   int64
-	UsedSpace   int64
+	TotalSpace  uint64
+	FreeSpace   uint64
+	UsedSpace   uint64
 	UsedPercent float64
 }
 
@@ -63,6 +63,7 @@ type CmdType string
 
 const (
 	CmdInitializeChainNode CmdType = "setup_initialize_chain_node"
+	CmdAddChainNode        CmdType = "setup_add_chain_node"
 	CmdControlNode         CmdType = "setup_control_node"
 )
 
