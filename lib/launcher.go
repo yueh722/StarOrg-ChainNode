@@ -47,14 +47,7 @@ func (b *Launcher) RunApp() (*Session, error) {
 	return sess, nil
 
 	/*
-		// run node
-		// start cometbft node --home ./Runtime/localnet/node0
-		run0 := filepath.Join("./bin", "cometbft.exe")
-		cmd0 := b.NewCommand(run0, "node", "--home", nodeDir)
-		sess0, err := Start(b.Logger, cmd0, func(error) {})
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "launcher '%s' node failed to start", b.Name)
-		}
+
 
 		// run app
 		// start abci-v2app --home .\home0

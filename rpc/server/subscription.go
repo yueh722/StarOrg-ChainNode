@@ -3,6 +3,7 @@ package server
 import (
 	"chain/lib"
 	"context"
+	"log"
 
 	"github.com/duke-git/lancet/v2/maputil"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -15,6 +16,8 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, nodeID string) (*rp
 	if !ok {
 		return nil, rpc.ErrNotificationsUnsupported
 	}
+
+	log.Println("Received SubscribeCommand request, node:", nodeID)
 
 	if nodeID == "" {
 		//this is an uninitialized node.

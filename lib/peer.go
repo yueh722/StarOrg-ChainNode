@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -142,7 +143,15 @@ func ConvertJsonToPeers(jsonStr string) PeerList {
 	var peers []Peer
 	err := json.Unmarshal([]byte(jsonStr), &peers)
 	if err != nil {
-		fmt.Println("Error while parsing json string", err)
+		log.Println("Error while parsing json string", err)
 	}
 	return peers
+}
+
+func GetNodeNameByNodeId(nodeId string, peers string) string {
+	peerList := ConvertJsonToPeers(peers)
+	if peer := peerList.GetPeerByNodeId(nodeId); peer != nil {
+		return peer.NodeName
+	}
+	return ""
 }

@@ -1,9 +1,10 @@
 package nodeproxy
 
 import (
+	"chain/lib"
 	"chain/rpc/client"
 	"errors"
-	"fmt"
+	"log"
 	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -20,9 +21,16 @@ func StartClient() error {
 		return err
 	}
 
+	nodeInfo, err := lib.GetNodeInfo(cfg.NodeDir)
+	if err != nil {
+		return err
+	}
+
 	nodeClient, err := client.New(client.ClientConfig{
-		AppName:    cfg.AppName,
-		ServerAddr: cfg.ServerAddr,
+		AppName:     cfg.AppName,
+		ServerAddr:  cfg.ServerAddr,
+		NodeBaseDir: cfg.NodeDir,
+		NodeInfo:    nodeInfo,
 	})
 	if err != nil {
 		return err
@@ -39,19 +47,18 @@ func StartClient() error {
 		select {
 		case <-ticker.C:
 			if err := nodeClient.StatusClient.ReportNodeStatus(); isConnectionDead(err) {
-				fmt.Println("Error in ReportNodeStatus:", err)
+				log.Println("Error in ReportNodeStatus:", err)
 				needsReconnect = true
 			}
 
 			if err := nodeClient.StatusClient.ReportStorageStatus(); isConnectionDead(err) {
-				fmt.Println("Error in ReportNodeStorage:", err)
+				log.Println("Error in ReportNodeStorage:", err)
 				needsReconnect = true
 			}
 
 		case err := <-errCh:
-			// subscription error
 			if err != nil {
-				fmt.Println("Error in SubscribeCommand:", err)
+				log.Println("Error in SubscribeCommand:", err)
 				needsReconnect = true
 			}
 

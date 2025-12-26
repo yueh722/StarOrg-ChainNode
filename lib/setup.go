@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"chain/lib/queuestore"
 	"errors"
 	"fmt"
 	"os"
@@ -13,10 +14,12 @@ import (
 
 const peerConfigFile = "peer_config.json"
 
-type NodeServerInfo struct {
+type NodeInfo struct {
 	NodeName       string
-	RPCAddr        string
-	WebServiceAddr string
+	NodeID         string
+	ProxyApp       string //proxy_app: default 26658
+	RPCAddr        string //rcp: default 26657
+	WebServiceAddr string //webapi: default 8080
 	Validator      bool
 }
 
@@ -100,19 +103,49 @@ func AddChainNode(peers, genesisDoc, nodeId, nodeDir string) error {
 	return nil
 }
 
-func StartNode(nodeID string) error {
-	return nil
+type CtlOption func(*NodeArg)
 
+type NodeArg struct {
+	LogFilePath string
+	LogStore    queuestore.QueueStore
+	NodeInfo    *NodeInfo
+	BinPath     string
+	NodeBaseDir string
 }
 
-func StopNode(nodeID string) error {
-	return nil
-
+func WithLogFile(logFilePath string) CtlOption {
+	return func(arg *NodeArg) {
+		arg.LogFilePath = logFilePath
+	}
 }
 
-func RestartNode(nodeID string) error {
-	return nil
+func WithLogStore(store queuestore.QueueStore) CtlOption {
+	return func(arg *NodeArg) {
+		arg.LogStore = store
+	}
+}
 
+func WithNodeArgs(set NodeArg) CtlOption {
+	return func(arg *NodeArg) {
+		*arg = set
+	}
+}
+
+func StartNode(nodeID string, opts ...CtlOption) error {
+	arg := NodeArg{}
+	for _, opt := range opts {
+		opt(&arg)
+	}
+
+	return StartApp(nodeID, arg)
+}
+
+func StopNode(nodeID string, opts ...CtlOption) error {
+	return nil
+}
+
+func RestartNode(nodeID string, opts ...CtlOption) error {
+	return nil
 }
 
 func CheckChainNode(nodeId, nodeDir string) bool {
@@ -130,7 +163,7 @@ func PurgeChainNode(nodeId, nodeDir string) error {
 }
 
 /*
-func GetNodeServer(nodeDir string) (*NodeServerInfo, error) {
+func GetNodeInfo(nodeDir string) (*NodeInfo, error) {
 
 	// load config from config.toml in nodeDir
 	viper.AddConfigPath(filepath.Join(nodeDir, "config"))
@@ -170,7 +203,7 @@ func GetNodeServer(nodeDir string) (*NodeServerInfo, error) {
 		return nil, err
 	}
 
-	return &NodeServerInfo{
+	return &NodeInfo{
 		NodeName:  cmtcfg.Moniker,
 		RPCAddr:   RPCAddress,
 		ProxyApp:  cmtcfg.ProxyApp,
@@ -179,25 +212,19 @@ func GetNodeServer(nodeDir string) (*NodeServerInfo, error) {
 }
 */
 
-func GetNodeServer(nodeDir string) (*NodeServerInfo, error) {
-	peer := Peer{}
+func GetNodeInfo(nodeDir string) (*NodeInfo, error) {
+	peer := &Peer{}
 
 	if err := peer.Load(filepath.Join(nodeDir, peerConfigFile)); err != nil {
 		return nil, err
 	}
 
-	return &NodeServerInfo{
+	return &NodeInfo{
 		NodeName:       peer.NodeName,
+		NodeID:         peer.NodeId,
+		ProxyApp:       fmt.Sprintf("tcp://%s:%d", peer.NodeAddress, peer.ABCIPort),
 		RPCAddr:        fmt.Sprintf("http://%s:%d", peer.NodeAddress, peer.RPCPort),
-		WebServiceAddr: fmt.Sprintf("http://%s:%d", peer.NodeAddress, peer.WebServicePort),
+		WebServiceAddr: fmt.Sprintf("%s:%d", peer.NodeAddress, peer.WebServicePort),
 		Validator:      peer.IsValidator,
 	}, nil
 }
-
-//run node with monitor
-
-//run app with monitor
-
-//stop node
-
-//stop app

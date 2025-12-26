@@ -82,5 +82,7 @@ func (s *NodeLogService) Ack(eventID string) (bool, error) {
 // Push new event
 // Nodeproxy call method: "nodelog_reportLog"
 func (s *NodeLogService) ReportLog(e queuestore.PersistedEvent) error {
+
+	//notify receiver to receive error log from node
 	return s.nodeLogStore.Put(e)
 }

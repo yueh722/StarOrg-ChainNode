@@ -11,10 +11,14 @@ import (
 
 type StatusClient struct {
 	client *rpc.Client
+	cfg    ClientConfig
 }
 
-func newStatusClient(client *rpc.Client) *StatusClient {
-	return &StatusClient{client: client}
+func newStatusClient(client *rpc.Client, cfg ClientConfig) *StatusClient {
+	return &StatusClient{
+		client: client,
+		cfg:    cfg,
+	}
 }
 
 func (c *StatusClient) Update(client *rpc.Client) {
@@ -24,18 +28,18 @@ func (c *StatusClient) Update(client *rpc.Client) {
 func (c *StatusClient) ReportNodeStatus() error {
 
 	//load information of current node
-	nodeServer, err := lib.GetNodeServer("")
+	nodeInfo, err := lib.GetNodeInfo(c.cfg.NodeBaseDir)
 	if err != nil {
 		return err
 	}
 
 	err = c.client.Call(nil, "status_reportNodeStatus", common.StatusNode{
-		NodeId:      "",
-		NodeName:    nodeServer.NodeName,
+		NodeId:      nodeInfo.NodeID,
+		NodeName:    nodeInfo.NodeName,
 		NodeAddress: "",
 		Validator:   true,
 		ABCIAddress: "",
-		RPCAddress:  nodeServer.RPCAddr,
+		RPCAddress:  nodeInfo.RPCAddr,
 		Healthy:     true,
 		LastCheck:   0,
 	})

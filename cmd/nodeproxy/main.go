@@ -4,26 +4,26 @@ import (
 	"chain/internal/nodeproxy"
 	cmd "chain/winservice"
 	"context"
-	"fmt"
+	"log"
 	"os"
 )
 
 // Service functions
 func serviceMain(ctx context.Context) error {
-	fmt.Println("Service started")
+	log.Println("Service started")
 	AppMain(ctx)
 	return nil
 }
 
 func serviceStop() error {
-	fmt.Println("Service cleanup completed")
+	log.Println("Service cleanup completed")
 	return nil
 }
 
 // Console function
 func consoleMain(ctx context.Context) error {
-	fmt.Println("Console mode")
-	fmt.Println("Press Ctrl+C to exit")
+	log.Println("Console mode")
+	log.Println("Press Ctrl+C to exit")
 
 	AppMain(ctx)
 	return nil
@@ -44,7 +44,7 @@ func main() {
 
 	// Execute the service command
 	if err := cmd.NewServiceCmd().Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		log.Println(err)
 		os.Exit(1)
 	}
 }
@@ -52,6 +52,6 @@ func main() {
 func AppMain(ctx context.Context) {
 	err := nodeproxy.StartClient()
 	if err != nil {
-		fmt.Println("start NodeProxy client error:", err)
+		log.Println("start NodeProxy client error:", err)
 	}
 }

@@ -1,8 +1,8 @@
 package client
 
 import (
+	"chain/lib"
 	"context"
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -19,8 +19,10 @@ type Client struct {
 }
 
 type ClientConfig struct {
-	AppName    string
-	ServerAddr string
+	AppName     string
+	ServerAddr  string
+	NodeBaseDir string
+	NodeInfo    *lib.NodeInfo
 }
 
 func New(cfg ClientConfig) (*Client, error) {
@@ -33,15 +35,17 @@ func New(cfg ClientConfig) (*Client, error) {
 	for {
 		client, err = rpc.DialContext(context.Background(), cfg.ServerAddr)
 		if err != nil {
-			fmt.Println("Failed to connect rpc server", cfg.ServerAddr, err)
+			log.Println(err)
 			time.Sleep(5 * time.Second)
 			continue
 		}
+
+		log.Println("server connected successfully:", cfg.ServerAddr)
 		break
 	}
 
-	setupClient := newSetupClient(client)
-	statusClient := newStatusClient(client)
+	setupClient := newSetupClient(client, cfg)
+	statusClient := newStatusClient(client, cfg)
 
 	return &Client{
 		Conn:         client,
@@ -58,7 +62,7 @@ func (c *Client) Reconnect() {
 	for {
 		client, err := rpc.DialContext(context.Background(), c.Cfg.ServerAddr)
 		if err != nil {
-			log.Printf("Failed to connect %s; err: %v", c.Cfg.ServerAddr, err)
+			log.Println(err)
 			time.Sleep(5 * time.Second)
 			continue
 		}

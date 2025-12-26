@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -68,9 +69,9 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	})
 
 	localAddr := net.JoinHostPort("localhost", parts[1])
-	fmt.Printf("WebSocket endpoint: ws://%s/ws\n", localAddr)
-	fmt.Printf("HTTP RPC endpoint:  http://%s/rpc\n", localAddr)
-	fmt.Printf("HTTP endpoint:  http://%s\n", localAddr)
+	log.Printf("WebSocket endpoint: ws://%s/ws\n", localAddr)
+	log.Printf("HTTP RPC endpoint:  http://%s/rpc\n", localAddr)
+	log.Printf("HTTP endpoint:  http://%s\n", localAddr)
 
 	return &Server{
 		SetupService:  setup,
@@ -81,6 +82,6 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 }
 
 func (s *Server) Serve() error {
-	fmt.Println("Server starting on", s.addr)
+	log.Println("Server starting on", s.addr)
 	return http.ListenAndServe(s.addr, s.mux)
 }
