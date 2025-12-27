@@ -92,3 +92,7 @@ func (s *Session) Wait() error {
 func (s *Session) Signal(sig os.Signal) {
 	s.command.Process.Signal(sig)
 }
+
+func (s *Session) Pid() int {
+	return s.command.Process.Pid
+}

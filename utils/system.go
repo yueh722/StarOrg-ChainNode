@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -47,7 +47,7 @@ func GetLogPath(appName string, moduleNames ...string) string {
 	logPath := basePath
 	if logPath != "" {
 		if err := os.MkdirAll(logPath, os.ModePerm); err != nil {
-			fmt.Printf("can not create log directory: %v, err: %v\n", logPath, err)
+			log.Printf("can not create log directory: %v, err: %v\n", logPath, err)
 			os.Exit(100)
 		}
 	}

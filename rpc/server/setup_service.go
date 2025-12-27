@@ -168,6 +168,8 @@ func (s *SetupService) ControlNodes(ctlNodes ...common.SetupControlNode) error {
 
 		payload, _ := json.Marshal(node)
 
+		log.Printf("[ControlNodes] nodeID: %v, action: %v\n", node.NodeID, node.Action)
+
 		env := common.CommandEnvelope{
 			CommandID: cmdID,
 			Cmd:       common.CmdControlNode,
@@ -180,7 +182,10 @@ func (s *SetupService) ControlNodes(ctlNodes ...common.SetupControlNode) error {
 
 		maputil.ForEach(notifiers, func(subID rpc.ID, clientSub *ClientSub) {
 			if err := clientSub.Notifier.Notify(subID, env); err != nil {
-
+				log.Printf("[ControlNodes] Failed to notify node: %v name: %v, err %v\n",
+					node.NodeID,
+					"",
+					err)
 			}
 		})
 	}
@@ -201,7 +206,7 @@ func (s *SetupService) GetNotifierByNodeID(nodeID string) map[rpc.ID]*ClientSub 
 // complete command that sent to node before
 func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 
-	log.Printf("[CommandResult] cmd=%s id=%s node=%s status=%s progress=%.1f msg=%q err=%q",
+	log.Printf("[CommandResult] cmd=%s id=%s node=%s status=%s progress=%.1f msg=%q err=%q\n",
 		res.Cmd, res.CommandID, res.NodeID, res.Status, res.Message, res.Error)
 
 	_, err := s.cmdEvent.Complete(res.CommandID, res.Status == commandlog.CmdSuccess, res.Message, res.Error, res.Output)

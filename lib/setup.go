@@ -8,8 +8,12 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/cometbft/cometbft/v2/config"
+	"github.com/cometbft/cometbft/v2/p2p"
 	"github.com/cometbft/cometbft/v2/types"
 	cmttime "github.com/cometbft/cometbft/v2/types/time"
+	"github.com/duke-git/lancet/v2/slice"
+	"github.com/spf13/viper"
 )
 
 const peerConfigFile = "peer_config.json"
@@ -17,6 +21,7 @@ const peerConfigFile = "peer_config.json"
 type NodeInfo struct {
 	NodeName       string
 	NodeID         string
+	NodeAddress    string
 	ProxyApp       string //proxy_app: default 26658
 	RPCAddr        string //rcp: default 26657
 	WebServiceAddr string //webapi: default 8080
@@ -111,6 +116,7 @@ type NodeArg struct {
 	NodeInfo    *NodeInfo
 	BinPath     string
 	NodeBaseDir string
+	runtime     *NodeRuntime
 }
 
 func WithLogFile(logFilePath string) CtlOption {
@@ -131,20 +137,25 @@ func WithNodeArgs(set NodeArg) CtlOption {
 	}
 }
 
-func StartNode(nodeID string, opts ...CtlOption) error {
+func StartNode(nodeID string, opts ...CtlOption) NodeRuntime {
 	arg := NodeArg{}
 	for _, opt := range opts {
 		opt(&arg)
 	}
 
-	return StartApp(nodeID, arg)
+	return StartNodeWithArg(nodeID, arg)
 }
 
-func StopNode(nodeID string, opts ...CtlOption) error {
+func StopNode(runtime NodeRuntime) error {
+	if runtime == nil {
+		return nil
+	}
+
+	runtime.KillNode()
 	return nil
 }
 
-func RestartNode(nodeID string, opts ...CtlOption) error {
+func RestartNode(nodeID string, opts ...CtlOption) NodeRuntime {
 	return nil
 }
 
@@ -153,7 +164,7 @@ func CheckChainNode(nodeId, nodeDir string) bool {
 	return false
 }
 
-func PurgeChainNode(nodeId, nodeDir string) error {
+func PurgeChainNode(nodeDir string) error {
 	err := os.RemoveAll(nodeDir)
 	if err != nil {
 		return fmt.Errorf("purge chain node path [%v] failed: %v", nodeDir, err)
@@ -162,8 +173,7 @@ func PurgeChainNode(nodeId, nodeDir string) error {
 	return nil
 }
 
-/*
-func GetNodeInfo(nodeDir string) (*NodeInfo, error) {
+func GetNodeInfoFromCometbftConfig(nodeDir string) (*NodeInfo, error) {
 
 	// load config from config.toml in nodeDir
 	viper.AddConfigPath(filepath.Join(nodeDir, "config"))
@@ -198,7 +208,7 @@ func GetNodeInfo(nodeDir string) (*NodeInfo, error) {
 		return nil, err
 	}
 	nodeHost := NewPersistentPeers(cmtcfg.P2P.PersistentPeers).GetNodeHostById(nodeKey.ID())
-	RPCAddress, err := updateHost(cmtcfg.RPC.ListenAddress, nodeHost)
+	RPCAddress, err := UpdateHost(cmtcfg.RPC.ListenAddress, nodeHost)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +220,6 @@ func GetNodeInfo(nodeDir string) (*NodeInfo, error) {
 		Validator: isValidator,
 	}, nil
 }
-*/
 
 func GetNodeInfo(nodeDir string) (*NodeInfo, error) {
 	peer := &Peer{}
@@ -222,6 +231,7 @@ func GetNodeInfo(nodeDir string) (*NodeInfo, error) {
 	return &NodeInfo{
 		NodeName:       peer.NodeName,
 		NodeID:         peer.NodeId,
+		NodeAddress:    peer.NodeAddress,
 		ProxyApp:       fmt.Sprintf("tcp://%s:%d", peer.NodeAddress, peer.ABCIPort),
 		RPCAddr:        fmt.Sprintf("http://%s:%d", peer.NodeAddress, peer.RPCPort),
 		WebServiceAddr: fmt.Sprintf("%s:%d", peer.NodeAddress, peer.WebServicePort),

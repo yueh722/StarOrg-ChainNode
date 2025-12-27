@@ -36,9 +36,9 @@ func (c *StatusClient) ReportNodeStatus() error {
 	err = c.client.Call(nil, "status_reportNodeStatus", common.StatusNode{
 		NodeId:      nodeInfo.NodeID,
 		NodeName:    nodeInfo.NodeName,
-		NodeAddress: "",
-		Validator:   true,
-		ABCIAddress: "",
+		NodeAddress: nodeInfo.NodeAddress,
+		Validator:   nodeInfo.Validator,
+		ABCIAddress: nodeInfo.ProxyApp,
 		RPCAddress:  nodeInfo.RPCAddr,
 		Healthy:     true,
 		LastCheck:   0,

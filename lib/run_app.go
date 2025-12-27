@@ -2,6 +2,7 @@ package lib
 
 import (
 	"chain/lib/log"
+	"fmt"
 	"path/filepath"
 )
 
@@ -12,6 +13,19 @@ type RunItem struct {
 }
 
 func RunApp(inst *Instance, exitCh chan<- bool) error {
+
+	defer func() {
+		exitCh <- true
+	}()
+
+	if err := inst.Start(); err != nil {
+		return err
+	}
+
+	code, err := inst.Wait()
+	if err != nil {
+		return fmt.Errorf("launcher exited with error: %v, code: %v", err, code)
+	}
 
 	return nil
 }
@@ -38,10 +52,6 @@ func BuildNodeLauncher(nodeID string, arg NodeArg) *Launcher {
 
 func BuildAppLauncher(nodeID string, arg NodeArg) *Launcher {
 
-	//load app configuration
-
-	//get server information
-
 	l := &Launcher{
 		Name:        "Start-Cometbft-App",
 		AppFilePath: filepath.Join(arg.BinPath, "abci-v2-Identity-app.exe"),
@@ -58,7 +68,7 @@ func BuildAppLauncher(nodeID string, arg NodeArg) *Launcher {
 	return l
 }
 
-func StartApp(nodeID string, arg NodeArg) error {
+func StartNodeWithArgLoop(nodeID string, arg NodeArg) NodeRuntime {
 	items := []RunItem{
 		{
 			run:    true,
@@ -90,5 +100,37 @@ func StartApp(nodeID string, arg NodeArg) error {
 		}
 	}()
 
-	return nil
+	return &NodeRuntimeImpl{
+		NodeInst: items[0].inst,
+		AppInst:  items[1].inst,
+	}
+}
+
+func StartNodeWithArg(nodeID string, arg NodeArg) NodeRuntime {
+	items := []RunItem{
+		{
+			inst: NewInstance(BuildNodeLauncher(nodeID, arg)),
+		},
+		{
+			inst: NewInstance(BuildAppLauncher(nodeID, arg)),
+		},
+	}
+
+	runtime := &NodeRuntimeImpl{
+		NodeInst: items[0].inst,
+		AppInst:  items[1].inst,
+	}
+
+	start_failure := false
+	for _, item := range items {
+		if err := item.inst.Start(); err != nil {
+			start_failure = true
+		}
+	}
+
+	if start_failure {
+		_ = StopNode(runtime)
+	}
+
+	return runtime
 }

@@ -45,36 +45,9 @@ func (b *Launcher) RunApp() (*Session, error) {
 	}
 
 	return sess, nil
-
-	/*
-
-
-		// run app
-		// start abci-v2app --home .\home0
-		//	--socket-addr tcp://127.0.0.1:26658
-		//	--http-addr 127.0.0.1:8080
-		//	--abci-rpc-addr http://127.0.0.1:26657
-
-		args := map[string]string{
-			"home":          appDir,
-			"--socket-addr":   "0.0.0.0",
-			"--http-addr":     "0.0.0.0",
-			"--abci-rpc-addr": "0.0.0.0",
-		}
-
-		run1 := filepath.Join("./bin", "app.exe")
-		cmd1 := b.NewCommandFromMap(run1, args)
-		sess1, err1 := Start(b.Logger, cmd1, func(error) {})
-		if err1 != nil {
-			return nil, nil, errors.Wrapf(err1, "launcher '%s' app failed to start", b.Name)
-		}
-
-		return sess0, sess1, nil
-	*/
 }
 
 func (b *Launcher) NewCommandFromMap(name string, args map[string]string) *exec.Cmd {
-
 	argString := ""
 
 	//iterator args

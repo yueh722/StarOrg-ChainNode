@@ -25,9 +25,10 @@ type AppInfo struct {
 
 // An Instance presents a running process.
 type Instance struct {
-	Launcher *Launcher
-
+	Launcher    *Launcher
 	Session     *Session
+	Pid         int
+	Err         error
 	TermTimeout time.Duration
 }
 
@@ -67,11 +68,17 @@ func NewInstance(launcher *Launcher) *Instance {
 }
 
 func (i *Instance) Start() error {
-	sess, err := i.Launcher.RunApp()
-	if err != nil {
-		return errors.WithMessage(err, "could not execute run")
+	var sess *Session
+	sess, i.Err = i.Launcher.RunApp()
+	if i.Err != nil {
+		return errors.WithMessage(i.Err, "could not execute run")
 	}
 	i.Session = sess
+
+	if sess != nil {
+		i.Pid = sess.Pid()
+	}
+
 	return nil
 }
 
@@ -112,4 +119,16 @@ func (i *Instance) Wait() (int, error) {
 		return exitErr.ExitCode(), err
 	}
 	return 0, err
+}
+
+func (i *Instance) IsRunning() bool {
+	return i.Err == nil && i.Session != nil && i.Session.exitErr == nil
+}
+
+func (i *Instance) GetErr() error {
+	if i.Err != nil {
+		return i.Err
+	}
+
+	return i.Session.exitErr
 }

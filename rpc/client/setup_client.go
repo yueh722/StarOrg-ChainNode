@@ -7,24 +7,28 @@ import (
 	"chain/rpc/server"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type SetupClient struct {
-	client   *rpc.Client
-	logStore queuestore.QueueStore
-	cfg      ClientConfig
+	client      *rpc.Client
+	logStore    queuestore.QueueStore
+	cfg         ClientConfig
+	nodeRuntime lib.NodeRuntime
+	mux         sync.Mutex
 }
 
-var router = map[common.CmdType]func(SetupClient, *common.CommandEnvelope) error{
-	common.CmdInitializeChainNode: SetupClient.handleInitChainNodeCmd,
-	common.CmdAddChainNode:        SetupClient.handleAddChainNodeCmd,
-	common.CmdControlNode:         SetupClient.handleControlNodeCmd,
+var router = map[common.CmdType]func(*SetupClient, *common.CommandEnvelope) error{
+	common.CmdInitializeChainNode: (*SetupClient).handleInitChainNodeCmd,
+	common.CmdAddChainNode:        (*SetupClient).handleAddChainNodeCmd,
+	common.CmdControlNode:         (*SetupClient).handleControlNodeCmd,
 }
 
 func newSetupClient(client *rpc.Client, cfg ClientConfig) *SetupClient {
@@ -97,10 +101,13 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 	return errChan
 }
 
-func (c SetupClient) handleCmd(cmd *common.CommandEnvelope) error {
+func (c *SetupClient) handleCmd(cmd *common.CommandEnvelope) error {
 	if cmd.NodeID != c.NodeID() {
 		return fmt.Errorf("nodeID mismatch, ignore")
 	}
+
+	c.mux.Lock()
+	defer c.mux.Unlock()
 
 	err := router[cmd.Cmd](c, cmd)
 	if err != nil {
@@ -109,7 +116,7 @@ func (c SetupClient) handleCmd(cmd *common.CommandEnvelope) error {
 	return nil
 }
 
-func (c SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error {
+func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error {
 
 	arg := common.SetupInitializeChainNode{}
 	err := json.Unmarshal(cmd.Payload, &arg)
@@ -139,7 +146,7 @@ func (c SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error {
 	return nil
 }
 
-func (c SetupClient) handleAddChainNodeCmd(cmd *common.CommandEnvelope) error {
+func (c *SetupClient) handleAddChainNodeCmd(cmd *common.CommandEnvelope) error {
 
 	arg := common.SetupAddChainNode{}
 	err := json.Unmarshal(cmd.Payload, &arg)
@@ -168,7 +175,7 @@ func (c SetupClient) handleAddChainNodeCmd(cmd *common.CommandEnvelope) error {
 	return nil
 }
 
-func (c SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
+func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 
 	arg := common.SetupControlNode{}
 	err := json.Unmarshal(cmd.Payload, &arg)
@@ -181,44 +188,60 @@ func (c SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 		return err
 	}
 
-	type RunArg struct {
-		fn  func(nodeID string, opts ...lib.CtlOption) error
-		opt lib.CtlOption
+	switch arg.Action {
+	case common.NodeStart:
+		err = c.handleStartNode()
+	case common.NodeStop:
+		err = c.handleStopNode()
+	case common.NodeRestart:
+		err = c.handleRestartNode()
+	default:
+		err = fmt.Errorf("invalid action")
 	}
 
-	nodeArg := lib.NodeArg{
+	if err != nil {
+		return fmt.Errorf("failed to %s chain node id: %s, node name: %s, err: %v", arg.Action, cmd.NodeID, err)
+	}
+
+	return nil
+}
+
+func (c *SetupClient) handleStartNode() error {
+	if c.nodeRuntime != nil && c.nodeRuntime.IsRunning() {
+		return errors.New("node or app already running")
+	}
+
+	nodeArg := c.buildNodeArg()
+	runtime := lib.StartNode(c.NodeID(), lib.WithNodeArgs(nodeArg))
+	err := runtime.Error()
+	if err != nil {
+		return err
+	}
+
+	c.nodeRuntime = runtime
+	return nil
+}
+
+func (c *SetupClient) handleStopNode() error {
+	return lib.StopNode(c.nodeRuntime)
+}
+
+func (c *SetupClient) handleRestartNode() error {
+	if err := c.handleStopNode(); err != nil {
+		return err
+	}
+
+	return c.handleStartNode()
+}
+
+func (c *SetupClient) buildNodeArg() lib.NodeArg {
+	return lib.NodeArg{
 		LogFilePath: filepath.Join(c.cfg.NodeBaseDir, "log"),
 		LogStore:    c.logStore,
 		NodeInfo:    c.cfg.NodeInfo,
 		BinPath:     filepath.Join(c.cfg.NodeBaseDir, "bin"),
 		NodeBaseDir: c.cfg.NodeBaseDir,
 	}
-
-	router := map[common.NodeAction]RunArg{
-		common.NodeStart: {
-			fn:  lib.StartNode,
-			opt: lib.WithNodeArgs(nodeArg),
-		},
-		common.NodeStop: {
-			fn: lib.StopNode,
-		},
-		common.NodeRestart: {
-			fn:  lib.RestartNode,
-			opt: lib.WithNodeArgs(nodeArg),
-		},
-	}
-
-	runOption, ok := router[arg.Action]
-	if !ok {
-		return fmt.Errorf("invalid action: %v", arg.Action)
-	}
-
-	err = runOption.fn(arg.NodeID, runOption.opt)
-	if err != nil {
-		return fmt.Errorf("failed to %s chain node id: %s, node name: %s, err: %v", arg.Action, cmd.NodeID, err)
-	}
-
-	return nil
 }
 
 func (c *SetupClient) initLogStore(logFilePath string) error {
