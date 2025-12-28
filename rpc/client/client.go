@@ -73,3 +73,10 @@ func (c *Client) Reconnect() {
 		break
 	}
 }
+
+func (c *Client) Register() error {
+
+	//submit node info status
+
+	return nil
+}

@@ -45,17 +45,19 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 
 	server := rpc.NewServer()
 
-	setup := NewSetupService(cfg.SetuplogStore)
+	stream := NewSteamService()
+
+	setup := NewSetupService(cfg.SetuplogStore, stream)
 	if err := setup.RegisterService(server); err != nil {
 		return nil, err
 	}
 
-	status := NewStatusService()
+	status := NewStatusService(stream)
 	if err := status.RegisterService(server); err != nil {
 		return nil, err
 	}
 
-	logSrv := NewNodeLogService(cfg.NodelogStore)
+	logSrv := NewNodeLogService(cfg.NodelogStore, stream)
 	if err := logSrv.RegisterService(server); err != nil {
 		return nil, err
 	}

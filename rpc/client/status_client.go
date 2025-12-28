@@ -4,6 +4,7 @@ import (
 	"chain/lib"
 	"chain/rpc/common"
 	"chain/utils"
+	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/shirou/gopsutil/disk"
@@ -33,15 +34,18 @@ func (c *StatusClient) ReportNodeStatus() error {
 		return err
 	}
 
+	//call RPCAddr/status to check healthy
+
 	err = c.client.Call(nil, "status_reportNodeStatus", common.StatusNode{
-		NodeId:      nodeInfo.NodeID,
-		NodeName:    nodeInfo.NodeName,
-		NodeAddress: nodeInfo.NodeAddress,
-		Validator:   nodeInfo.Validator,
-		ABCIAddress: nodeInfo.ProxyApp,
-		RPCAddress:  nodeInfo.RPCAddr,
-		Healthy:     true,
-		LastCheck:   0,
+		NodeId:         nodeInfo.NodeID,
+		NodeName:       nodeInfo.NodeName,
+		NodeAddress:    nodeInfo.NodeAddress,
+		Validator:      nodeInfo.Validator,
+		ProxyApp:       nodeInfo.ProxyApp,
+		RPCAddress:     nodeInfo.RPCAddr,
+		WebServiceAddr: nodeInfo.WebServiceAddr,
+		Healthy:        true,
+		LastCheck:      time.Now().Unix(),
 	})
 	return err
 }

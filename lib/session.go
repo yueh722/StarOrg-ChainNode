@@ -29,6 +29,21 @@ type Session struct {
 	exitFuncs  []ExitFunc
 }
 
+type LogWriter struct {
+	logger   *log.Logger
+	errLevel bool
+}
+
+func (lw *LogWriter) Write(p []byte) (n int, err error) {
+	if lw.errLevel {
+		lw.logger.Error(string(p))
+	} else {
+		lw.logger.Info(string(p))
+	}
+
+	return len(p), nil
+}
+
 // Start will start the provided command and return a Session that can be used
 // to await completion or signal the process.
 //
@@ -39,6 +54,11 @@ func Start(logger *log.Logger, cmd *exec.Cmd, exitFuncs ...ExitFunc) (*Session, 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, err
+	}
+
+	cmd.Stdout = &LogWriter{
+		logger:   logger,
+		errLevel: false,
 	}
 
 	err = cmd.Start()
@@ -60,7 +80,7 @@ func (s *Session) waitForExit(logger *log.Logger, stderr io.Reader) {
 	// copy stderr to the logger until stderr is closed
 	scanner := bufio.NewScanner(stderr)
 	for scanner.Scan() {
-		logger.Info(scanner.Text())
+		logger.Error(scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
 		logger.Errorf("command output scanning failed: %s", err)

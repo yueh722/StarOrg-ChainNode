@@ -38,14 +38,15 @@ type SetupControlNode struct {
 // each client will report node information to server freqently
 // method: RPC
 type StatusNode struct {
-	NodeId      string
-	NodeName    string
-	NodeAddress string
-	Validator   bool
-	ABCIAddress string
-	RPCAddress  string
-	Healthy     bool
-	LastCheck   int64
+	NodeId         string
+	NodeName       string
+	NodeAddress    string
+	Validator      bool
+	ProxyApp       string
+	RPCAddress     string
+	WebServiceAddr string
+	Healthy        bool
+	LastCheck      int64
 }
 
 // storage report of host running node

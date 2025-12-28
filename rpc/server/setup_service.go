@@ -17,9 +17,9 @@ import (
 // SetupService is designed for nodeproxy getting setup command dispatched from NodeMaster.
 // Request from: NodeProxy
 type SetupService struct {
-	mu   sync.Mutex
-	subs map[rpc.ID]*ClientSub
-
+	mu     sync.Mutex
+	subs   map[rpc.ID]*ClientSub
+	stream *StreamService
 	//
 	cmdEvent commandlog.CommandEventRepo
 }
@@ -29,7 +29,7 @@ type ClientSub struct {
 	NodeID   string
 }
 
-func NewSetupService(store logdb.CommandLogStore) *SetupService {
+func NewSetupService(store logdb.CommandLogStore, stream *StreamService) *SetupService {
 
 	cmdEvent, err := commandlog.NewCommandRepo(store)
 	if err != nil {
@@ -39,6 +39,7 @@ func NewSetupService(store logdb.CommandLogStore) *SetupService {
 	return &SetupService{
 		subs:     make(map[rpc.ID]*ClientSub),
 		cmdEvent: cmdEvent,
+		stream:   stream,
 	}
 }
 
@@ -208,6 +209,10 @@ func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 
 	log.Printf("[CommandResult] cmd=%s id=%s node=%s status=%s progress=%.1f msg=%q err=%q\n",
 		res.Cmd, res.CommandID, res.NodeID, res.Status, res.Message, res.Error)
+
+	if reported := s.stream.ReportState(res); reported {
+		//set reported state for cmdEvent
+	}
 
 	_, err := s.cmdEvent.Complete(res.CommandID, res.Status == commandlog.CmdSuccess, res.Message, res.Error, res.Output)
 

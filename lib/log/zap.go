@@ -45,6 +45,10 @@ func NewCometbftNodeLogger(nodeID string, store queuestore.QueueStore) *Logger {
 // change, arguments are not separated by spaces.
 type Logger struct{ s *zap.SugaredLogger }
 
+func (f *Logger) Write(p []byte) (n int, err error) {
+	return fmt.Fprintf(lw.writer, "%s%s", lw.prefix, p)
+}
+
 func (f *Logger) DPanic(args ...interface{})                    { f.s.DPanicf(formatArgs(args)) }
 func (f *Logger) DPanicf(template string, args ...interface{})  { f.s.DPanicf(template, args...) }
 func (f *Logger) DPanicw(msg string, kvPairs ...interface{})    { f.s.DPanicw(msg, kvPairs...) }

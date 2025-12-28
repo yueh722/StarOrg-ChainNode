@@ -9,28 +9,18 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-type NodeStatusCallback func(status *common.StatusNode)
-type NodeStorageCallback func(status *common.StatusStorage)
-
 // SetupService is designed for nodeproxy reportting status about node to NodeMaster.
 // Request from: NodeProxy
 type StatusService struct {
-	mu        sync.Mutex
-	fnStatus  NodeStatusCallback
-	fnStorage NodeStorageCallback
+	mu     sync.Mutex
+	stream *StreamService
 }
 
-func NewStatusService() *StatusService {
+func NewStatusService(stream *StreamService) *StatusService {
 	return &StatusService{
-		mu:        sync.Mutex{},
-		fnStatus:  nil,
-		fnStorage: nil,
+		mu:     sync.Mutex{},
+		stream: stream,
 	}
-}
-
-func (s *StatusService) SetCallback(fnStatus NodeStatusCallback, fnStorage NodeStorageCallback) {
-	s.fnStatus = fnStatus
-	s.fnStorage = fnStorage
 }
 
 func (s *StatusService) RegisterService(server *rpc.Server) error {
@@ -48,8 +38,8 @@ func (s *StatusService) GetServiceName() string {
 // Method
 func (s *StatusService) ReportNodeStatus(status *common.StatusNode) error {
 
-	if s.fnStatus != nil {
-		s.fnStatus(status)
+	if s.stream != nil {
+		s.stream.ReportState(status)
 	}
 
 	log.Printf("[NodeStatus] %v\n", status)
@@ -59,8 +49,8 @@ func (s *StatusService) ReportNodeStatus(status *common.StatusNode) error {
 // Method
 func (s *StatusService) ReportStorageStatus(status *common.StatusStorage) error {
 
-	if s.fnStorage != nil {
-		s.fnStorage(status)
+	if s.stream != nil {
+		s.stream.ReportState(status)
 	}
 
 	log.Printf("[StorageStatus] %v\n", status)

@@ -5,7 +5,6 @@ import (
 	cmd "chain/winservice"
 	"context"
 	"log"
-	"os"
 )
 
 // Service functions
@@ -45,7 +44,6 @@ func main() {
 	// Execute the service command
 	if err := cmd.NewServiceCmd().Execute(); err != nil {
 		log.Println(err)
-		os.Exit(1)
 	}
 }
 
