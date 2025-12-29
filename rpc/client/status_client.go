@@ -44,7 +44,7 @@ func (c *StatusClient) ReportNodeStatus() error {
 		ProxyApp:       nodeInfo.ProxyApp,
 		RPCAddress:     nodeInfo.RPCAddr,
 		WebServiceAddr: nodeInfo.WebServiceAddr,
-		Healthy:        true,
+		Healthy:        false,
 		LastCheck:      time.Now().Unix(),
 	})
 	return err

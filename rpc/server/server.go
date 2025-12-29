@@ -3,6 +3,7 @@ package server
 import (
 	"chain/lib/logdb"
 	"chain/lib/queuestore"
+	"chain/rpc/security"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -11,14 +12,22 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/duke-git/lancet/v2/fileutil"
 	"github.com/ethereum/go-ethereum/rpc"
 )
+
+type TlsOption struct {
+	CertFile string
+	KeyFile  string
+}
 
 type Server struct {
 	SetupService  *SetupService
 	StatusService *StatusService
 	mux           *http.ServeMux
 	addr          string
+	srv           *http.Server
+	tls           TlsOption
 }
 
 type ServerConfig struct {
@@ -26,6 +35,8 @@ type ServerConfig struct {
 	Addr          string
 	NodelogStore  queuestore.QueueStore
 	SetuplogStore logdb.CommandLogStore
+	Option        security.SecurityOption
+	Tls           TlsOption
 }
 
 func newCommandID() (string, error) {
@@ -45,7 +56,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 
 	server := rpc.NewServer()
 
-	stream := NewSteamService()
+	stream := NewStreamService()
 
 	setup := NewSetupService(cfg.SetuplogStore, stream)
 	if err := setup.RegisterService(server); err != nil {
@@ -70,20 +81,68 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		fmt.Fprintf(w, "RPC Server is running\n")
 	})
 
-	localAddr := net.JoinHostPort("localhost", parts[1])
-	log.Printf("WebSocket endpoint: ws://%s/ws\n", localAddr)
-	log.Printf("HTTP RPC endpoint:  http://%s/rpc\n", localAddr)
-	log.Printf("HTTP endpoint:  http://%s\n", localAddr)
+	srv := &http.Server{
+		Addr:    cfg.Addr,
+		Handler: security.NewFirewall(cfg.Option).Wrap(mux),
+	}
 
 	return &Server{
 		SetupService:  setup,
 		StatusService: status,
 		mux:           mux,
 		addr:          cfg.Addr,
+		srv:           srv,
+		tls:           cfg.Tls,
 	}, nil
 }
 
+func (s *Server) CheckTlsOption() bool {
+
+	if s.tls.CertFile != "" && s.tls.KeyFile != "" {
+		if fileutil.IsExist(s.tls.CertFile) && fileutil.IsExist(s.tls.KeyFile) {
+			return true
+		}
+
+		log.Println("crt and key files are not exist. ignore tls option")
+	}
+
+	/*
+		_, err := tls.LoadX509KeyPair(s.tls.CertFile, s.tls.KeyFile)
+		if err != nil {
+			log.Println("failed to load certFile and keyFile, err:", err)
+			return false
+		}
+	*/
+
+	return false
+}
+
 func (s *Server) Serve() error {
-	log.Println("Server starting on", s.addr)
-	return http.ListenAndServe(s.addr, s.mux)
+	var protocol string
+	var wsprotocol string
+
+	tlsEnabled := s.CheckTlsOption()
+	if tlsEnabled {
+		wsprotocol = "wss"
+		protocol = "https"
+	} else {
+		wsprotocol = "ws"
+		protocol = "http"
+	}
+
+	parts := strings.SplitN(s.addr, ":", 2)
+	localAddr := net.JoinHostPort("localhost", parts[1])
+	log.Printf("WebSocket endpoint: %s://%s/ws\n", wsprotocol, localAddr)
+	log.Printf("RPC endpoint:  %s://%s/rpc\n", protocol, localAddr)
+	log.Printf("HTTP endpoint:  %s://%s\n", protocol, localAddr)
+
+	if tlsEnabled {
+		protocol = "https"
+		log.Println("Server starting on", s.addr, "with TLS")
+		return s.srv.ListenAndServeTLS(s.tls.CertFile, s.tls.KeyFile)
+	} else {
+		protocol = "http"
+		log.Println("Server starting on", s.addr)
+		return s.srv.ListenAndServe()
+	}
 }

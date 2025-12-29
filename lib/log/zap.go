@@ -46,7 +46,8 @@ func NewCometbftNodeLogger(nodeID string, store queuestore.QueueStore) *Logger {
 type Logger struct{ s *zap.SugaredLogger }
 
 func (f *Logger) Write(p []byte) (n int, err error) {
-	return fmt.Fprintf(lw.writer, "%s%s", lw.prefix, p)
+	f.s.Info(string(p))
+	return len(p), nil
 }
 
 func (f *Logger) DPanic(args ...interface{})                    { f.s.DPanicf(formatArgs(args)) }

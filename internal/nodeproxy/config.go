@@ -7,7 +7,7 @@ type Config struct {
 }
 
 var defaultConfig = Config{
-	ServerAddr: "ws://localhost:8080/ws",
+	ServerAddr: "wss://localhost:8080/ws",
 	AppName:    "NodeProxy",
 	NodeDir:    "n:/cometbft",
 }

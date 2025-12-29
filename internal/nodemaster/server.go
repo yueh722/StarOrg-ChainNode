@@ -4,6 +4,7 @@ import (
 	"chain/internal/common"
 	"chain/lib/logdb"
 	"chain/lib/queuestore"
+	"chain/rpc/security"
 	"chain/rpc/server"
 	"log"
 	"path"
@@ -49,6 +50,11 @@ func StartServer() error {
 		Addr:          cfg.Addr,
 		NodelogStore:  nodelogStore,
 		SetuplogStore: setuplogStore,
+		Option: security.SecurityOption{
+			FWMode:         cfg.FWMode,
+			AllowOnlyHosts: cfg.AllowOnlyHosts,
+		},
+		Tls: cfg.Tls,
 	})
 	if err != nil {
 		return err

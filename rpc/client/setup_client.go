@@ -67,7 +67,7 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 		setupService.GetNamesapceString(),
 		cmdChan,
 		setupService.GetSubscriptionName(),
-		c.NodeID(),
+		c.cfg.NodeInfo,
 	)
 
 	if err != nil {

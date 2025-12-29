@@ -9,27 +9,33 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+type DelegatorInfo struct {
+	App       string
+	NodeState int
+}
+
 // Subscription
-func (s *SetupService) SubscribeCommand(ctx context.Context, nodeID string) (*rpc.Subscription, error) {
+func (s *SetupService) SubscribeCommand(ctx context.Context, nodeInfo lib.NodeInfo, delegator DelegatorInfo) (*rpc.Subscription, error) {
 
 	notifier, ok := rpc.NotifierFromContext(ctx)
 	if !ok {
 		return nil, rpc.ErrNotificationsUnsupported
 	}
 
-	log.Println("Received SubscribeCommand request, node:", nodeID)
+	log.Println("Received SubscribeCommand request, node:", nodeInfo.NodeName)
 
-	if nodeID == "" {
+	if nodeInfo.NodeID == "" {
 		//this is an uninitialized node.
 		//assign a node ID to it
-		nodeID = lib.NewNodeId()
+		nodeInfo.NodeID = lib.NewNodeId()
 	}
 
 	sub := notifier.CreateSubscription()
 
 	s.AddOrUpdateSubscription(sub.ID, &ClientSub{
 		Notifier: notifier,
-		NodeID:   nodeID,
+		NodeID:   nodeInfo.NodeID,
+		NodeInfo: nodeInfo,
 	})
 
 	go func() {

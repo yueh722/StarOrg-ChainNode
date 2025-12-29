@@ -16,12 +16,13 @@ type customerSub struct {
 	subID    rpc.ID
 }
 
+// StreamService is used to provide live stream data about chain network for webserver.
 type StreamService struct {
 	subs map[rpc.ID]customerSub
 	mut  sync.Mutex
 }
 
-func NewSteamService() *StreamService {
+func NewStreamService() *StreamService {
 	return &StreamService{}
 }
 

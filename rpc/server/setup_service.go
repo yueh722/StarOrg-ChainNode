@@ -1,6 +1,7 @@
 package server
 
 import (
+	"chain/lib"
 	"chain/lib/logdb"
 	"chain/rpc/commandlog"
 	"chain/rpc/common"
@@ -27,6 +28,7 @@ type SetupService struct {
 type ClientSub struct {
 	Notifier *rpc.Notifier
 	NodeID   string
+	NodeInfo lib.NodeInfo
 }
 
 func NewSetupService(store logdb.CommandLogStore, stream *StreamService) *SetupService {
@@ -98,6 +100,8 @@ func (s *SetupService) BroadcastInitializeChainNode(
 		if err := clientSub.Notifier.Notify(subID, env); err != nil {
 			return err
 		}
+
+		//save genesisDoc, peerList,
 
 		//put command record into database
 		err = s.cmdEvent.Update(commandlog.CommandResult{

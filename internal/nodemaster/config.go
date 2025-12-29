@@ -2,38 +2,55 @@ package nodemaster
 
 import (
 	"chain/lib"
+	"chain/rpc/security"
+	"chain/rpc/server"
 	"fmt"
-)
-
-type FirewallMode string
-
-const (
-	AllowOnly FirewallMode = "allow_only"
-	AllowAll  FirewallMode = "allow_all"
-
-	//local_only will override host part of addr with localhost
-	LocalOnly FirewallMode = "local_only"
 )
 
 type Config struct {
 	Addr    string
 	AppName string
+	TlsPort string
 
-	FWMode         FirewallMode
+	FWMode         security.FirewallMode
 	AllowOnlyHosts []string
+
+	Tls server.TlsOption
+}
+
+var testTlsOption = server.TlsOption{
+	CertFile: "n:/tmp/test.crt",
+	KeyFile:  "n:/tmp/test.key",
 }
 
 var defaultConfig = Config{
 	Addr:           ":8080",
 	AppName:        "NodeMaster",
-	FWMode:         AllowAll,
+	FWMode:         security.AllowAll,
 	AllowOnlyHosts: []string{},
+	Tls:            testTlsOption,
+}
+
+var localOnlyConfig = Config{
+	Addr:           ":8080",
+	AppName:        "NodeMaster",
+	FWMode:         security.LocalOnly,
+	AllowOnlyHosts: []string{},
+	Tls:            testTlsOption,
+}
+
+var allowOnlyConfig = Config{
+	Addr:           ":8080",
+	AppName:        "NodeMaster",
+	FWMode:         security.AllowOnly,
+	AllowOnlyHosts: []string{},
+	Tls:            testTlsOption,
 }
 
 func GetConfig() (Config, error) {
-	cfg := defaultConfig
+	cfg := allowOnlyConfig
 	var err error
-	if cfg.FWMode == LocalOnly {
+	if cfg.FWMode == security.LocalOnly {
 		cfg.Addr, err = lib.UpdateHost(cfg.Addr, "localhost")
 		if err != nil {
 			return Config{}, fmt.Errorf("failed to update addr '%s' of configuration for NodeMaster; err: %v", cfg.Addr, err.Error())
