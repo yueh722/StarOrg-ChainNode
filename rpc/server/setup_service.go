@@ -5,24 +5,31 @@ import (
 	"chain/lib/logdb"
 	"chain/rpc/commandlog"
 	"chain/rpc/common"
+	"chain/utils"
 	"encoding/json"
 	"fmt"
 	"log"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/duke-git/lancet/v2/maputil"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/pingcap/errors"
 )
+
+type SetupResult struct {
+	Error error `json:"error"`
+}
 
 // SetupService is designed for nodeproxy getting setup command dispatched from NodeMaster.
 // Request from: NodeProxy
 type SetupService struct {
-	mu     sync.Mutex
-	subs   map[rpc.ID]*ClientSub
-	stream *StreamService
-	//
-	cmdEvent commandlog.CommandEventRepo
+	mu         sync.Mutex
+	subs       map[rpc.ID]*ClientSub
+	stream     *StreamService
+	cmdEvent   commandlog.CommandEventRepo
+	chainState *ChainStateInternal
 }
 
 type ClientSub struct {
@@ -30,6 +37,8 @@ type ClientSub struct {
 	NodeID   string
 	NodeInfo lib.NodeInfo
 }
+
+var chainStateFile = filepath.Join(utils.GetAppDataPath("setup"), "chain.json")
 
 func NewSetupService(store logdb.CommandLogStore, stream *StreamService) *SetupService {
 
@@ -39,9 +48,10 @@ func NewSetupService(store logdb.CommandLogStore, stream *StreamService) *SetupS
 	}
 
 	return &SetupService{
-		subs:     make(map[rpc.ID]*ClientSub),
-		cmdEvent: cmdEvent,
-		stream:   stream,
+		subs:       make(map[rpc.ID]*ClientSub),
+		cmdEvent:   cmdEvent,
+		stream:     stream,
+		chainState: LoadChainState(chainStateFile),
 	}
 }
 
@@ -61,30 +71,73 @@ func (s *SetupService) GetSubscriptionName() string {
 	return "subscribeCommand"
 }
 
+func ReturnError(err error) error {
+	return err
+}
+
+// Method
+// Fetch: "retrive chain state and node state"
+func (s *SetupService) GetChainState() ChainState {
+
+	var nodes []common.StatusNode
+
+	for _, peer := range s.chainState.Peers {
+
+		node := lib.PeerInfoToNodeInfo(&peer)
+
+		nodes = append(nodes, common.StatusNode{
+			NodeId:         node.NodeID,
+			NodeName:       node.NodeName,
+			NodeAddress:    node.NodeAddress,
+			Validator:      node.Validator,
+			ProxyApp:       node.ProxyApp,
+			RPCAddress:     node.RPCAddr,
+			WebServiceAddr: node.WebServiceAddr,
+			Healthy:        false,
+			LastCheck:      time.Now().Unix(),
+		})
+	}
+
+	return ChainState{
+		Nodes:           nodes,
+		ChainID:         s.chainState.GenesisDoc.ChainID,
+		InitializedTime: s.chainState.InitializedTime,
+		LastAddNodeTime: s.chainState.LastAddNodeTime,
+	}
+}
+
 // Method
 // Broadcast: "init all clients" with per-client NodeID assignment.
 func (s *SetupService) BroadcastInitializeChainNode(
 	chainID string,
-	genesisTime int64,
 	nodeArray string,
 ) error {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.chainState.Initialized() {
+		return ReturnError(errors.New("chain already initialized"))
+	}
+
+	newChainState := NewChainState(chainID, nodeArray)
+
+	activatedStatus := map[string]error{}
+
 	for subID, clientSub := range s.subs {
 		nodeID := clientSub.NodeID
 
+		activatedStatus[nodeID] = nil
+
 		cmdID, err := newCommandID()
 		if err != nil {
-			return err
+			return ReturnError(err)
 		}
 
 		payloadStruct := common.SetupInitializeChainNode{
-			ChainID:     chainID,
-			GenesisTime: genesisTime,
-			NodeID:      nodeID,
-			NodeArray:   nodeArray,
+			NodeID:     nodeID,
+			GenesisDoc: *newChainState.GenesisDoc,
+			NodeArray:  newChainState.Peers,
 		}
 		payload, _ := json.Marshal(payloadStruct)
 
@@ -98,10 +151,8 @@ func (s *SetupService) BroadcastInitializeChainNode(
 
 		//notify all client to initialize node
 		if err := clientSub.Notifier.Notify(subID, env); err != nil {
-			return err
+			return ReturnError(err)
 		}
-
-		//save genesisDoc, peerList,
 
 		//put command record into database
 		err = s.cmdEvent.Update(commandlog.CommandResult{
@@ -113,38 +164,80 @@ func (s *SetupService) BroadcastInitializeChainNode(
 			StartedAt: time.Now().Unix(),
 		})
 		if err != nil {
-			return err
+			return ReturnError(err)
 		}
+
+		_, activatedStatus[nodeID] = s.cmdEvent.WaitCompleted(cmdID)
 	}
 
-	return nil
+	var err = errors.New("")
+
+	completed := maputil.FilterByValues(activatedStatus, []error{nil})
+	if len(completed) == 0 {
+		//all completed
+		//save chain node information, genesisDoc
+		if err = newChainState.Save(chainStateFile); err != nil {
+			log.Println("save chain state file:", chainStateFile, "err:", err)
+		}
+
+		s.chainState = newChainState
+	}
+
+	maputil.ForEach(activatedStatus, func(nodeID string, opErr error) {
+		err = fmt.Errorf("%v\nnodeID: %v, err: %v", err, nodeID, opErr)
+	})
+
+	return ReturnError(err)
 }
 
 // Method
-func (s *SetupService) BroadcastAddChainNode(peers, genesisDoc, nodeId string) error {
+func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if !s.chainState.Initialized() {
+		return ReturnError(errors.New("chain has not initialized"))
+	}
 
 	cmdID, err := newCommandID()
 	if err != nil {
 		return err
 	}
 
-	notifiers := s.GetNotifierByNodeID(nodeId)
+	activatedStatus := map[string]error{}
+
+	peers := append(s.chainState.Peers, peerInfo)
+
+	notifiers := s.GetNotifierByNodeID(peerInfo.NodeId)
 
 	for subID, clientSub := range notifiers {
+		var (
+			payloadStruct any
+			cmd           common.CmdType
+		)
 
-		payloadStruct := common.SetupAddChainNode{
-			NodeID:     nodeId,
-			NodeArray:  peers,
-			GenesisDoc: genesisDoc,
+		if clientSub.NodeID == peerInfo.NodeId {
+			// send CmdInitializeChainNode to new node
+			cmd = common.CmdInitializeChainNode
+			payloadStruct = common.SetupInitializeChainNode{
+				NodeID:     peerInfo.NodeId,
+				NodeArray:  peers,
+				GenesisDoc: *s.chainState.GenesisDoc,
+			}
+		} else {
+			// send CmdUpdateChainCfg to other nodes
+			cmd = common.CmdUpdateChainCfg
+			payloadStruct = common.SetupUpdateChainCfg{
+				NodeArray: peers,
+			}
 		}
+
 		payload, _ := json.Marshal(payloadStruct)
 
 		env := common.CommandEnvelope{
 			CommandID: cmdID,
-			Cmd:       common.CmdAddChainNode,
-			NodeID:    nodeId,
+			Cmd:       cmd,
+			NodeID:    peerInfo.NodeId,
 			Payload:   payload,
 			IssuedAt:  time.Now().Unix(),
 		}
@@ -152,6 +245,26 @@ func (s *SetupService) BroadcastAddChainNode(peers, genesisDoc, nodeId string) e
 		if err = clientSub.Notifier.Notify(subID, env); err == nil {
 			break
 		}
+
+		//put command record into database
+		err = s.cmdEvent.Update(commandlog.CommandResult{
+			CommandID: cmdID,
+			Cmd:       env.Cmd,
+			NodeID:    peerInfo.NodeId,
+			Status:    commandlog.CmdRunning,
+			Message:   string(payload),
+			StartedAt: time.Now().Unix(),
+		})
+		if err != nil {
+			return ReturnError(err)
+		}
+
+		_, activatedStatus[peerInfo.NodeId] = s.cmdEvent.WaitCompleted(cmdID)
+	}
+
+	if len(activatedStatus) == 0 {
+		// all down: update chainstate
+		err = s.chainState.AddNode(peerInfo).Save(chainStateFile)
 	}
 
 	return err
@@ -163,6 +276,10 @@ func (s *SetupService) ControlNodes(ctlNodes ...common.SetupControlNode) error {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if !s.chainState.Initialized() {
+		return ReturnError(errors.New("chain has not initialized"))
+	}
 
 	for _, node := range ctlNodes {
 

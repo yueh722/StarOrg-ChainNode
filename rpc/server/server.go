@@ -17,8 +17,8 @@ import (
 )
 
 type TlsOption struct {
-	CertFile string
-	KeyFile  string
+	TlsCertFile string
+	TlsKeyFile  string
 }
 
 type Server struct {
@@ -98,8 +98,8 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 
 func (s *Server) CheckTlsOption() bool {
 
-	if s.tls.CertFile != "" && s.tls.KeyFile != "" {
-		if fileutil.IsExist(s.tls.CertFile) && fileutil.IsExist(s.tls.KeyFile) {
+	if s.tls.TlsCertFile != "" && s.tls.TlsKeyFile != "" {
+		if fileutil.IsExist(s.tls.TlsCertFile) && fileutil.IsExist(s.tls.TlsKeyFile) {
 			return true
 		}
 
@@ -107,7 +107,7 @@ func (s *Server) CheckTlsOption() bool {
 	}
 
 	/*
-		_, err := tls.LoadX509KeyPair(s.tls.CertFile, s.tls.KeyFile)
+		_, err := tls.LoadX509KeyPair(s.tls.TlsCertFile, s.tls.TlsKeyFile)
 		if err != nil {
 			log.Println("failed to load certFile and keyFile, err:", err)
 			return false
@@ -139,7 +139,7 @@ func (s *Server) Serve() error {
 	if tlsEnabled {
 		protocol = "https"
 		log.Println("Server starting on", s.addr, "with TLS")
-		return s.srv.ListenAndServeTLS(s.tls.CertFile, s.tls.KeyFile)
+		return s.srv.ListenAndServeTLS(s.tls.TlsCertFile, s.tls.TlsKeyFile)
 	} else {
 		protocol = "http"
 		log.Println("Server starting on", s.addr)

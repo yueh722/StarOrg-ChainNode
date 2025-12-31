@@ -1,21 +1,23 @@
 package common
 
-import "encoding/json"
+import (
+	"chain/lib"
+	"encoding/json"
+
+	"github.com/cometbft/cometbft/v2/types"
+)
 
 // Management
 // method: Subscription
 type SetupInitializeChainNode struct {
-	ChainID     string
-	GenesisTime int64
-	NodeID      string
-	NodeArray   string
+	NodeID     string
+	NodeArray  lib.PeerList
+	GenesisDoc types.GenesisDoc
 }
 
 // method: Subscription
-type SetupAddChainNode struct {
-	NodeID     string
-	NodeArray  string
-	GenesisDoc string
+type SetupUpdateChainCfg struct {
+	NodeArray lib.PeerList
 }
 
 type NodeAction string
@@ -47,6 +49,7 @@ type StatusNode struct {
 	WebServiceAddr string
 	Healthy        bool
 	LastCheck      int64
+	StartedTime    string
 }
 
 // storage report of host running node
@@ -64,7 +67,7 @@ type CmdType string
 
 const (
 	CmdInitializeChainNode CmdType = "setup_initialize_chain_node"
-	CmdAddChainNode        CmdType = "setup_add_chain_node"
+	CmdUpdateChainCfg      CmdType = "setup_update_chain_cfg"
 	CmdControlNode         CmdType = "setup_control_node"
 )
 

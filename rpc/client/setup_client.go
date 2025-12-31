@@ -27,7 +27,7 @@ type SetupClient struct {
 
 var router = map[common.CmdType]func(*SetupClient, *common.CommandEnvelope) error{
 	common.CmdInitializeChainNode: (*SetupClient).handleInitChainNodeCmd,
-	common.CmdAddChainNode:        (*SetupClient).handleAddChainNodeCmd,
+	common.CmdUpdateChainCfg:      (*SetupClient).handleUpdateChainCfgCmd,
 	common.CmdControlNode:         (*SetupClient).handleControlNodeCmd,
 }
 
@@ -125,14 +125,13 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 	}
 
 	err = lib.InitializeChainNode(
-		arg.GenesisTime,
+		&arg.GenesisDoc,
 		arg.NodeArray,
-		arg.ChainID,
 		arg.NodeID,
 		c.cfg.NodeBaseDir,
 	)
 	if err != nil {
-		nodeName := lib.GetNodeNameByNodeId(arg.NodeID, arg.NodeArray)
+		nodeName := arg.NodeArray.GetPeerByNodeId(arg.NodeID).NodeName
 		log.Printf("failed to init chain node id: %s, node name: %s, err: %v", cmd.NodeID, nodeName, err)
 		return err
 	}
@@ -140,36 +139,28 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 	//reload nodeInfo of cfg
 	c.cfg.NodeInfo, err = lib.GetNodeInfo(c.cfg.NodeBaseDir)
 	if err != nil {
-		log.Println("failed to reload node info upon initialize chain node, err:", err)
+		log.Println("failed to reload node info upon initialized chain node, err:", err)
+		return err
 	}
 
 	return nil
 }
 
-func (c *SetupClient) handleAddChainNodeCmd(cmd *common.CommandEnvelope) error {
+func (c *SetupClient) handleUpdateChainCfgCmd(cmd *common.CommandEnvelope) error {
 
-	arg := common.SetupAddChainNode{}
+	arg := common.SetupUpdateChainCfg{}
 	err := json.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
 	}
 
-	err = lib.AddChainNode(
+	err = lib.UpdateChainCfg(
 		arg.NodeArray,
-		arg.GenesisDoc,
-		arg.NodeID,
 		c.cfg.NodeBaseDir,
 	)
 	if err != nil {
-		nodeName := lib.GetNodeNameByNodeId(arg.NodeID, arg.NodeArray)
-		log.Printf("failed to add chain node id: %s, node name: %s, err: %v", cmd.NodeID, nodeName, err)
+		log.Printf("failed to add chain node id: %s, node name: %s, err: %v", cmd.NodeID, c.NodeName(), err)
 		return err
-	}
-
-	//reload nodeInfo of cfg
-	c.cfg.NodeInfo, err = lib.GetNodeInfo(c.cfg.NodeBaseDir)
-	if err != nil {
-		log.Println("failed to reload node info upon initialize chain node, err:", err)
 	}
 
 	return nil

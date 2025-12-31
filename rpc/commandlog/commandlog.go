@@ -48,6 +48,8 @@ type CommandEventRepo interface {
 	Update(r CommandResult) error
 	Complete(commandID string, success bool, message string, errStr string, output json.RawMessage) (CommandResult, error)
 
+	WaitCompleted(commandID string) (bool, error)
+
 	GetCommand(commandID string) (CommandResult, error)
 	ListCommandByNode(nodeID string) ([]CommandResult, error)
 
@@ -57,11 +59,12 @@ type CommandEventRepo interface {
 }
 
 type CommandRepo struct {
-	store        logdb.CommandLogStore
-	mu           sync.RWMutex
-	latestByID   map[string]CommandResult
-	latestByNode map[string]map[string]CommandResult // node_name -> map: command_id -> commandResult
-	historyByID  map[string][]CommandResult
+	store         logdb.CommandLogStore
+	mu            sync.RWMutex
+	latestByID    map[string]CommandResult
+	latestByNode  map[string]map[string]CommandResult // node_name -> map: command_id -> commandResult
+	historyByID   map[string][]CommandResult
+	activatedCmds map[string]chan struct{}
 }
 
 func NewCommandRepo(store logdb.CommandLogStore) (*CommandRepo, error) {
@@ -115,7 +118,26 @@ func (r *CommandRepo) Update(e CommandResult) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.applyLocked(e)
+	r.activatedCmds[e.CommandID] = make(chan struct{}, 1)
 	return nil
+}
+
+func (r *CommandRepo) WaitCompleted(commandID string) (bool, error) {
+
+	r.mu.RLock()
+	stateCh, ok := r.activatedCmds[commandID]
+	if !ok {
+		r.mu.RUnlock()
+		return false, errors.New("command not found")
+	}
+	r.mu.RUnlock()
+
+	select {
+	case <-stateCh:
+		return true, nil
+	case <-time.After(30 * time.Second):
+		return false, errors.New("command timeout")
+	}
 }
 
 func (r *CommandRepo) Complete(commandID string, success bool, message string, errStr string, output json.RawMessage) (CommandResult, error) {
@@ -153,6 +175,13 @@ func (r *CommandRepo) Complete(commandID string, success bool, message string, e
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.applyLocked(cur)
+
+	stateCh, ok := r.activatedCmds[commandID]
+	if ok {
+		stateCh <- struct{}{}
+		delete(r.activatedCmds, commandID)
+	}
+
 	return cur, nil
 }
 

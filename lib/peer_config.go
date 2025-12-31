@@ -16,6 +16,7 @@ import (
 	"github.com/cometbft/cometbft/v2/privval"
 	"github.com/cometbft/cometbft/v2/types"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 var logger = log.NewLogger(os.Stdout)
@@ -29,6 +30,50 @@ type PeerConfig struct {
 	nodeId   string
 	nodeDir  string
 	currPeer *Peer
+}
+
+func getConfigFilePath(nodeDir, name string) string {
+	return ""
+}
+
+func LoadPeerConfig(nodeDir string) (*PeerConfig, error) {
+
+	//load cometbft config file
+	cmtConfig := cometbftConfig.DefaultConfig()
+	viper.SetConfigFile(filepath.Join(nodeDir, "config", "config.toml"))
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, err
+	}
+	if err := viper.Unmarshal(cmtConfig); err != nil {
+		return nil, err
+	}
+	if err := cmtConfig.ValidateBasic(); err != nil {
+		return nil, err
+	}
+
+	nodeDir = filepath.Join(nodeDir)
+	cmtConfig.SetRoot(nodeDir)
+
+	//genesisDoc
+	genesisDoc, err := types.GenesisDocFromFile(cmtConfig.GenesisFile())
+	if err != nil {
+		return nil, err
+	}
+
+	//peer-config
+	peer := &Peer{}
+	if err := peer.Load(nodeDir); err != nil {
+		return nil, err
+	}
+
+	return &PeerConfig{
+		config:   cmtConfig,
+		genesis:  genesisDoc,
+		currPeer: peer,
+		nodeDir:  nodeDir,
+		nodeId:   peer.NodeId,
+		privKey:  peer.PrivateKey(),
+	}, nil
 }
 
 func NewPeerConfig(currPeer *Peer, persistentPeers, nodeDir string) (*PeerConfig, error) {
@@ -49,8 +94,6 @@ func NewPeerConfig(currPeer *Peer, persistentPeers, nodeDir string) (*PeerConfig
 	if nodeDir == "" {
 		nodeDir = "./"
 	}
-
-	nodeDir = filepath.Join(nodeDir, currPeer.NodeName)
 
 	config.SetRoot(nodeDir)
 
@@ -99,18 +142,38 @@ func (cfg *PeerConfig) NewGensis(chainId string, genesisTime time.Time, validato
 	return nil
 }
 
-func (cfg *PeerConfig) SetGenesis(genesisDoc string, validators []types.GenesisValidator) error {
+func (cfg *PeerConfig) SetGenesis(genesisDoc *types.GenesisDoc, validators []types.GenesisValidator) error {
 
-	genesis, err := types.GenesisDocFromJSON([]byte(genesisDoc))
-	if err != nil {
+	if validators != nil && len(validators) > 0 {
+		genesisDoc.Validators = validators
+	}
+
+	if err := genesisDoc.ValidateAndComplete(); err != nil {
+		return errors.New("genesisDoc is corrupt")
+	}
+
+	cfg.genesis = genesisDoc
+	return nil
+}
+
+func (cfg *PeerConfig) UpdateChainConfig(peers PeerList) error {
+	if err := cfg.SetGenesis(cfg.genesis, peers.BuildValidators()); err != nil {
 		return err
 	}
 
-	if validators != nil && len(validators) > 0 {
-		genesis.Validators = validators
+	cfg.config.P2P.PersistentPeers = peers.BuildPersistentPeers()
+
+	nodeDir := cfg.nodeDir
+	config := cfg.config
+
+	//save genesis.json
+	if err := cfg.genesis.SaveAs(filepath.Join(nodeDir, config.BaseConfig.Genesis)); err != nil {
+		return err
 	}
 
-	cfg.genesis = genesis
+	//save config.toml
+	cometbftConfig.WriteConfigFile(filepath.Join(nodeDir, "config", "config.toml"), cfg.config)
+
 	return nil
 }
 

@@ -2,7 +2,6 @@ package lib
 
 import (
 	"chain/lib/queuestore"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,35 +31,33 @@ func GetNodeBaseDir(node string) string {
 	return "./"
 }
 
-func genesisTimeFromUnix(nsec int64) time.Time {
+func GenesisTimeFromUnix(nsec int64) time.Time {
 	return cmttime.Canonical(time.Unix(0, nsec))
 }
 
-func InitializeChainNode(genesisTime int64, peers, chainId, nodeId, nodeDir string) error {
-
-	if genesisTime == 0 {
-		return errors.New("genesis time is required")
-	}
+func InitializeChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, nodeDir string) error {
 
 	// check if nodeDir is correct.
 
-	// ### Parse peer addresses.
-	peerList := ConvertJsonToPeers(peers)
-	if len(peerList) == 0 {
-		return fmt.Errorf("peers information is required, please provide all peers information that includes private key, id, name and p2p address")
-	}
-
-	currPeer := peerList.GetPeerByNodeId(nodeId)
+	currPeer := peers.GetPeerByNodeId(nodeId)
 	if currPeer == nil {
 		return fmt.Errorf("information of peer %s is required", nodeId)
 	}
 
-	peerConfig, err := NewPeerConfig(currPeer, peerList.BuildPersistentPeers(), nodeDir)
+	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), nodeDir)
 	if err != nil {
 		return err
 	}
 
-	if err := peerConfig.NewGensis(chainId, genesisTimeFromUnix(genesisTime), peerList.BuildValidators()); err != nil {
+	var validators []types.GenesisValidator
+	if currPeer.IsValidator {
+		//update validators of genesisDoc
+		validators = peers.BuildValidators()
+	} else {
+		validators = nil
+	}
+
+	if err := peerConfig.SetGenesis(genesisDoc, validators); err != nil {
 		return err
 	}
 
@@ -71,20 +68,24 @@ func InitializeChainNode(genesisTime int64, peers, chainId, nodeId, nodeDir stri
 	return nil
 }
 
-func AddChainNode(peers, genesisDoc, nodeId, nodeDir string) error {
-
-	// ### Parse peer addresses.
-	peerList := ConvertJsonToPeers(peers)
-	if len(peerList) == 0 {
-		return fmt.Errorf("no peer found. please provide all peers information that includes private key, id, name and p2p address")
+func UpdateChainCfg(peers PeerList, nodeDir string) error {
+	//load config
+	peerConfig, err := LoadPeerConfig(nodeDir)
+	if err != nil {
+		return err
 	}
 
-	currPeer := peerList.GetPeerByNodeId(nodeId)
+	return peerConfig.UpdateChainConfig(peers)
+}
+
+func AddChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, nodeDir string) error {
+
+	currPeer := peers.GetPeerByNodeId(nodeId)
 	if currPeer == nil {
 		return fmt.Errorf("information of peer %s is required", nodeId)
 	}
 
-	peerConfig, err := NewPeerConfig(currPeer, peerList.BuildPersistentPeers(), nodeDir)
+	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), nodeDir)
 	if err != nil {
 		return err
 	}
@@ -92,7 +93,7 @@ func AddChainNode(peers, genesisDoc, nodeId, nodeDir string) error {
 	var validators []types.GenesisValidator
 	if currPeer.IsValidator {
 		//update validators of genesisDoc
-		validators = peerList.BuildValidators()
+		validators = peers.BuildValidators()
 	} else {
 		validators = nil
 	}
@@ -228,6 +229,10 @@ func GetNodeInfo(nodeDir string) (*NodeInfo, error) {
 		return nil, err
 	}
 
+	return PeerInfoToNodeInfo(peer), nil
+}
+
+func PeerInfoToNodeInfo(peer *Peer) *NodeInfo {
 	return &NodeInfo{
 		NodeName:       peer.NodeName,
 		NodeID:         peer.NodeId,
@@ -236,5 +241,5 @@ func GetNodeInfo(nodeDir string) (*NodeInfo, error) {
 		RPCAddr:        fmt.Sprintf("http://%s:%d", peer.NodeAddress, peer.RPCPort),
 		WebServiceAddr: fmt.Sprintf("%s:%d", peer.NodeAddress, peer.WebServicePort),
 		Validator:      peer.IsValidator,
-	}, nil
+	}
 }

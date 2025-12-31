@@ -7,16 +7,18 @@ require (
 	github.com/duke-git/lancet/v2 v2.3.8
 	github.com/ethereum/go-ethereum v1.16.7
 	github.com/glebarez/sqlite v1.11.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/kardianos/service v1.2.4
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
+	github.com/pingcap/errors v0.11.4
 	github.com/pkg/errors v0.9.1
+	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible
 	github.com/spf13/cobra v1.10.2
+	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
-	modernc.org/sqlite v1.41.0
 )
 
 require (
@@ -55,7 +57,6 @@ require (
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
@@ -69,7 +70,6 @@ require (
 	github.com/linxGnu/grocksdb v1.9.8 // indirect
 	github.com/lmittmann/tint v1.0.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20220708102147-0a8a51822cae // indirect
@@ -84,12 +84,10 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.5 // indirect
-	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	github.com/spf13/viper v1.21.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/supranational/blst v0.3.16-0.20250831170142-f48500c1fdbe // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
@@ -114,4 +112,5 @@ require (
 	modernc.org/libc v1.66.10 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
+	modernc.org/sqlite v1.41.0 // indirect
 )

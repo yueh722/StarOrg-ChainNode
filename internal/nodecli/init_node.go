@@ -10,6 +10,7 @@ import (
 	"github.com/cometbft/cometbft/v2/crypto/ed25519"
 	"github.com/cometbft/cometbft/v2/p2p"
 	"github.com/cometbft/cometbft/v2/privval"
+	"github.com/cometbft/cometbft/v2/types"
 	"github.com/duke-git/lancet/v2/fileutil"
 	"github.com/spf13/cobra"
 )
@@ -78,9 +79,20 @@ func init() {
 func initnodeFiles(*cobra.Command, []string) error {
 	arg := nodeInitArgs
 
-	err := lib.InitializeChainNode(arg.genesisTime, arg.peers, arg.chainId, arg.nodeId, home)
+	genesisDoc := &types.GenesisDoc{
+		GenesisTime: lib.GenesisTimeFromUnix(arg.genesisTime),
+		ChainID:     arg.chainId,
+	}
+
+	// ### Parse peer addresses.
+	peerList := lib.ConvertJsonToPeers(arg.peers)
+	if len(peerList) == 0 {
+		return fmt.Errorf("peers information is required, please provide all peers information that includes private key, id, name and p2p address")
+	}
+
+	err := lib.InitializeChainNode(genesisDoc, peerList, arg.nodeId, home)
 	if err == nil {
-		currPeer := lib.ConvertJsonToPeers(arg.peers).GetPeerByNodeId(arg.nodeId)
+		currPeer := peerList.GetPeerByNodeId(arg.nodeId)
 		var nodeName string
 		if currPeer != nil {
 			nodeName = currPeer.NodeName

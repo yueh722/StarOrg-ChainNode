@@ -87,7 +87,7 @@ func (peers PeerList) GetPeerByNodeId(nodeId string) *Peer {
 		}
 	}
 
-	return nil
+	return &Peer{}
 }
 
 func (peers PeerList) GetPeerByNodeName(nodeName string) *Peer {
@@ -97,7 +97,7 @@ func (peers PeerList) GetPeerByNodeName(nodeName string) *Peer {
 		}
 	}
 
-	return nil
+	return &Peer{}
 }
 
 func (peers PeerList) BuildValidators() []types.GenesisValidator {

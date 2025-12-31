@@ -4,6 +4,7 @@ import (
 	"chain/lib"
 	"fmt"
 
+	"github.com/cometbft/cometbft/v2/types"
 	"github.com/spf13/cobra"
 )
 
@@ -65,9 +66,21 @@ Example:
 func addnodeFiles(*cobra.Command, []string) error {
 
 	arg := nodeAddArgs
-	err := lib.AddChainNode(arg.Peers, arg.GenesisDoc, arg.NodeId, home)
+
+	genesisDoc, err := types.GenesisDocFromJSON([]byte(arg.GenesisDoc))
+	if err != nil {
+		return err
+	}
+
+	// ### Parse peer addresses.
+	peerList := lib.ConvertJsonToPeers(arg.Peers)
+	if len(peerList) == 0 {
+		return fmt.Errorf("peers information is required, please provide all peers information that includes private key, id, name and p2p address")
+	}
+
+	err = lib.AddChainNode(genesisDoc, peerList, arg.NodeId, home)
 	if err == nil {
-		currPeer := lib.ConvertJsonToPeers(arg.Peers).GetPeerByNodeId(arg.NodeId)
+		currPeer := peerList.GetPeerByNodeId(arg.NodeId)
 		var nodeName string
 		if currPeer != nil {
 			nodeName = currPeer.NodeName

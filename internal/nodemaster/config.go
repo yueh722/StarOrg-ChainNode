@@ -19,8 +19,8 @@ type Config struct {
 }
 
 var testTlsOption = server.TlsOption{
-	CertFile: "n:/tmp/test.crt",
-	KeyFile:  "n:/tmp/test.key",
+	TlsCertFile: "n:/tmp/test.crt",
+	TlsKeyFile:  "n:/tmp/test.key",
 }
 
 var defaultConfig = Config{
