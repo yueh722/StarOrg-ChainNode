@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/cometbft/cometbft/v2/crypto"
@@ -39,6 +40,10 @@ func (p *Peer) Save(peerFile string) error {
 	jsonBytes, err := json.MarshalIndent(p, "", "  ")
 	if err != nil {
 		return fmt.Errorf("error marshal peerConfig at %s: %w", peerFile, err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(peerFile), 0755); err != nil {
+		return fmt.Errorf("error making directory for %s: %w", peerFile, err)
 	}
 
 	err = os.WriteFile(peerFile, jsonBytes, 0644)
@@ -123,6 +128,14 @@ func (peers PeerList) BuildValidators() []types.GenesisValidator {
 	}
 
 	return genVals
+}
+
+func (peers PeerList) ToJson() string {
+	if jsonBytes, err := json.Marshal(peers); err == nil {
+		return string(jsonBytes)
+	}
+
+	return ""
 }
 
 func NewNodeId() string {

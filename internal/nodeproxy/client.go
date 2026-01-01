@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/fs"
 	"log"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,6 +15,10 @@ import (
 
 func init() {
 
+}
+
+func getNodeBaseDir(nodeDir, nodeID string) string {
+	return filepath.Join(nodeDir, nodeID)
 }
 
 func StartClient() error {
@@ -29,10 +34,17 @@ func StartClient() error {
 		return err
 	}
 
+	if nodeInfo == nil {
+		// init new node id if current node is uninitialized
+		if nodeInfo, err = lib.InitializeNewNodeID(cfg.NodeDir); err != nil {
+			return err
+		}
+	}
+
 	nodeClient, err := client.New(client.ClientConfig{
 		AppName:     cfg.AppName,
 		ServerAddr:  cfg.ServerAddr,
-		NodeBaseDir: cfg.NodeDir,
+		NodeBaseDir: getNodeBaseDir(cfg.NodeDir, nodeInfo.NodeID),
 		NodeInfo:    nodeInfo,
 	})
 	if err != nil {

@@ -12,6 +12,8 @@ type RunItem struct {
 	inst   *Instance
 }
 
+var nodeRunTime NodeRuntime
+
 func RunApp(inst *Instance, exitCh chan<- bool) error {
 
 	defer func() {
@@ -38,7 +40,7 @@ func BuildNodeLauncher(nodeID string, arg NodeArg) *Launcher {
 
 	l := &Launcher{
 		Name:        "Start-Cometbft-Node-id",
-		AppFilePath: filepath.Join(arg.BinPath, "cometbft.exe"),
+		AppFilePath: filepath.Join(arg.BinPath, NodeFileName),
 		Args: map[string]string{
 			"node":   "",
 			"--home": filepath.Join(arg.NodeBaseDir, arg.NodeInfo.NodeName),
@@ -54,7 +56,7 @@ func BuildAppLauncher(nodeID string, arg NodeArg) *Launcher {
 
 	l := &Launcher{
 		Name:        "Start-Cometbft-App",
-		AppFilePath: filepath.Join(arg.BinPath, "abci-v2-Identity-app.exe"),
+		AppFilePath: filepath.Join(arg.BinPath, AppFileName),
 		Args: map[string]string{
 			"--home":          filepath.Join(arg.NodeBaseDir, "app"),
 			"--socket-addr":   arg.NodeInfo.ProxyApp,       // proxy_app
@@ -130,6 +132,8 @@ func StartNodeWithArg(nodeID string, arg NodeArg) NodeRuntime {
 
 	if start_failure {
 		_ = StopNode(runtime)
+	} else {
+		nodeRunTime = runtime
 	}
 
 	return runtime

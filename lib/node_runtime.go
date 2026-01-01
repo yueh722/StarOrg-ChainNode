@@ -43,6 +43,9 @@ func (r NodeRuntimeImpl) Error() error {
 }
 
 func (r NodeRuntimeImpl) KillNode() {
+	if !r.IsRunning() {
+		return
+	}
 	_ = r.AppInst.Stop()
 	time.Sleep(2 * time.Second)
 	_ = r.NodeInst.Stop()

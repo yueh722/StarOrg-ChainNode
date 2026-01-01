@@ -37,15 +37,10 @@ func (c *StatusClient) ReportNodeStatus() error {
 	//call RPCAddr/status to check healthy
 
 	err = c.client.Call(nil, "status_reportNodeStatus", common.StatusNode{
-		NodeId:         nodeInfo.NodeID,
-		NodeName:       nodeInfo.NodeName,
-		NodeAddress:    nodeInfo.NodeAddress,
-		Validator:      nodeInfo.Validator,
-		ProxyApp:       nodeInfo.ProxyApp,
-		RPCAddress:     nodeInfo.RPCAddr,
-		WebServiceAddr: nodeInfo.WebServiceAddr,
-		Healthy:        lib.CheckNodeOnline(nodeInfo),
-		LastCheck:      time.Now().Unix(),
+		NodeInfo:    *nodeInfo,
+		Healthy:     lib.CheckNodeOnline(nodeInfo),
+		LastCheck:   time.Now().Unix(),
+		StartedTime: "",
 	})
 	return err
 }

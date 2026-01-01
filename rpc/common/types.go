@@ -20,6 +20,9 @@ type SetupUpdateChainCfg struct {
 	NodeArray lib.PeerList
 }
 
+type SetupResetChain struct {
+}
+
 type NodeAction string
 
 const (
@@ -40,16 +43,10 @@ type SetupControlNode struct {
 // each client will report node information to server freqently
 // method: RPC
 type StatusNode struct {
-	NodeId         string
-	NodeName       string
-	NodeAddress    string
-	Validator      bool
-	ProxyApp       string
-	RPCAddress     string
-	WebServiceAddr string
-	Healthy        bool
-	LastCheck      int64
-	StartedTime    string
+	lib.NodeInfo
+	Healthy     bool
+	LastCheck   int64
+	StartedTime string
 }
 
 // storage report of host running node
@@ -69,6 +66,8 @@ const (
 	CmdInitializeChainNode CmdType = "setup_initialize_chain_node"
 	CmdUpdateChainCfg      CmdType = "setup_update_chain_cfg"
 	CmdControlNode         CmdType = "setup_control_node"
+	CmdResetChain          CmdType = "setup_reset_chain"
+	CmdPurgeData           CmdType = "setup_purge_data"
 )
 
 type CommandEnvelope struct {

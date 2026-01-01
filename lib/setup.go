@@ -165,7 +165,7 @@ func CheckChainNode(nodeId, nodeDir string) bool {
 	return false
 }
 
-func PurgeChainNode(nodeDir string) error {
+func ResetChainNode(nodeDir string) error {
 	err := os.RemoveAll(nodeDir)
 	if err != nil {
 		return fmt.Errorf("purge chain node path [%v] failed: %v", nodeDir, err)
@@ -226,6 +226,18 @@ func GetNodeInfo(nodeDir string) (*NodeInfo, error) {
 	peer := &Peer{}
 
 	if err := peer.Load(filepath.Join(nodeDir, peerConfigFile)); err != nil {
+		return nil, err
+	}
+
+	return PeerInfoToNodeInfo(peer), nil
+}
+
+func InitializeNewNodeID(nodeDir string) (*NodeInfo, error) {
+	peer := &Peer{
+		NodeId: NewNodeId(),
+	}
+
+	if err := peer.Save(filepath.Join(nodeDir, peerConfigFile)); err != nil {
 		return nil, err
 	}
 

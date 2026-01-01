@@ -11,6 +11,7 @@ import (
 	"log"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/duke-git/lancet/v2/maputil"
@@ -22,20 +23,26 @@ type SetupResult struct {
 	Error error `json:"error"`
 }
 
+type nodeCommand struct {
+	cmd     common.CmdType
+	payload interface{}
+}
+
 // SetupService is designed for nodeproxy getting setup command dispatched from NodeMaster.
 // Request from: NodeProxy
 type SetupService struct {
 	mu         sync.Mutex
-	subs       map[rpc.ID]*ClientSub
+	subs       map[string]*ClientSub
 	stream     *StreamService
 	cmdEvent   commandlog.CommandEventRepo
 	chainState *ChainStateInternal
 }
 
 type ClientSub struct {
-	Notifier *rpc.Notifier
-	NodeID   string
-	NodeInfo lib.NodeInfo
+	Notifier   *rpc.Notifier
+	NodeID     string
+	StatusNode common.StatusNode
+	SubID      rpc.ID
 }
 
 var chainStateFile = filepath.Join(utils.GetAppDataPath("setup"), "chain.json")
@@ -48,7 +55,7 @@ func NewSetupService(store logdb.CommandLogStore, stream *StreamService) *SetupS
 	}
 
 	return &SetupService{
-		subs:       make(map[rpc.ID]*ClientSub),
+		subs:       make(map[string]*ClientSub),
 		cmdEvent:   cmdEvent,
 		stream:     stream,
 		chainState: LoadChainState(chainStateFile),
@@ -86,15 +93,10 @@ func (s *SetupService) GetChainState() ChainState {
 		node := lib.PeerInfoToNodeInfo(&peer)
 
 		nodes = append(nodes, common.StatusNode{
-			NodeId:         node.NodeID,
-			NodeName:       node.NodeName,
-			NodeAddress:    node.NodeAddress,
-			Validator:      node.Validator,
-			ProxyApp:       node.ProxyApp,
-			RPCAddress:     node.RPCAddr,
-			WebServiceAddr: node.WebServiceAddr,
-			Healthy:        false,
-			LastCheck:      time.Now().Unix(),
+			NodeInfo:    *node,
+			Healthy:     false,
+			LastCheck:   time.Now().Unix(),
+			StartedTime: "",
 		})
 	}
 
@@ -122,72 +124,32 @@ func (s *SetupService) BroadcastInitializeChainNode(
 
 	newChainState := NewChainState(chainID, nodeArray)
 
-	activatedStatus := map[string]error{}
+	nodecmds := make(map[string]*nodeCommand, len(s.subs))
 
-	for subID, clientSub := range s.subs {
-		nodeID := clientSub.NodeID
-
-		activatedStatus[nodeID] = nil
-
-		cmdID, err := newCommandID()
-		if err != nil {
-			return ReturnError(err)
+	for nodeID, _ := range s.subs {
+		nodecmds[nodeID] = &nodeCommand{
+			cmd: common.CmdInitializeChainNode,
+			payload: common.SetupInitializeChainNode{
+				NodeID:     nodeID,
+				GenesisDoc: *newChainState.GenesisDoc,
+				NodeArray:  newChainState.Peers,
+			},
 		}
-
-		payloadStruct := common.SetupInitializeChainNode{
-			NodeID:     nodeID,
-			GenesisDoc: *newChainState.GenesisDoc,
-			NodeArray:  newChainState.Peers,
-		}
-		payload, _ := json.Marshal(payloadStruct)
-
-		env := common.CommandEnvelope{
-			CommandID: cmdID,
-			Cmd:       common.CmdInitializeChainNode,
-			NodeID:    nodeID,
-			Payload:   payload,
-			IssuedAt:  time.Now().Unix(),
-		}
-
-		//notify all client to initialize node
-		if err := clientSub.Notifier.Notify(subID, env); err != nil {
-			return ReturnError(err)
-		}
-
-		//put command record into database
-		err = s.cmdEvent.Update(commandlog.CommandResult{
-			CommandID: cmdID,
-			Cmd:       env.Cmd,
-			NodeID:    nodeID,
-			Status:    commandlog.CmdRunning,
-			Message:   string(payload),
-			StartedAt: time.Now().Unix(),
-		})
-		if err != nil {
-			return ReturnError(err)
-		}
-
-		_, activatedStatus[nodeID] = s.cmdEvent.WaitCompleted(cmdID)
 	}
 
-	var err = errors.New("")
+	if err := s.sendNodeCommand(nodecmds); err != nil {
+		return err
+	}
 
-	completed := maputil.FilterByValues(activatedStatus, []error{nil})
-	if len(completed) == 0 {
-		//all completed
-		//save chain node information, genesisDoc
-		if err = newChainState.Save(chainStateFile); err != nil {
-			log.Println("save chain state file:", chainStateFile, "err:", err)
-		}
-
+	//succeed
+	//save chain node information, genesisDoc
+	if err := newChainState.Save(chainStateFile); err != nil {
+		log.Panicln("save chain state file:", chainStateFile, "err:", err)
+	} else {
 		s.chainState = newChainState
 	}
 
-	maputil.ForEach(activatedStatus, func(nodeID string, opErr error) {
-		err = fmt.Errorf("%v\nnodeID: %v, err: %v", err, nodeID, opErr)
-	})
-
-	return ReturnError(err)
+	return nil
 }
 
 // Method
@@ -199,24 +161,20 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 		return ReturnError(errors.New("chain has not initialized"))
 	}
 
-	cmdID, err := newCommandID()
-	if err != nil {
-		return err
-	}
-
-	activatedStatus := map[string]error{}
+	//newChainState := s.chainState
 
 	peers := append(s.chainState.Peers, peerInfo)
 
-	notifiers := s.GetNotifierByNodeID(peerInfo.NodeId)
+	nodecmds := make(map[string]*nodeCommand, len(s.subs))
 
-	for subID, clientSub := range notifiers {
+	for nodeID, _ := range s.subs {
+
 		var (
-			payloadStruct any
 			cmd           common.CmdType
+			payloadStruct interface{}
 		)
 
-		if clientSub.NodeID == peerInfo.NodeId {
+		if nodeID == peerInfo.NodeId {
 			// send CmdInitializeChainNode to new node
 			cmd = common.CmdInitializeChainNode
 			payloadStruct = common.SetupInitializeChainNode{
@@ -232,42 +190,25 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 			}
 		}
 
-		payload, _ := json.Marshal(payloadStruct)
-
-		env := common.CommandEnvelope{
-			CommandID: cmdID,
-			Cmd:       cmd,
-			NodeID:    peerInfo.NodeId,
-			Payload:   payload,
-			IssuedAt:  time.Now().Unix(),
+		nodecmds[nodeID] = &nodeCommand{
+			cmd:     cmd,
+			payload: payloadStruct,
 		}
-
-		if err = clientSub.Notifier.Notify(subID, env); err == nil {
-			break
-		}
-
-		//put command record into database
-		err = s.cmdEvent.Update(commandlog.CommandResult{
-			CommandID: cmdID,
-			Cmd:       env.Cmd,
-			NodeID:    peerInfo.NodeId,
-			Status:    commandlog.CmdRunning,
-			Message:   string(payload),
-			StartedAt: time.Now().Unix(),
-		})
-		if err != nil {
-			return ReturnError(err)
-		}
-
-		_, activatedStatus[peerInfo.NodeId] = s.cmdEvent.WaitCompleted(cmdID)
 	}
 
-	if len(activatedStatus) == 0 {
-		// all down: update chainstate
-		err = s.chainState.AddNode(peerInfo).Save(chainStateFile)
+	if err := s.sendNodeCommand(nodecmds); err != nil {
+		return err
 	}
 
-	return err
+	//save chain node information, genesisDoc
+	newState := s.chainState.CloneAddNode(peerInfo)
+	if err := newState.Save(chainStateFile); err != nil {
+		log.Panicln("save chain state file:", chainStateFile, "err:", err)
+	} else {
+		s.chainState = newState
+	}
+
+	return nil
 }
 
 // Method
@@ -300,28 +241,139 @@ func (s *SetupService) ControlNodes(ctlNodes ...common.SetupControlNode) error {
 			IssuedAt:  time.Now().Unix(),
 		}
 
-		notifiers := s.GetNotifierByNodeID(node.NodeID)
-
-		maputil.ForEach(notifiers, func(subID rpc.ID, clientSub *ClientSub) {
-			if err := clientSub.Notifier.Notify(subID, env); err != nil {
+		clientSub := s.GetNotifierByNodeID(node.NodeID)
+		if clientSub != nil {
+			if err := clientSub.Notifier.Notify(clientSub.SubID, env); err != nil {
 				log.Printf("[ControlNodes] Failed to notify node: %v name: %v, err %v\n",
 					node.NodeID,
 					"",
 					err)
+				return err
 			}
-		})
+		}
 	}
 
 	return nil
 }
 
-func (s *SetupService) GetNotifierByNodeID(nodeID string) map[rpc.ID]*ClientSub {
+// Method
+// reset chain state to first initialized state
+func (s *SetupService) BroadcastResetChainNode() error {
 
-	notifiers := maputil.Filter(s.subs, func(_ rpc.ID, clientSub *ClientSub) bool {
-		return clientSub.NodeID == nodeID
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.chainState.Initialized() {
+		return ReturnError(errors.New("chain has not initialized"))
+	}
+
+	nodecmds := make(map[string]*nodeCommand, len(s.subs))
+
+	for nodeID, _ := range s.subs {
+		nodecmds[nodeID] = &nodeCommand{
+			cmd:     common.CmdResetChain,
+			payload: common.SetupResetChain{},
+		}
+	}
+
+	if err := s.sendNodeCommand(nodecmds); err != nil {
+		return err
+	}
+
+	s.chainState = &ChainStateInternal{}
+
+	return nil
+}
+
+// Method
+// clean all block data and height. might experiment.
+func (s *SetupService) BroadcastPurgeData() error {
+	return nil
+}
+
+// arg
+// key: nodeID
+// value: {cmd, payload}
+func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
+
+	var (
+		succeedCount int32 = 0
+		nodeErrs           = make(map[string]error)
+		wg           sync.WaitGroup
+	)
+
+	for nodeID, cmd := range cmds {
+
+		cmdID, err := newCommandID()
+		if err != nil {
+			return ReturnError(err)
+		}
+
+		payload, _ := json.Marshal(cmd.payload)
+
+		env := common.CommandEnvelope{
+			CommandID: cmdID,
+			Cmd:       cmds[nodeID].cmd,
+			NodeID:    nodeID,
+			Payload:   payload,
+			IssuedAt:  time.Now().Unix(),
+		}
+
+		clientSub := s.GetNotifierByNodeID(nodeID)
+		if clientSub == nil {
+			return ReturnError(errors.New("client not initialized"))
+		}
+
+		//notify all client to initialize node
+		if err := clientSub.Notifier.Notify(clientSub.SubID, env); err != nil {
+			return ReturnError(err)
+		}
+
+		//put command record into database
+		_ = s.cmdEvent.Update(commandlog.CommandResult{
+			CommandID: cmdID,
+			Cmd:       env.Cmd,
+			NodeID:    nodeID,
+			Status:    commandlog.CmdRunning,
+			Message:   string(payload),
+			StartedAt: time.Now().Unix(),
+		}, func(err error) {
+			if err == nil {
+				atomic.AddInt32(&succeedCount, 1)
+			}
+
+			nodeErrs[nodeID] = err
+			wg.Add(1)
+		})
+	}
+
+	//wait all node complete initialization task
+	wg.Wait()
+
+	var err = errors.New("")
+
+	if int(succeedCount) == len(s.subs) {
+		//all task succeeded
+		return nil
+	}
+
+	maputil.ForEach(nodeErrs, func(nodeID string, nodeErr error) {
+		err = fmt.Errorf("%v\nnodeID: %v, err: %v", err, nodeID, nodeErr.Error())
 	})
 
-	return notifiers
+	return err
+}
+
+func (s *SetupService) GetNotifierByNodeID(nodeID string) *ClientSub {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	clientSub, ok := s.subs[nodeID]
+	if !ok {
+		return nil
+	}
+
+	return clientSub
 }
 
 // Method

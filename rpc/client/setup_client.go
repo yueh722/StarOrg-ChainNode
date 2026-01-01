@@ -5,6 +5,7 @@ import (
 	"chain/lib/queuestore"
 	"chain/rpc/common"
 	"chain/rpc/server"
+	"chain/utils"
 	"context"
 	"encoding/json"
 	"errors"
@@ -29,6 +30,7 @@ var router = map[common.CmdType]func(*SetupClient, *common.CommandEnvelope) erro
 	common.CmdInitializeChainNode: (*SetupClient).handleInitChainNodeCmd,
 	common.CmdUpdateChainCfg:      (*SetupClient).handleUpdateChainCfgCmd,
 	common.CmdControlNode:         (*SetupClient).handleControlNodeCmd,
+	common.CmdResetChain:          (*SetupClient).handleResetChainCmd,
 }
 
 func newSetupClient(client *rpc.Client, cfg ClientConfig) *SetupClient {
@@ -56,8 +58,7 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 
 	setupService := &server.SetupService{}
 	//ctx, cancel := context.WithCancel(context.Background())
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	cmdChan := make(chan common.CommandEnvelope, 1000)
@@ -67,7 +68,12 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 		setupService.GetNamesapceString(),
 		cmdChan,
 		setupService.GetSubscriptionName(),
-		c.cfg.NodeInfo,
+		common.StatusNode{
+			NodeInfo:    *c.cfg.NodeInfo,
+			Healthy:     lib.CheckNodeOnline(c.cfg.NodeInfo),
+			LastCheck:   time.Now().Unix(),
+			StartedTime: "",
+		},
 	)
 
 	if err != nil {
@@ -109,11 +115,11 @@ func (c *SetupClient) handleCmd(cmd *common.CommandEnvelope) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	err := router[cmd.Cmd](c, cmd)
-	if err != nil {
-		return err
+	if fn, ok := router[cmd.Cmd]; ok {
+		return fn(c, cmd)
 	}
-	return nil
+
+	return fmt.Errorf("unknown cmd: %v", cmd.Cmd)
 }
 
 func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error {
@@ -197,6 +203,26 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 	return nil
 }
 
+func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	if c.nodeRuntime != nil {
+		c.nodeRuntime.KillNode()
+	} else {
+		//kill all node and app processes
+		utils.KillProcessByPath(filepath.Join(c.cfg.NodeBaseDir, lib.AppFilePath))
+		utils.KillProcessByPath(filepath.Join(c.cfg.NodeBaseDir, lib.NodeFilePath))
+	}
+
+	//remove node base directory
+	if err := lib.ResetChainNode(c.cfg.NodeBaseDir); err != nil {
+		return fmt.Errorf("reset chain node failed, err: %v", err)
+	}
+
+	return nil
+}
+
 func (c *SetupClient) handleStartNode() error {
 	if c.nodeRuntime != nil && c.nodeRuntime.IsRunning() {
 		return errors.New("node or app already running")
@@ -214,7 +240,13 @@ func (c *SetupClient) handleStartNode() error {
 }
 
 func (c *SetupClient) handleStopNode() error {
-	return lib.StopNode(c.nodeRuntime)
+	err := lib.StopNode(c.nodeRuntime)
+	if err == nil {
+		c.nodeRuntime = nil
+		return nil
+	}
+
+	return err
 }
 
 func (c *SetupClient) handleRestartNode() error {

@@ -2,10 +2,10 @@ package server
 
 import (
 	"chain/lib"
+	"chain/rpc/common"
 	"context"
 	"log"
 
-	"github.com/duke-git/lancet/v2/maputil"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -15,15 +15,16 @@ type DelegatorInfo struct {
 }
 
 // Subscription
-func (s *SetupService) SubscribeCommand(ctx context.Context, nodeInfo lib.NodeInfo, delegator DelegatorInfo) (*rpc.Subscription, error) {
+func (s *SetupService) SubscribeCommand(ctx context.Context, statusNode common.StatusNode, delegator DelegatorInfo) (*rpc.Subscription, error) {
 
 	notifier, ok := rpc.NotifierFromContext(ctx)
 	if !ok {
 		return nil, rpc.ErrNotificationsUnsupported
 	}
 
-	log.Println("Received SubscribeCommand request, node:", nodeInfo.NodeName)
+	log.Println("Received SubscribeCommand request, node:", statusNode.NodeName)
 
+	nodeInfo := statusNode.NodeInfo
 	if nodeInfo.NodeID == "" {
 		//this is an uninitialized node.
 		//assign a node ID to it
@@ -32,35 +33,27 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, nodeInfo lib.NodeIn
 
 	sub := notifier.CreateSubscription()
 
-	s.AddOrUpdateSubscription(sub.ID, &ClientSub{
-		Notifier: notifier,
-		NodeID:   nodeInfo.NodeID,
-		NodeInfo: nodeInfo,
+	s.AddOrUpdateSubscription(&ClientSub{
+		Notifier:   notifier,
+		NodeID:     nodeInfo.NodeID,
+		StatusNode: statusNode,
+		SubID:      sub.ID,
 	})
 
 	go func() {
 		<-sub.Err()
 		s.mu.Lock()
-		delete(s.subs, sub.ID)
+		delete(s.subs, nodeInfo.NodeID)
 		s.mu.Unlock()
 	}()
 
 	return sub, nil
 }
 
-func (s *SetupService) AddOrUpdateSubscription(subID rpc.ID, clientSub *ClientSub) {
+func (s *SetupService) AddOrUpdateSubscription(clientSub *ClientSub) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// find subscription of current node that already exist.
-	notifiers := maputil.Filter(s.subs, func(_ rpc.ID, sub *ClientSub) bool {
-		return sub.NodeID == clientSub.NodeID
-	})
-
-	for removeID, _ := range notifiers {
-		delete(s.subs, removeID)
-	}
-
-	s.subs[subID] = clientSub
+	s.subs[clientSub.NodeID] = clientSub
 }

@@ -59,10 +59,35 @@ func NewChainState(chainID string, peerArray string) *ChainStateInternal {
 	}
 }
 
-func (state *ChainStateInternal) AddNode(peerInfo lib.Peer) *ChainStateInternal {
-	state.Peers = append(state.Peers, peerInfo)
-	state.LastAddNodeTime = time.Now().Unix()
-	return state
+func (state *ChainStateInternal) Clone() *ChainStateInternal {
+
+	newGenesisDoc := *state.GenesisDoc
+
+	newState := &ChainStateInternal{
+		Peers:           state.Peers,
+		GenesisDoc:      &newGenesisDoc,
+		InitializedTime: state.InitializedTime,
+		LastAddNodeTime: state.LastAddNodeTime,
+	}
+
+	return newState
+}
+
+func (state *ChainStateInternal) CloneAddNode(peerInfo lib.Peer) *ChainStateInternal {
+
+	newPeers := append(state.Peers, peerInfo)
+
+	newGenesisDoc := *state.GenesisDoc
+	newGenesisDoc.Validators = newPeers.BuildValidators()
+
+	newState := &ChainStateInternal{
+		Peers:           newPeers,
+		GenesisDoc:      &newGenesisDoc,
+		InitializedTime: state.InitializedTime,
+		LastAddNodeTime: state.LastAddNodeTime,
+	}
+
+	return newState
 }
 
 func (s *ChainStateInternal) Save(filePath string) error {

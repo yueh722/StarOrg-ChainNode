@@ -44,11 +44,11 @@ type CommandResult struct {
 	Output json.RawMessage `json:"output,omitempty"`
 }
 
-type CommandEventRepo interface {
-	Update(r CommandResult) error
-	Complete(commandID string, success bool, message string, errStr string, output json.RawMessage) (CommandResult, error)
+type CompletedRoutine func(err error)
 
-	WaitCompleted(commandID string) (bool, error)
+type CommandEventRepo interface {
+	Update(r CommandResult, fn CompletedRoutine) error
+	Complete(commandID string, success bool, message string, errStr string, output json.RawMessage) (CommandResult, error)
 
 	GetCommand(commandID string) (CommandResult, error)
 	ListCommandByNode(nodeID string) ([]CommandResult, error)
@@ -64,7 +64,7 @@ type CommandRepo struct {
 	latestByID    map[string]CommandResult
 	latestByNode  map[string]map[string]CommandResult // node_name -> map: command_id -> commandResult
 	historyByID   map[string][]CommandResult
-	activatedCmds map[string]chan struct{}
+	activatedCmds map[string]CompletedRoutine
 }
 
 func NewCommandRepo(store logdb.CommandLogStore) (*CommandRepo, error) {
@@ -95,8 +95,16 @@ func NewCommandRepo(store logdb.CommandLogStore) (*CommandRepo, error) {
 
 func (r *CommandRepo) Close() error { return r.store.Close() }
 
-func (r *CommandRepo) Update(e CommandResult) error {
-	if err := validateBasic(e); err != nil {
+func (r *CommandRepo) Update(e CommandResult, completedRoutine CompletedRoutine) error {
+
+	var err error
+	defer func() {
+		if err != nil {
+			completedRoutine(err)
+		}
+	}()
+
+	if err = validateBasic(e); err != nil {
 		return err
 	}
 	now := time.Now().UnixMilli()
@@ -107,37 +115,21 @@ func (r *CommandRepo) Update(e CommandResult) error {
 		e.StartedAt = now
 	}
 
-	b, err := json.Marshal(e)
+	var b []byte
+	b, err = json.Marshal(e)
 	if err != nil {
 		return err
 	}
-	if err := r.store.Append(e.CommandID, e.NodeID, b); err != nil {
+	if err = r.store.Append(e.CommandID, e.NodeID, b); err != nil {
 		return err
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.applyLocked(e)
-	r.activatedCmds[e.CommandID] = make(chan struct{}, 1)
+	r.activatedCmds[e.CommandID] = completedRoutine
+
 	return nil
-}
-
-func (r *CommandRepo) WaitCompleted(commandID string) (bool, error) {
-
-	r.mu.RLock()
-	stateCh, ok := r.activatedCmds[commandID]
-	if !ok {
-		r.mu.RUnlock()
-		return false, errors.New("command not found")
-	}
-	r.mu.RUnlock()
-
-	select {
-	case <-stateCh:
-		return true, nil
-	case <-time.After(30 * time.Second):
-		return false, errors.New("command timeout")
-	}
 }
 
 func (r *CommandRepo) Complete(commandID string, success bool, message string, errStr string, output json.RawMessage) (CommandResult, error) {
@@ -176,9 +168,15 @@ func (r *CommandRepo) Complete(commandID string, success bool, message string, e
 	defer r.mu.Unlock()
 	r.applyLocked(cur)
 
-	stateCh, ok := r.activatedCmds[commandID]
-	if ok {
-		stateCh <- struct{}{}
+	completeFn, ok := r.activatedCmds[commandID]
+	if ok && completeFn != nil {
+
+		if success {
+			completeFn(nil)
+		} else {
+			completeFn(errors.New(errStr))
+		}
+
 		delete(r.activatedCmds, commandID)
 	}
 
