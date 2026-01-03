@@ -120,11 +120,8 @@ func (c *SetupClient) handleCmd(cmd *common.CommandEnvelope) error {
 
 	if fn, ok := router[cmd.Cmd]; ok {
 		err := fn(c, cmd)
-		if err != nil {
-			c.reportCommandResult(cmd, err)
-			return err
-		}
-		return nil
+		c.reportCommandResult(cmd, err)
+		return err
 	}
 
 	return fmt.Errorf("unknown cmd: %v", cmd.Cmd)
@@ -173,6 +170,7 @@ func (c *SetupClient) handleUpdateChainCfgCmd(cmd *common.CommandEnvelope) error
 	err = lib.UpdateChainCfg(
 		arg.NodeArray,
 		c.cfg.HomeDir,
+		c.cfg.NodeInfo.NodeID,
 	)
 	if err != nil {
 		log.Printf("failed to add chain node id: %s, node name: %s, err: %v", cmd.NodeID, c.NodeName(), err)
@@ -317,7 +315,8 @@ func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr er
 		status = commandlog.CmdSuccess
 	}
 
-	err := c.client.Call(nil, "chain_reportCommandResult", commandlog.CommandResult{
+	method := common.MakeMethodName(common.SetupNamespace{}.GetNamesapceString(), "ReportCommandResult")
+	err := c.client.Call(nil, method, commandlog.CommandResult{
 		CommandID:  cmd.CommandID,
 		Cmd:        cmd.Cmd,
 		NodeID:     cmd.NodeID,

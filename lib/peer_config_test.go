@@ -55,7 +55,7 @@ func TestNewPeerConfig(t *testing.T) {
 		defer os.RemoveAll(nodeDir)
 
 		assert.NotNil(t, peerConfig.config)
-		assert.Equal(t, nodeDir, peerConfig.nodeDir)
+		assert.Equal(t, nodeDir, peerConfig.homeDir)
 		//assert.Equal(t, currPeer.PrivKey, peerConfig.privKey)
 		assert.Equal(t, currPeer.NodeId, peerConfig.nodeId)
 		assert.Nil(t, peerConfig.genesis)
@@ -77,10 +77,10 @@ func TestNewPeerConfig(t *testing.T) {
 		var nodeDir string
 
 		peerConfig, err := NewPeerConfig(currPeer, persistentPeers, nodeDir)
-		defer os.RemoveAll(peerConfig.nodeDir)
+		defer os.RemoveAll(peerConfig.homeDir)
 
 		require.NoError(t, err)
-		assert.Equal(t, "./testNode", peerConfig.nodeDir)
+		assert.Equal(t, "./testNode", peerConfig.homeDir)
 	})
 
 	// 测试端口超出范围的情况

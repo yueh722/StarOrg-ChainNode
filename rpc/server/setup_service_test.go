@@ -76,7 +76,7 @@ func TestSetupService_BroadcastInitializeChainNode(t *testing.T) {
 	//get chain state
 	state := &ChainState{}
 
-	method := MakeMethodName(common.SetupNamespace{}.GetNamesapceString(), "GetChainState")
+	method := common.MakeMethodName(common.SetupNamespace{}.GetNamesapceString(), "GetChainState")
 	if err := myclient.Call(state, method); err != nil {
 		t.Fatal("Failed to call:", err)
 	}
@@ -92,7 +92,7 @@ func TestSetupService_BroadcastInitializeChainNode(t *testing.T) {
 	}
 
 	var errResult error
-	method = MakeMethodName(common.SetupNamespace{}.GetNamesapceString(), "BroadcastInitializeChainNode")
+	method = common.MakeMethodName(common.SetupNamespace{}.GetNamesapceString(), "BroadcastInitializeChainNode")
 
 	err = myclient.Call(&errResult, method, "greedisgood", peers.ToJson())
 	if err != nil {

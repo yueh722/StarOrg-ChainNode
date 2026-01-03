@@ -69,10 +69,11 @@ type CommandRepo struct {
 
 func NewCommandRepo(store logdb.CommandLogStore) (*CommandRepo, error) {
 	r := &CommandRepo{
-		store:        store,
-		latestByID:   make(map[string]CommandResult),
-		latestByNode: make(map[string]map[string]CommandResult),
-		historyByID:  make(map[string][]CommandResult),
+		store:         store,
+		latestByID:    make(map[string]CommandResult),
+		latestByNode:  make(map[string]map[string]CommandResult),
+		historyByID:   make(map[string][]CommandResult),
+		activatedCmds: make(map[string]CompletedRoutine),
 	}
 
 	// load all history records of command log

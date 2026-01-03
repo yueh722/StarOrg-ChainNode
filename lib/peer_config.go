@@ -23,12 +23,18 @@ var logger = log.NewLogger(os.Stdout)
 
 var nodeDirPerm os.FileMode = 0o755
 
+// homeDir: d:\mychain	[customer path]
+//			d:\mychain\peer_config.json	[state file of current node]
+// nodeDir: d:\mychain\[nodeID]	[cometbft node path]
+// cometbft node config: d:\mychain\[nodeID]\config
+// cometbft node config: d:\mychain\[nodeID]\data
+
 type PeerConfig struct {
 	config   *cometbftConfig.Config
 	genesis  *types.GenesisDoc
 	privKey  crypto.PrivKey
 	nodeId   string
-	nodeDir  string
+	homeDir  string
 	currPeer *Peer
 }
 
@@ -36,7 +42,9 @@ func getConfigFilePath(nodeDir, name string) string {
 	return ""
 }
 
-func LoadPeerConfig(nodeDir string) (*PeerConfig, error) {
+func LoadPeerConfig(homeDir, nodeID string) (*PeerConfig, error) {
+
+	nodeDir := filepath.Join(homeDir, nodeID)
 
 	//load cometbft config file
 	cmtConfig := cometbftConfig.DefaultConfig()
@@ -51,7 +59,6 @@ func LoadPeerConfig(nodeDir string) (*PeerConfig, error) {
 		return nil, err
 	}
 
-	nodeDir = filepath.Join(nodeDir)
 	cmtConfig.SetRoot(nodeDir)
 
 	//genesisDoc
@@ -62,7 +69,8 @@ func LoadPeerConfig(nodeDir string) (*PeerConfig, error) {
 
 	//peer-config
 	peer := &Peer{}
-	if err := peer.Load(nodeDir); err != nil {
+	peerCfgFilePath := filepath.Join(nodeDir, peerConfigFile)
+	if err := peer.Load(peerCfgFilePath); err != nil {
 		return nil, err
 	}
 
@@ -70,18 +78,23 @@ func LoadPeerConfig(nodeDir string) (*PeerConfig, error) {
 		config:   cmtConfig,
 		genesis:  genesisDoc,
 		currPeer: peer,
-		nodeDir:  nodeDir,
+		homeDir:  homeDir,
 		nodeId:   peer.NodeId,
 		privKey:  peer.PrivateKey(),
 	}, nil
 }
 
-func NewPeerConfig(currPeer *Peer, persistentPeers, nodeDir string) (*PeerConfig, error) {
+func NewPeerConfig(currPeer *Peer, persistentPeers, homeDir string) (*PeerConfig, error) {
 	var err error
 
 	if currPeer == nil {
 		return nil, errors.New("currPeer is nil")
 	}
+
+	if homeDir == "" {
+		homeDir = "./"
+	}
+	nodeDir := filepath.Join(homeDir, currPeer.NodeId)
 
 	defer func() {
 		if err != nil {
@@ -90,10 +103,6 @@ func NewPeerConfig(currPeer *Peer, persistentPeers, nodeDir string) (*PeerConfig
 	}()
 
 	config := cometbftConfig.DefaultConfig()
-
-	if nodeDir == "" {
-		nodeDir = "./"
-	}
 
 	config.SetRoot(nodeDir)
 
@@ -118,9 +127,12 @@ func NewPeerConfig(currPeer *Peer, persistentPeers, nodeDir string) (*PeerConfig
 	config.P2P.PersistentPeers = persistentPeers
 	config.Moniker = currPeer.NodeName
 
+	//config.RPC.TLSCertFile = ""
+	//config.RPC.TLSKeyFile = ""
+
 	return &PeerConfig{
 		config:   config,
-		nodeDir:  nodeDir,
+		homeDir:  homeDir,
 		privKey:  currPeer.PrivateKey(),
 		nodeId:   currPeer.NodeId,
 		genesis:  nil,
@@ -163,7 +175,7 @@ func (cfg *PeerConfig) UpdateChainConfig(peers PeerList) error {
 
 	cfg.config.P2P.PersistentPeers = peers.BuildPersistentPeers()
 
-	nodeDir := cfg.nodeDir
+	nodeDir := cfg.GetNodeDir()
 	config := cfg.config
 
 	//save genesis.json
@@ -177,10 +189,18 @@ func (cfg *PeerConfig) UpdateChainConfig(peers PeerList) error {
 	return nil
 }
 
+func (cfg *PeerConfig) GetNodeDir() string {
+	return filepath.Join(cfg.homeDir, cfg.nodeId)
+}
+
+func (cfg *PeerConfig) GetPeerConfigFilePath() string {
+	return filepath.Join(cfg.homeDir, peerConfigFile)
+}
+
 func (cfg *PeerConfig) SaveFiles() error {
 	var err error
 
-	nodeDir := cfg.nodeDir
+	nodeDir := cfg.GetNodeDir()
 
 	defer func() {
 		if err != nil {
@@ -217,7 +237,7 @@ func (cfg *PeerConfig) SaveFiles() error {
 	}
 
 	// ### Write peer config file
-	if err := cfg.currPeer.Save(filepath.Join(nodeDir, peerConfigFile)); err != nil {
+	if err := cfg.currPeer.Save(cfg.GetPeerConfigFilePath()); err != nil {
 		return err
 	}
 

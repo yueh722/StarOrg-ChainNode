@@ -37,14 +37,14 @@ func GenesisTimeFromUnix(nsec int64) time.Time {
 
 func InitializeChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, nodeDir string) error {
 
-	// check if nodeDir is correct.
+	// check if homeDir is correct.
 
 	currPeer := peers.GetPeerByNodeId(nodeId)
 	if currPeer == nil {
 		return fmt.Errorf("information of peer %s is required", nodeId)
 	}
 
-	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), filepath.Join(nodeDir, nodeId))
+	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), nodeDir)
 	if err != nil {
 		return err
 	}
@@ -68,9 +68,9 @@ func InitializeChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, n
 	return nil
 }
 
-func UpdateChainCfg(peers PeerList, nodeDir string) error {
+func UpdateChainCfg(peers PeerList, homeDir, nodeID string) error {
 	//load config
-	peerConfig, err := LoadPeerConfig(nodeDir)
+	peerConfig, err := LoadPeerConfig(homeDir, nodeID)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func AddChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, nodeDir 
 		return fmt.Errorf("information of peer %s is required", nodeId)
 	}
 
-	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), filepath.Join(nodeDir, nodeId))
+	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), nodeDir)
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func ResetChainNode(nodeDir string) error {
 
 func GetNodeInfoFromCometbftConfig(nodeDir string) (*NodeInfo, error) {
 
-	// load config from config.toml in nodeDir
+	// load config from config.toml in homeDir
 	viper.AddConfigPath(filepath.Join(nodeDir, "config"))
 	viper.SetConfigName("config")
 	if err := viper.ReadInConfig(); err != nil {
