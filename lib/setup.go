@@ -18,13 +18,13 @@ import (
 const peerConfigFile = "peer_config.json"
 
 type NodeInfo struct {
-	NodeName       string
-	NodeID         string
-	NodeAddress    string
-	ProxyApp       string //proxy_app: default 26658
-	RPCAddr        string //rcp: default 26657
-	WebServiceAddr string //webapi: default 8080
-	Validator      bool
+	NodeName       string `json:"node_name,omitempty"`
+	NodeID         string `json:"node_id,omitempty"`
+	NodeAddress    string `json:"node_address,omitempty"`
+	ProxyApp       string `json:"proxy_app,omitempty"`        //proxy_app: default 26658
+	RPCAddr        string `json:"rpc_addr,omitempty"`         //rcp: default 26657
+	WebServiceAddr string `json:"web_service_addr,omitempty"` //webapi: default 8080
+	Validator      bool   `json:"validator,omitempty"`
 }
 
 func GetNodeBaseDir(node string) string {
@@ -44,7 +44,7 @@ func InitializeChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, n
 		return fmt.Errorf("information of peer %s is required", nodeId)
 	}
 
-	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), nodeDir)
+	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), filepath.Join(nodeDir, nodeId))
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func AddChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, nodeDir 
 		return fmt.Errorf("information of peer %s is required", nodeId)
 	}
 
-	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), nodeDir)
+	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), filepath.Join(nodeDir, nodeId))
 	if err != nil {
 		return err
 	}
@@ -222,22 +222,26 @@ func GetNodeInfoFromCometbftConfig(nodeDir string) (*NodeInfo, error) {
 	}, nil
 }
 
-func GetNodeInfo(nodeDir string) (*NodeInfo, error) {
+func GetNodeInfo(homeDir string) (*NodeInfo, error) {
 	peer := &Peer{}
 
-	if err := peer.Load(filepath.Join(nodeDir, peerConfigFile)); err != nil {
+	if err := peer.Load(filepath.Join(homeDir, peerConfigFile)); err != nil {
 		return nil, err
 	}
 
 	return PeerInfoToNodeInfo(peer), nil
 }
 
-func InitializeNewNodeID(nodeDir string) (*NodeInfo, error) {
+func InitializeNewNodeID(homeDir string) (*NodeInfo, error) {
 	peer := &Peer{
 		NodeId: NewNodeId(),
 	}
 
-	if err := peer.Save(filepath.Join(nodeDir, peerConfigFile)); err != nil {
+	if err := peer.Save(filepath.Join(homeDir, peerConfigFile)); err != nil {
+		return nil, err
+	}
+
+	if err := os.Mkdir(filepath.Join(homeDir, peer.NodeId), os.ModePerm); err != nil {
 		return nil, err
 	}
 

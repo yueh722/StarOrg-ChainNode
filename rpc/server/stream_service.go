@@ -1,9 +1,6 @@
 package server
 
 import (
-	"chain/lib/queuestore"
-	"chain/rpc/commandlog"
-	"chain/rpc/common"
 	"context"
 	"log"
 	"sync"
@@ -73,17 +70,9 @@ func (s *StreamService) ReportState(state interface{}) bool {
 	reported := true
 	var err error
 
-	switch state := state.(type) {
-	case queuestore.PersistedEvent:
-	case common.StatusNode:
-	case common.StatusStorage:
-	case commandlog.CommandResult:
-	default:
-		log.Println("Unknown state", state)
-	}
-
 	err = s.notify(state)
 	if err != nil {
+		log.Println("notify stream data error", err)
 		reported = false
 	}
 

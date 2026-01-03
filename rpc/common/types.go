@@ -7,6 +7,13 @@ import (
 	"github.com/cometbft/cometbft/v2/types"
 )
 
+type DelegatorInfo struct {
+	App        string
+	StatusNode StatusNode
+}
+
+const DelegatorApp = "nodeproxy"
+
 // Management
 // method: Subscription
 type SetupInitializeChainNode struct {
@@ -43,10 +50,11 @@ type SetupControlNode struct {
 // each client will report node information to server freqently
 // method: RPC
 type StatusNode struct {
-	lib.NodeInfo
-	Healthy     bool
-	LastCheck   int64
-	StartedTime string
+	lib.NodeInfo `json:"lib_._node_info"`
+	Healthy      bool   `json:"healthy,omitempty"`
+	LastCheck    int64  `json:"last_check,omitempty"`
+	StartedTime  string `json:"started_time,omitempty"`
+	Initialized  bool   `json:"initialized,omitempty"`
 }
 
 // storage report of host running node

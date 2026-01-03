@@ -7,9 +7,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+type ProcInfo struct {
+	Pid       int
+	StartTime time.Time
+}
+
 type NodeRuntime interface {
-	GetAppSession() *Session
-	GetNodeSession() *Session
+	GetAppInfo() ProcInfo
+	GetNodeInfo() ProcInfo
 	Error() error
 	KillNode()
 	IsRunning() bool
@@ -20,12 +25,32 @@ type NodeRuntimeImpl struct {
 	AppInst  *Instance
 }
 
-func (r NodeRuntimeImpl) GetAppSession() *Session {
-	return r.NodeInst.Session
+func (r NodeRuntimeImpl) GetNodeInfo() ProcInfo {
+	pi := ProcInfo{}
+	if r.NodeInst == nil || r.NodeInst.Session == nil {
+		return pi
+	}
+
+	pi = ProcInfo{
+		Pid:       r.NodeInst.Pid,
+		StartTime: r.NodeInst.StartTime,
+	}
+
+	return pi
 }
 
-func (r NodeRuntimeImpl) GetNodeSession() *Session {
-	return r.AppInst.Session
+func (r NodeRuntimeImpl) GetAppInfo() ProcInfo {
+	pi := ProcInfo{}
+	if r.AppInst == nil || r.AppInst.Session == nil {
+		return pi
+	}
+
+	pi = ProcInfo{
+		Pid:       r.AppInst.Pid,
+		StartTime: r.AppInst.StartTime,
+	}
+
+	return pi
 }
 
 func (r NodeRuntimeImpl) Error() error {

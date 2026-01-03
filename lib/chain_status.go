@@ -22,9 +22,9 @@ func rpcRoutine(name string) any {
 	}
 }
 
-func CheckNodeOnline(node *NodeInfo) bool {
+func CheckNodeOnline(rpcAddr string) bool {
 
-	url := fmt.Sprintf("%s/status", node.RPCAddr)
+	url := fmt.Sprintf("%s/status", rpcAddr)
 
 	_, err := utils.HttpGet(url)
 	if err != nil {

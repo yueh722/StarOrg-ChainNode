@@ -3,18 +3,19 @@ package client
 import (
 	"chain/lib"
 	"chain/lib/queuestore"
+	"chain/rpc/commandlog"
 	"chain/rpc/common"
-	"chain/rpc/server"
 	"chain/utils"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
-	"path/filepath"
+	"os"
 	"sync"
 	"time"
 
+	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -56,23 +57,25 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 
 	var errChan = make(chan error)
 
-	setupService := &server.SetupService{}
-	//ctx, cancel := context.WithCancel(context.Background())
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
+	//ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	cmdChan := make(chan common.CommandEnvelope, 1000)
 
 	sub, err := c.client.Subscribe(
 		ctx,
-		setupService.GetNamesapceString(),
+		common.SetupNamespace{}.GetNamesapceString(),
 		cmdChan,
-		setupService.GetSubscriptionName(),
-		common.StatusNode{
-			NodeInfo:    *c.cfg.NodeInfo,
-			Healthy:     lib.CheckNodeOnline(c.cfg.NodeInfo),
-			LastCheck:   time.Now().Unix(),
-			StartedTime: "",
+		common.SetupNamespace{}.GetSubscriptionName(),
+		common.DelegatorInfo{
+			App: common.DelegatorApp,
+			StatusNode: common.StatusNode{
+				NodeInfo:    *c.cfg.NodeInfo,
+				Healthy:     lib.CheckNodeOnline(c.cfg.NodeInfo.RPCAddr),
+				LastCheck:   time.Now().UnixNano(),
+				StartedTime: "",
+			},
 		},
 	)
 
@@ -116,16 +119,22 @@ func (c *SetupClient) handleCmd(cmd *common.CommandEnvelope) error {
 	defer c.mux.Unlock()
 
 	if fn, ok := router[cmd.Cmd]; ok {
-		return fn(c, cmd)
+		err := fn(c, cmd)
+		if err != nil {
+			c.reportCommandResult(cmd, err)
+			return err
+		}
+		return nil
 	}
 
 	return fmt.Errorf("unknown cmd: %v", cmd.Cmd)
 }
 
+// init node handler
 func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error {
 
 	arg := common.SetupInitializeChainNode{}
-	err := json.Unmarshal(cmd.Payload, &arg)
+	err := cmtjson.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
 	}
@@ -134,7 +143,7 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 		&arg.GenesisDoc,
 		arg.NodeArray,
 		arg.NodeID,
-		c.cfg.NodeBaseDir,
+		c.cfg.HomeDir,
 	)
 	if err != nil {
 		nodeName := arg.NodeArray.GetPeerByNodeId(arg.NodeID).NodeName
@@ -143,7 +152,7 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 	}
 
 	//reload nodeInfo of cfg
-	c.cfg.NodeInfo, err = lib.GetNodeInfo(c.cfg.NodeBaseDir)
+	c.cfg.NodeInfo, err = lib.GetNodeInfo(c.cfg.HomeDir)
 	if err != nil {
 		log.Println("failed to reload node info upon initialized chain node, err:", err)
 		return err
@@ -152,6 +161,7 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 	return nil
 }
 
+// update chain config handler
 func (c *SetupClient) handleUpdateChainCfgCmd(cmd *common.CommandEnvelope) error {
 
 	arg := common.SetupUpdateChainCfg{}
@@ -162,7 +172,7 @@ func (c *SetupClient) handleUpdateChainCfgCmd(cmd *common.CommandEnvelope) error
 
 	err = lib.UpdateChainCfg(
 		arg.NodeArray,
-		c.cfg.NodeBaseDir,
+		c.cfg.HomeDir,
 	)
 	if err != nil {
 		log.Printf("failed to add chain node id: %s, node name: %s, err: %v", cmd.NodeID, c.NodeName(), err)
@@ -172,6 +182,7 @@ func (c *SetupClient) handleUpdateChainCfgCmd(cmd *common.CommandEnvelope) error
 	return nil
 }
 
+// control node handler
 func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 
 	arg := common.SetupControlNode{}
@@ -181,7 +192,7 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 	}
 
 	//create logStore for receiving error log of node and app
-	if err = c.initLogStore(filepath.Join(c.cfg.NodeBaseDir, "log", "chainlog.db")); err != nil {
+	if err = c.initLogStore(c.cfg.getChainlogFilePath()); err != nil {
 		return err
 	}
 
@@ -203,6 +214,7 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 	return nil
 }
 
+// reset chain handler
 func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
@@ -211,14 +223,16 @@ func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
 		c.nodeRuntime.KillNode()
 	} else {
 		//kill all node and app processes
-		utils.KillProcessByPath(filepath.Join(c.cfg.NodeBaseDir, lib.AppFilePath))
-		utils.KillProcessByPath(filepath.Join(c.cfg.NodeBaseDir, lib.NodeFilePath))
+		utils.KillProcessByPath(c.cfg.getAppBinPath())
+		utils.KillProcessByPath(c.cfg.getNodeBinPath())
 	}
 
 	//remove node base directory
-	if err := lib.ResetChainNode(c.cfg.NodeBaseDir); err != nil {
+	if err := lib.ResetChainNode(c.cfg.HomeDir); err != nil {
 		return fmt.Errorf("reset chain node failed, err: %v", err)
 	}
+
+	os.Mkdir(c.cfg.HomeDir, os.ModePerm)
 
 	return nil
 }
@@ -259,10 +273,10 @@ func (c *SetupClient) handleRestartNode() error {
 
 func (c *SetupClient) buildNodeArg() lib.NodeArg {
 	return lib.NodeArg{
-		LogFilePath: filepath.Join(c.cfg.NodeBaseDir, "log"),
+		LogFilePath: c.cfg.getLogPath(),
 		LogStore:    c.logStore,
 		NodeInfo:    c.cfg.NodeInfo,
-		BinPath:     filepath.Join(c.cfg.NodeBaseDir, "bin"),
+		BinPath:     c.cfg.getBinPath(),
 		NodeBaseDir: c.cfg.NodeBaseDir,
 	}
 }
@@ -287,4 +301,35 @@ func (c *SetupClient) initLogStore(logFilePath string) error {
 	c.logStore = logStore
 
 	return nil
+}
+
+func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr error) {
+
+	var (
+		errText string
+		status  commandlog.CommandStatus
+	)
+
+	if cmdErr != nil {
+		errText = cmdErr.Error()
+		status = commandlog.CmdFailed
+	} else {
+		status = commandlog.CmdSuccess
+	}
+
+	err := c.client.Call(nil, "chain_reportCommandResult", commandlog.CommandResult{
+		CommandID:  cmd.CommandID,
+		Cmd:        cmd.Cmd,
+		NodeID:     cmd.NodeID,
+		Status:     status,
+		Message:    "",
+		Error:      errText,
+		ReportedAt: time.Now().UnixNano(),
+		StartedAt:  cmd.IssuedAt,
+		FinishedAt: time.Now().UnixNano(),
+		Output:     nil,
+	})
+	if err != nil {
+		log.Println("", err)
+	}
 }

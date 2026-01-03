@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"log"
 	"net/url"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -24,8 +25,29 @@ type Client struct {
 type ClientConfig struct {
 	AppName     string
 	ServerAddr  string
+	HomeDir     string
 	NodeBaseDir string
 	NodeInfo    *lib.NodeInfo
+}
+
+func (c ClientConfig) getLogPath() string {
+	return filepath.Join(c.NodeBaseDir, "log")
+}
+
+func (c ClientConfig) getBinPath() string {
+	return filepath.Join(c.NodeBaseDir, "bin")
+}
+
+func (c ClientConfig) getChainlogFilePath() string {
+	return filepath.Join(c.NodeBaseDir, "log", "chainlog.db")
+}
+
+func (c ClientConfig) getAppBinPath() string {
+	return filepath.Join(c.NodeBaseDir, lib.AppFilePath)
+}
+
+func (c ClientConfig) getNodeBinPath() string {
+	return filepath.Join(c.NodeBaseDir, lib.NodeFilePath)
 }
 
 func New(cfg ClientConfig) (*Client, error) {
@@ -36,7 +58,7 @@ func New(cfg ClientConfig) (*Client, error) {
 	)
 
 	for {
-		client, err = connect(&cfg.ServerAddr)
+		client, err = Connect(&cfg.ServerAddr)
 		if err != nil {
 			log.Println(err)
 			time.Sleep(5 * time.Second)
@@ -63,7 +85,7 @@ func (c *Client) Reconnect() {
 	defer c.mux.Unlock()
 
 	for {
-		client, err := connect(&c.Cfg.ServerAddr)
+		client, err := Connect(&c.Cfg.ServerAddr)
 		if err != nil {
 			log.Println(err)
 			time.Sleep(5 * time.Second)
@@ -77,7 +99,8 @@ func (c *Client) Reconnect() {
 	}
 }
 
-func connect(rawurl *string) (*rpc.Client, error) {
+// Connect will update rawurl to the real url that connected.
+func Connect(rawurl *string) (*rpc.Client, error) {
 
 	serverAddrs := map[string]bool{}
 

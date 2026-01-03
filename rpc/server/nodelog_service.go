@@ -65,7 +65,7 @@ func (s *NodeLogService) PublishLog() {
 
 func (s *NodeLogService) RegisterService(server *rpc.Server) error {
 	if err := server.RegisterName("nodelog", s); err != nil {
-		return fmt.Errorf("Failed to register nodelog service:", err)
+		return fmt.Errorf("Failed to register nodelog service: %v", err)
 	}
 
 	return nil

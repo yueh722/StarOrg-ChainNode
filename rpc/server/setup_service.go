@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
 	"github.com/duke-git/lancet/v2/maputil"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/pingcap/errors"
@@ -63,52 +64,51 @@ func NewSetupService(store logdb.CommandLogStore, stream *StreamService) *SetupS
 }
 
 func (s *SetupService) RegisterService(server *rpc.Server) error {
-	if err := server.RegisterName("chain", s); err != nil {
-		return fmt.Errorf("Failed to register chain service:", err)
+	if err := server.RegisterName(common.SetupNamespace{}.GetNamesapceString(), s); err != nil {
+		return fmt.Errorf("Failed to register chain service: %v", err)
 	}
 
 	return nil
-}
-
-func (s *SetupService) GetNamesapceString() string {
-	return "chain"
-}
-
-func (s *SetupService) GetSubscriptionName() string {
-	return "subscribeCommand"
 }
 
 func ReturnError(err error) error {
 	return err
 }
 
-// Method
+// RPC Method
 // Fetch: "retrive chain state and node state"
-func (s *SetupService) GetChainState() ChainState {
+func (s *SetupService) GetChainState() *ChainState {
 
 	var nodes []common.StatusNode
 
-	for _, peer := range s.chainState.Peers {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-		node := lib.PeerInfoToNodeInfo(&peer)
+	for _, clientSub := range s.subs {
 
-		nodes = append(nodes, common.StatusNode{
-			NodeInfo:    *node,
-			Healthy:     false,
-			LastCheck:   time.Now().Unix(),
-			StartedTime: "",
-		})
+		node := &clientSub.StatusNode
+		node.Healthy = lib.CheckNodeOnline(node.RPCAddr)
+		node.LastCheck = time.Now().UnixNano()
+
+		nodes = append(nodes, *node)
 	}
 
-	return ChainState{
-		Nodes:           nodes,
-		ChainID:         s.chainState.GenesisDoc.ChainID,
-		InitializedTime: s.chainState.InitializedTime,
-		LastAddNodeTime: s.chainState.LastAddNodeTime,
+	if s.chainState.Initialized() {
+		return &ChainState{
+			Nodes:           nodes,
+			ChainID:         s.chainState.GenesisDoc.ChainID,
+			InitializedTime: s.chainState.InitializedTime,
+			LastAddNodeTime: s.chainState.LastAddNodeTime,
+		}
+	} else {
+		return &ChainState{
+			Nodes: nodes,
+		}
 	}
+
 }
 
-// Method
+// RPC Method
 // Broadcast: "init all clients" with per-client NodeID assignment.
 func (s *SetupService) BroadcastInitializeChainNode(
 	chainID string,
@@ -152,7 +152,8 @@ func (s *SetupService) BroadcastInitializeChainNode(
 	return nil
 }
 
-// Method
+// RPC Method
+// Broadcase: add one node and update others nodes.
 func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -161,9 +162,7 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 		return ReturnError(errors.New("chain has not initialized"))
 	}
 
-	//newChainState := s.chainState
-
-	peers := append(s.chainState.Peers, peerInfo)
+	newChainState := s.chainState.CloneAddNode(peerInfo)
 
 	nodecmds := make(map[string]*nodeCommand, len(s.subs))
 
@@ -179,14 +178,14 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 			cmd = common.CmdInitializeChainNode
 			payloadStruct = common.SetupInitializeChainNode{
 				NodeID:     peerInfo.NodeId,
-				NodeArray:  peers,
+				NodeArray:  newChainState.Peers,
 				GenesisDoc: *s.chainState.GenesisDoc,
 			}
 		} else {
 			// send CmdUpdateChainCfg to other nodes
 			cmd = common.CmdUpdateChainCfg
 			payloadStruct = common.SetupUpdateChainCfg{
-				NodeArray: peers,
+				NodeArray: newChainState.Peers,
 			}
 		}
 
@@ -201,17 +200,16 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 	}
 
 	//save chain node information, genesisDoc
-	newState := s.chainState.CloneAddNode(peerInfo)
-	if err := newState.Save(chainStateFile); err != nil {
+	if err := newChainState.Save(chainStateFile); err != nil {
 		log.Panicln("save chain state file:", chainStateFile, "err:", err)
 	} else {
-		s.chainState = newState
+		s.chainState = newChainState
 	}
 
 	return nil
 }
 
-// Method
+// RPC Method
 // send start,stop,restart command to specified node
 func (s *SetupService) ControlNodes(ctlNodes ...common.SetupControlNode) error {
 
@@ -238,10 +236,10 @@ func (s *SetupService) ControlNodes(ctlNodes ...common.SetupControlNode) error {
 			Cmd:       common.CmdControlNode,
 			NodeID:    node.NodeID,
 			Payload:   payload,
-			IssuedAt:  time.Now().Unix(),
+			IssuedAt:  time.Now().UnixNano(),
 		}
 
-		clientSub := s.GetNotifierByNodeID(node.NodeID)
+		clientSub := s.getNotifierByNodeID(node.NodeID)
 		if clientSub != nil {
 			if err := clientSub.Notifier.Notify(clientSub.SubID, env); err != nil {
 				log.Printf("[ControlNodes] Failed to notify node: %v name: %v, err %v\n",
@@ -256,7 +254,7 @@ func (s *SetupService) ControlNodes(ctlNodes ...common.SetupControlNode) error {
 	return nil
 }
 
-// Method
+// RPC Method
 // reset chain state to first initialized state
 func (s *SetupService) BroadcastResetChainNode() error {
 
@@ -288,7 +286,7 @@ func (s *SetupService) BroadcastResetChainNode() error {
 // Method
 // clean all block data and height. might experiment.
 func (s *SetupService) BroadcastPurgeData() error {
-	return nil
+	panic("implement me")
 }
 
 // arg
@@ -309,17 +307,17 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 			return ReturnError(err)
 		}
 
-		payload, _ := json.Marshal(cmd.payload)
+		payload, _ := cmtjson.Marshal(cmd.payload)
 
 		env := common.CommandEnvelope{
 			CommandID: cmdID,
 			Cmd:       cmds[nodeID].cmd,
 			NodeID:    nodeID,
 			Payload:   payload,
-			IssuedAt:  time.Now().Unix(),
+			IssuedAt:  time.Now().UnixNano(),
 		}
 
-		clientSub := s.GetNotifierByNodeID(nodeID)
+		clientSub := s.getNotifierByNodeID(nodeID)
 		if clientSub == nil {
 			return ReturnError(errors.New("client not initialized"))
 		}
@@ -336,7 +334,7 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 			NodeID:    nodeID,
 			Status:    commandlog.CmdRunning,
 			Message:   string(payload),
-			StartedAt: time.Now().Unix(),
+			StartedAt: time.Now().UnixNano(),
 		}, func(err error) {
 			if err == nil {
 				atomic.AddInt32(&succeedCount, 1)
@@ -364,9 +362,8 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 	return err
 }
 
-func (s *SetupService) GetNotifierByNodeID(nodeID string) *ClientSub {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// internal method
+func (s *SetupService) getNotifierByNodeID(nodeID string) *ClientSub {
 
 	clientSub, ok := s.subs[nodeID]
 	if !ok {
@@ -376,11 +373,11 @@ func (s *SetupService) GetNotifierByNodeID(nodeID string) *ClientSub {
 	return clientSub
 }
 
-// Method
+// RPC Method
 // complete command that sent to node before
 func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 
-	log.Printf("[CommandResult] cmd=%s id=%s node=%s status=%s progress=%.1f msg=%q err=%q\n",
+	log.Printf("[CommandResult] cmd=%s id=%s node=%s status=%s msg=%q err=%q\n",
 		res.Cmd, res.CommandID, res.NodeID, res.Status, res.Message, res.Error)
 
 	if reported := s.stream.ReportState(res); reported {

@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/duke-git/lancet/v2/fileutil"
+	"github.com/duke-git/lancet/v2/strutil"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -37,6 +38,14 @@ type ServerConfig struct {
 	SetuplogStore logdb.CommandLogStore
 	Option        security.SecurityOption
 	Tls           TlsOption
+}
+
+func MakeMethodName(nameSpace, method string) string {
+	if nameSpace == "" || method == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("%s_%s", nameSpace, strutil.LowerFirst(method))
 }
 
 func newCommandID() (string, error) {

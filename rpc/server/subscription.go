@@ -1,34 +1,31 @@
 package server
 
 import (
-	"chain/lib"
 	"chain/rpc/common"
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-type DelegatorInfo struct {
-	App       string
-	NodeState int
-}
-
 // Subscription
-func (s *SetupService) SubscribeCommand(ctx context.Context, statusNode common.StatusNode, delegator DelegatorInfo) (*rpc.Subscription, error) {
+func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.DelegatorInfo) (*rpc.Subscription, error) {
+
+	if delegator.App != common.DelegatorApp {
+		return nil, fmt.Errorf("unknown delegator %v", delegator.App)
+	}
 
 	notifier, ok := rpc.NotifierFromContext(ctx)
 	if !ok {
 		return nil, rpc.ErrNotificationsUnsupported
 	}
 
-	log.Println("Received SubscribeCommand request, node:", statusNode.NodeName)
+	log.Println("Received SubscribeCommand request, node:", delegator.StatusNode.NodeName)
 
-	nodeInfo := statusNode.NodeInfo
+	nodeInfo := delegator.StatusNode.NodeInfo
 	if nodeInfo.NodeID == "" {
-		//this is an uninitialized node.
-		//assign a node ID to it
-		nodeInfo.NodeID = lib.NewNodeId()
+		return nil, rpc.ErrNotificationsUnsupported
 	}
 
 	sub := notifier.CreateSubscription()
@@ -36,7 +33,7 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, statusNode common.S
 	s.AddOrUpdateSubscription(&ClientSub{
 		Notifier:   notifier,
 		NodeID:     nodeInfo.NodeID,
-		StatusNode: statusNode,
+		StatusNode: delegator.StatusNode,
 		SubID:      sub.ID,
 	})
 

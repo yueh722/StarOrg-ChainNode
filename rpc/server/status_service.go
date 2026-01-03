@@ -3,7 +3,6 @@ package server
 import (
 	"chain/rpc/common"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -25,7 +24,7 @@ func NewStatusService(stream *StreamService) *StatusService {
 
 func (s *StatusService) RegisterService(server *rpc.Server) error {
 	if err := server.RegisterName("status", s); err != nil {
-		return fmt.Errorf("Failed to register status service:", err)
+		return fmt.Errorf("Failed to register status service: %v", err)
 	}
 
 	return nil
@@ -42,7 +41,7 @@ func (s *StatusService) ReportNodeStatus(status *common.StatusNode) error {
 		s.stream.ReportState(status)
 	}
 
-	log.Printf("[NodeStatus] %v\n", status)
+	//log.Printf("[NodeStatus] %v\n", status)
 	return nil
 }
 
@@ -53,7 +52,7 @@ func (s *StatusService) ReportStorageStatus(status *common.StatusStorage) error 
 		s.stream.ReportState(status)
 	}
 
-	log.Printf("[StorageStatus] %v\n", status)
+	//log.Printf("[StorageStatus] %v\n", status)
 	return nil
 }
 

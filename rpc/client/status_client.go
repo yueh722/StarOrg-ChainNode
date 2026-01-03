@@ -29,7 +29,7 @@ func (c *StatusClient) Update(client *rpc.Client) {
 func (c *StatusClient) ReportNodeStatus() error {
 
 	//load information of current node
-	nodeInfo, err := lib.GetNodeInfo(c.cfg.NodeBaseDir)
+	nodeInfo, err := lib.GetNodeInfo(c.cfg.HomeDir)
 	if err != nil {
 		return err
 	}
@@ -38,8 +38,8 @@ func (c *StatusClient) ReportNodeStatus() error {
 
 	err = c.client.Call(nil, "status_reportNodeStatus", common.StatusNode{
 		NodeInfo:    *nodeInfo,
-		Healthy:     lib.CheckNodeOnline(nodeInfo),
-		LastCheck:   time.Now().Unix(),
+		Healthy:     lib.CheckNodeOnline(nodeInfo.RPCAddr),
+		LastCheck:   time.Now().UnixNano(),
 		StartedTime: "",
 	})
 	return err

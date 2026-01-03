@@ -10,7 +10,7 @@ func NewGenesisDoc(chainID string, validators []types.GenesisValidator) *types.G
 	return &types.GenesisDoc{
 		ChainID:         "chain-" + chainID,
 		ConsensusParams: types.DefaultConsensusParams(),
-		GenesisTime:     GenesisTimeFromUnix(time.Now().Unix()),
+		GenesisTime:     GenesisTimeFromUnix(time.Now().UnixNano()),
 		InitialHeight:   0,
 		Validators:      validators,
 	}

@@ -4,6 +4,7 @@ import (
 	"chain/lib"
 	"chain/rpc/client"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"path/filepath"
@@ -28,27 +29,28 @@ func StartClient() error {
 		return err
 	}
 
-	nodeInfo, err := lib.GetNodeInfo(cfg.NodeDir)
+	nodeInfo, err := lib.GetNodeInfo(cfg.HomeDir)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		//configuration data error.
-		return err
+		return fmt.Errorf("GetNodeInfo error: %v", err)
 	}
 
 	if nodeInfo == nil {
 		// init new node id if current node is uninitialized
-		if nodeInfo, err = lib.InitializeNewNodeID(cfg.NodeDir); err != nil {
-			return err
+		if nodeInfo, err = lib.InitializeNewNodeID(cfg.HomeDir); err != nil {
+			return fmt.Errorf("failed to initialize new nodeID: %v", err)
 		}
 	}
 
 	nodeClient, err := client.New(client.ClientConfig{
 		AppName:     cfg.AppName,
 		ServerAddr:  cfg.ServerAddr,
-		NodeBaseDir: getNodeBaseDir(cfg.NodeDir, nodeInfo.NodeID),
+		HomeDir:     cfg.HomeDir,
+		NodeBaseDir: getNodeBaseDir(cfg.HomeDir, nodeInfo.NodeID),
 		NodeInfo:    nodeInfo,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create client: %v", err)
 	}
 
 	ticker := time.NewTicker(5 * time.Second)

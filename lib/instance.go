@@ -28,6 +28,7 @@ type Instance struct {
 	Launcher    *Launcher
 	Session     *Session
 	Pid         int
+	StartTime   time.Time
 	Err         error
 	TermTimeout time.Duration
 }
@@ -77,6 +78,7 @@ func (i *Instance) Start() error {
 
 	if sess != nil {
 		i.Pid = sess.Pid()
+		i.StartTime = time.Now()
 	}
 
 	return nil
@@ -90,7 +92,15 @@ func (i *Instance) Stop() error {
 	}
 
 	done := make(chan struct{})
-	go func() { i.Wait(); close(done) }()
+	go func() {
+		i.Wait()
+		close(done)
+
+		i.Session = nil
+		i.Pid = 0
+		i.StartTime = time.Time{}
+
+	}()
 
 	i.Session.Signal(syscall.SIGTERM)
 	select {

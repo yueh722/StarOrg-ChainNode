@@ -55,16 +55,17 @@ func NewChainState(chainID string, peerArray string) *ChainStateInternal {
 	return &ChainStateInternal{
 		Peers:           Peers,
 		GenesisDoc:      GenesisDoc,
-		InitializedTime: time.Now().Unix(),
+		InitializedTime: time.Now().UnixNano(),
 	}
 }
 
 func (state *ChainStateInternal) Clone() *ChainStateInternal {
 
 	newGenesisDoc := *state.GenesisDoc
+	newGenesisDoc.Validators = append([]types.GenesisValidator(nil), state.GenesisDoc.Validators...)
 
 	newState := &ChainStateInternal{
-		Peers:           state.Peers,
+		Peers:           append(lib.PeerList{}, state.Peers...),
 		GenesisDoc:      &newGenesisDoc,
 		InitializedTime: state.InitializedTime,
 		LastAddNodeTime: state.LastAddNodeTime,
