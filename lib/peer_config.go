@@ -10,9 +10,7 @@ import (
 
 	cometbftConfig "github.com/cometbft/cometbft/v2/config"
 	"github.com/cometbft/cometbft/v2/crypto"
-	"github.com/cometbft/cometbft/v2/crypto/ed25519"
 	"github.com/cometbft/cometbft/v2/libs/log"
-	"github.com/cometbft/cometbft/v2/p2p"
 	"github.com/cometbft/cometbft/v2/privval"
 	"github.com/cometbft/cometbft/v2/types"
 	"github.com/pkg/errors"
@@ -247,9 +245,7 @@ func (cfg *PeerConfig) SaveFiles() error {
 func (cfg *PeerConfig) writeNodeKeyFile() error {
 	nodeKeyFile := cfg.config.NodeKeyFile()
 
-	nodeKey := &p2p.NodeKey{
-		PrivKey: ed25519.PrivKey(cfg.nodeId),
-	}
+	nodeKey := NodekeyFromBase64(cfg.currPeer.NodeKey)
 
 	if err := nodeKey.SaveAs(nodeKeyFile); err != nil {
 		return err

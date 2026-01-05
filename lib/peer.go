@@ -2,6 +2,7 @@ package lib
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -19,6 +20,7 @@ type Peer struct {
 	NodeName       string `json:"node_name"`
 	NodeId         string `json:"node_id"`
 	PrivKey        string `json:"priv_key"`
+	NodeKey        string `json:"node_key"` //node_key.json and persistentpeer will use this value
 	NodeAddress    string `json:"node_address"`
 	P2PPort        uint16 `json:"p2p_port"`
 	RPCPort        uint16 `json:"rpc_port"`
@@ -67,6 +69,14 @@ func (p *Peer) Load(peerFile string) error {
 	return nil
 }
 
+func (p *Peer) PersistentPeerID() string {
+	return NodekeyFromBase64(p.NodeKey).ID()
+}
+
+func (p *Peer) NodeFileID() string {
+	return NodekeyFromNodeID(p.NodeId).ID()
+}
+
 func (p *Peer) valid() bool {
 	return true
 }
@@ -77,8 +87,8 @@ func (peers PeerList) BuildPersistentPeers() string {
 	var persistentPeers []string
 
 	for _, peer := range peers {
-		//nodeid@nodeaddress:p2p_port,
-		p2pAddr := fmt.Sprintf("%s@%s:%d", peer.NodeId, peer.NodeAddress, peer.P2PPort)
+		//peerid@nodeaddress:p2p_port,
+		p2pAddr := fmt.Sprintf("%s@%s:%d", peer.PersistentPeerID(), peer.NodeAddress, peer.P2PPort)
 		persistentPeers = append(persistentPeers, p2pAddr)
 	}
 
@@ -115,9 +125,7 @@ func (peers PeerList) BuildValidators() []types.GenesisValidator {
 			continue
 		}
 
-		pv := ed25519.PrivKey(peer.PrivKey)
-
-		pubKey := pv.PubKey()
+		pubKey := peer.PrivateKey().PubKey()
 
 		genVals[i] = types.GenesisValidator{
 			Address: pubKey.Address(),
@@ -143,13 +151,51 @@ func NewNodeId() string {
 		PrivKey: ed25519.GenPrivKey(),
 	}
 
+	//return hex.EncodeToString(nodeKey.PrivKey.Bytes())
 	return nodeKey.ID()
+}
+
+func NodekeyFromBase64(b64Str string) *p2p.NodeKey {
+	//nodeID is a base64 encoded string of private key,
+	//convert this private key to nodeKey.
+
+	prvKey, err := base64.StdEncoding.DecodeString(b64Str)
+	if err != nil {
+		log.Fatalf("error decoding node key: %v", err)
+	}
+
+	return &p2p.NodeKey{
+		PrivKey: ed25519.PrivKey(prvKey),
+	}
+}
+
+func NodekeyFromNodeID(nodeID string) *p2p.NodeKey {
+	//nodeID is a hex encoded string of private key,
+	//convert this private key to nodeKey.
+
+	prvKey, err := hex.DecodeString(nodeID)
+	if err != nil {
+		log.Fatalf("error decoding node key: %v", err)
+	}
+
+	return &p2p.NodeKey{
+		PrivKey: ed25519.PrivKey(prvKey),
+	}
+}
+
+func PersistentPeerIDFromNodeId(nodeID string) string {
+	//use nodeKey.ID() get Persistent peer ID
+	return NodekeyFromNodeID(nodeID).ID()
 }
 
 func NewPrivKey() string {
 	prvKey := ed25519.GenPrivKey()
 
 	return base64.StdEncoding.EncodeToString(prvKey.Bytes())
+}
+
+func NewNodeKey() string {
+	return NewPrivKey()
 }
 
 func ConvertJsonToPeers(jsonStr string) PeerList {

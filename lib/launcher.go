@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 )
@@ -39,7 +40,12 @@ func (b *Launcher) sample() bool {
 func (b *Launcher) RunApp() (*Session, error) {
 
 	cmd := b.NewCommandFromMap(b.AppFilePath, b.Args)
-	sess, err := Start(b.Logger, cmd, func(error) {})
+
+	cmd.Dir = filepath.Dir(b.AppFilePath)
+
+	sess, err := Start(b.Logger, cmd, func(err error) {
+		fmt.Println(err)
+	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "launcher '%s' failed to start", b.Name)
 	}
@@ -48,14 +54,19 @@ func (b *Launcher) RunApp() (*Session, error) {
 }
 
 func (b *Launcher) NewCommandFromMap(name string, args map[string]string) *exec.Cmd {
-	argString := ""
+	argStrings := []string{}
 
 	//iterator args
 	for arg, val := range args {
-		argString += " " + fmt.Sprintf("%s %s", arg, val)
+		argStrings = append(argStrings, arg)
+		if val != "" {
+			argStrings = append(argStrings, val)
+		}
 	}
 
-	return b.NewCommand(name, argString)
+	fmt.Println("cmd:", name, argStrings)
+
+	return b.NewCommand(name, argStrings...)
 }
 
 // NewCommand creates an exec.Cmd that is configured to prune the calling

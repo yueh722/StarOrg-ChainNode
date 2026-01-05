@@ -46,11 +46,15 @@ func GetLogPath(appName string, moduleNames ...string) string {
 
 	logPath := basePath
 	if logPath != "" {
-		if err := os.MkdirAll(logPath, os.ModePerm); err != nil {
-			log.Printf("can not create log directory: %v, err: %v\n", logPath, err)
-			os.Exit(100)
-		}
+		//TryCreateDir(logPath)
 	}
 
 	return logPath
+}
+
+func TryCreateDir(path string) string {
+	if err := os.MkdirAll(path, os.ModePerm); err != nil {
+		log.Panicf("create directory %s, error: %v", path, err)
+	}
+	return path
 }

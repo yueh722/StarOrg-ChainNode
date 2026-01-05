@@ -43,10 +43,10 @@ func BuildNodeLauncher(nodeID string, arg NodeArg) *Launcher {
 		AppFilePath: filepath.Join(arg.BinPath, NodeFileName),
 		Args: map[string]string{
 			"node":   "",
-			"--home": filepath.Join(arg.NodeBaseDir, arg.NodeInfo.NodeName),
+			"--home": filepath.Join(arg.NodeBaseDir),
 		},
 		Envs:   nil,
-		Logger: log.NewCometbftNodeLogger(nodeID, arg.LogStore),
+		Logger: log.NewCometbftNodeLogger(nodeID, filepath.Join(arg.LogFilePath, "node"), arg.LogStore),
 	}
 
 	return l
@@ -64,7 +64,7 @@ func BuildAppLauncher(nodeID string, arg NodeArg) *Launcher {
 			"--abci-rpc-addr": arg.NodeInfo.RPCAddr,        // rpc
 		},
 		Envs:   nil,
-		Logger: log.NewCometbftNodeLogger(GetAppNameByNodeID(nodeID), arg.LogStore),
+		Logger: log.NewCometbftNodeLogger(GetAppNameByNodeID(nodeID), filepath.Join(arg.LogFilePath, "app"), arg.LogStore),
 	}
 
 	return l

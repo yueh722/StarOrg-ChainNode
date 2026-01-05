@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/cometbft/cometbft/v2/libs/json"
+	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
 	"github.com/cometbft/cometbft/v2/types"
 )
 
@@ -35,7 +35,7 @@ func LoadChainState(filePath string) *ChainStateInternal {
 		return state
 	}
 
-	err = json.Unmarshal(file, state)
+	err = cmtjson.Unmarshal(file, state)
 	if err != nil {
 		log.Printf("Error unmarshalling file contents: %v", err)
 		return state
@@ -92,7 +92,7 @@ func (state *ChainStateInternal) CloneAddNode(peerInfo lib.Peer) *ChainStateInte
 }
 
 func (s *ChainStateInternal) Save(filePath string) error {
-	data, err := json.MarshalIndent(s, "", "  ")
+	data, err := cmtjson.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return err
 	}

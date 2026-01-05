@@ -2,8 +2,8 @@ package log
 
 import (
 	"chain/lib/queuestore"
-	"chain/utils"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"go.uber.org/zap"
@@ -19,15 +19,16 @@ type OutputSpec struct {
 // NewStreamSugaredLogger creates a logger target to a store:
 // - Info+ => file (JSON, rotated)
 // - Error+ => QueueStore via StreamWriter
-func NewStreamSugaredLogger(nodeID string, store queuestore.QueueStore) *zap.SugaredLogger {
+func NewStreamSugaredLogger(nodeID, logPath string, store queuestore.QueueStore) *zap.SugaredLogger {
 
-	filePath := utils.GetLogPath("node", nodeID)
+	filePath := filepath.Join(logPath)
 
 	encCfg := zap.NewProductionEncoderConfig()
 	encCfg.TimeKey = "time"
 	encCfg.EncodeTime = zapcore.EpochMillisTimeEncoder
 
-	fileEnc := zapcore.NewJSONEncoder(encCfg)
+	//fileEnc := zapcore.NewJSONEncoder(encCfg)
+	fileEnc := zapcore.NewConsoleEncoder(encCfg)
 	fileWS := zapcore.AddSync(&lumberjack.Logger{
 		Filename:  filePath,
 		MaxSize:   100,

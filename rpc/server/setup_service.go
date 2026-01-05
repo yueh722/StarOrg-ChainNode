@@ -5,17 +5,18 @@ import (
 	"chain/lib/logdb"
 	"chain/rpc/commandlog"
 	"chain/rpc/common"
+	"chain/rpc/server/command_manager"
 	"chain/utils"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
-	"github.com/duke-git/lancet/v2/maputil"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/pingcap/errors"
 )
@@ -24,9 +25,23 @@ type SetupResult struct {
 	Error error `json:"error"`
 }
 
+type MultiError struct {
+	Errors map[string]error
+}
+
+func (m *MultiError) Error() string {
+	errStr, err := json.MarshalIndent(m.Errors, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+
+	return string(errStr)
+}
+
 type nodeCommand struct {
 	cmd     common.CmdType
 	payload interface{}
+	ctx     context.Context
 }
 
 // SetupService is designed for nodeproxy getting setup command dispatched from NodeMaster.
@@ -37,6 +52,7 @@ type SetupService struct {
 	stream     *StreamService
 	cmdEvent   commandlog.CommandEventRepo
 	chainState *ChainStateInternal
+	cmdManager *command_manager.CmdManager
 }
 
 type ClientSub struct {
@@ -46,7 +62,13 @@ type ClientSub struct {
 	SubID      rpc.ID
 }
 
-var chainStateFile = filepath.Join(utils.GetAppDataPath("setup"), "chain.json")
+var chainStateFile = filepath.Join(utils.GetAppDataPath("SetupService"), "setup.json")
+
+func init() {
+	if err := os.MkdirAll(filepath.Dir(chainStateFile), 0755); err != nil {
+		log.Fatal(err)
+	}
+}
 
 func NewSetupService(store logdb.CommandLogStore, stream *StreamService) *SetupService {
 
@@ -60,6 +82,7 @@ func NewSetupService(store logdb.CommandLogStore, stream *StreamService) *SetupS
 		cmdEvent:   cmdEvent,
 		stream:     stream,
 		chainState: LoadChainState(chainStateFile),
+		cmdManager: command_manager.NewCmdManager(),
 	}
 }
 
@@ -144,7 +167,7 @@ func (s *SetupService) BroadcastInitializeChainNode(
 	//succeed
 	//save chain node information, genesisDoc
 	if err := newChainState.Save(chainStateFile); err != nil {
-		log.Panicln("save chain state file:", chainStateFile, "err:", err)
+		return fmt.Errorf("save chain state file: %v, err: %v", chainStateFile, err)
 	} else {
 		s.chainState = newChainState
 	}
@@ -159,7 +182,7 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 	defer s.mu.Unlock()
 
 	if !s.chainState.Initialized() {
-		return ReturnError(errors.New("chain has not initialized"))
+		return ReturnError(errors.New("please initialize chain node first"))
 	}
 
 	newChainState := s.chainState.CloneAddNode(peerInfo)
@@ -201,7 +224,7 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 
 	//save chain node information, genesisDoc
 	if err := newChainState.Save(chainStateFile); err != nil {
-		log.Panicln("save chain state file:", chainStateFile, "err:", err)
+		return fmt.Errorf("save chain state file: %v, err: %v", chainStateFile, err)
 	} else {
 		s.chainState = newChainState
 	}
@@ -211,44 +234,28 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 
 // RPC Method
 // send start,stop,restart command to specified node
-func (s *SetupService) ControlNodes(ctlNodes ...common.SetupControlNode) error {
+func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) error {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if !s.chainState.Initialized() {
-		return ReturnError(errors.New("chain has not initialized"))
+		return ReturnError(errors.New("please initialize chain node first"))
 	}
 
+	nodecmds := make(map[string]*nodeCommand, len(ctlNodes))
+
 	for _, node := range ctlNodes {
-
-		cmdID, err := newCommandID()
-		if err != nil {
-			return err
+		nodecmds[node.NodeID] = &nodeCommand{
+			cmd:     common.CmdControlNode,
+			payload: node,
 		}
 
-		payload, _ := json.Marshal(node)
+		log.Printf("[ControlNode] nodeID: %v, action: %v\n", node.NodeID, node.Action)
+	}
 
-		log.Printf("[ControlNodes] nodeID: %v, action: %v\n", node.NodeID, node.Action)
-
-		env := common.CommandEnvelope{
-			CommandID: cmdID,
-			Cmd:       common.CmdControlNode,
-			NodeID:    node.NodeID,
-			Payload:   payload,
-			IssuedAt:  time.Now().UnixNano(),
-		}
-
-		clientSub := s.getNotifierByNodeID(node.NodeID)
-		if clientSub != nil {
-			if err := clientSub.Notifier.Notify(clientSub.SubID, env); err != nil {
-				log.Printf("[ControlNodes] Failed to notify node: %v name: %v, err %v\n",
-					node.NodeID,
-					"",
-					err)
-				return err
-			}
-		}
+	if err := s.sendNodeCommand(nodecmds); err != nil {
+		return err
 	}
 
 	return nil
@@ -293,12 +300,7 @@ func (s *SetupService) BroadcastPurgeData() error {
 // key: nodeID
 // value: {cmd, payload}
 func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
-
-	var (
-		succeedCount int32 = 0
-		nodeErrs           = make(map[string]error)
-		wg           sync.WaitGroup
-	)
+	var syncCmds []string
 
 	for nodeID, cmd := range cmds {
 
@@ -306,6 +308,8 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 		if err != nil {
 			return ReturnError(err)
 		}
+
+		syncCmds = append(syncCmds, cmdID)
 
 		payload, _ := cmtjson.Marshal(cmd.payload)
 
@@ -317,16 +321,6 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 			IssuedAt:  time.Now().UnixNano(),
 		}
 
-		clientSub := s.getNotifierByNodeID(nodeID)
-		if clientSub == nil {
-			return ReturnError(errors.New("client not initialized"))
-		}
-
-		//notify all client to initialize node
-		if err := clientSub.Notifier.Notify(clientSub.SubID, env); err != nil {
-			return ReturnError(err)
-		}
-
 		//put command record into database
 		_ = s.cmdEvent.Update(commandlog.CommandResult{
 			CommandID: cmdID,
@@ -335,31 +329,51 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 			Status:    commandlog.CmdRunning,
 			Message:   string(payload),
 			StartedAt: time.Now().UnixNano(),
-		}, func(err error) {
-			if err == nil {
-				atomic.AddInt32(&succeedCount, 1)
+		}, nil)
+
+		requestNodeFn := func() error {
+			clientSub := s.getNotifierByNodeID(nodeID)
+			if clientSub == nil {
+				return ReturnError(errors.New("client not initialized"))
 			}
 
-			nodeErrs[nodeID] = err
-			wg.Add(1)
-		})
+			//notify all client to initialize node
+			if err := clientSub.Notifier.Notify(clientSub.SubID, env); err != nil {
+				return fmt.Errorf("Failed to notify node: %v, err %v\n", nodeID, err)
+			}
+			return nil
+		}
+
+		_ = s.cmdManager.ActivateCommand(
+			context.Background(),
+			command_manager.ActivateOptions{
+				ID:      cmdID,
+				Timeout: 30 * time.Second,
+				StartFn: func(ctx context.Context, id string) error {
+					return requestNodeFn()
+				},
+			})
+
 	}
 
-	//wait all node complete initialization task
-	wg.Wait()
+	//wait all node completing initialization task
+	ch := s.cmdManager.SyncMultipleCommands(syncCmds...)
 
-	var err = errors.New("")
+	resErr := &MultiError{
+		Errors: make(map[string]error),
+	}
 
-	if int(succeedCount) == len(s.subs) {
-		//all task succeeded
+	for result := range ch {
+		if result.Err != nil {
+			resErr.Errors[result.ID] = result.Err
+		}
+	}
+
+	if len(resErr.Errors) == 0 {
 		return nil
 	}
 
-	maputil.ForEach(nodeErrs, func(nodeID string, nodeErr error) {
-		err = fmt.Errorf("%v\nnodeID: %v, err: %v", err, nodeID, nodeErr.Error())
-	})
-
-	return err
+	return resErr
 }
 
 // internal method
@@ -384,7 +398,14 @@ func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 		//set reported state for cmdEvent
 	}
 
-	_, err := s.cmdEvent.Complete(res.CommandID, res.Status == commandlog.CmdSuccess, res.Message, res.Error, res.Output)
+	var err error = nil
+	if res.Error != "" {
+		err = errors.New(res.Error)
+	}
+
+	_ = s.cmdManager.CompleteCommand(res.CommandID, err)
+
+	_, err = s.cmdEvent.Complete(res.CommandID, res.Status == commandlog.CmdSuccess, res.Message, res.Error, res.Output)
 
 	return err
 }

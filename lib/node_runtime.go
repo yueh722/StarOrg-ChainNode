@@ -1,7 +1,6 @@
 package lib
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -54,17 +53,22 @@ func (r NodeRuntimeImpl) GetAppInfo() ProcInfo {
 }
 
 func (r NodeRuntimeImpl) Error() error {
-	var err error
+	var errs error
 
-	//get node error
-	err = fmt.Errorf("node error: %v", r.NodeInst.GetErr())
+	insts := []*Instance{r.NodeInst, r.AppInst}
 
-	//get app error
-	if err != nil {
-		err = errors.Wrapf(err, "app error: %v", r.AppInst.GetErr().Error())
+	for _, inst := range insts {
+		if inst == nil {
+			continue
+		}
+
+		if err := inst.GetErr(); err != nil {
+			errs = errors.Wrapf(errs, err.Error())
+		}
+
 	}
 
-	return err
+	return errs
 }
 
 func (r NodeRuntimeImpl) KillNode() {

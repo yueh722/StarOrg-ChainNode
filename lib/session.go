@@ -9,6 +9,7 @@ package lib
 import (
 	"bufio"
 	"chain/lib/log"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -37,8 +38,10 @@ type LogWriter struct {
 func (lw *LogWriter) Write(p []byte) (n int, err error) {
 	if lw.errLevel {
 		lw.logger.Error(string(p))
+		fmt.Println("err", string(p))
 	} else {
 		lw.logger.Info(string(p))
+		fmt.Println("info", string(p))
 	}
 
 	return len(p), nil
@@ -56,11 +59,17 @@ func Start(logger *log.Logger, cmd *exec.Cmd, exitFuncs ...ExitFunc) (*Session, 
 		return nil, err
 	}
 
-	cmd.Stdout = &LogWriter{
-		logger:   logger,
-		errLevel: false,
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
 	}
 
+	/*
+		cmd.Stdout = &LogWriter{
+			logger:   logger,
+			errLevel: false,
+		}
+	*/
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
@@ -71,14 +80,14 @@ func Start(logger *log.Logger, cmd *exec.Cmd, exitFuncs ...ExitFunc) (*Session, 
 		exitFuncs: exitFuncs,
 		exited:    make(chan struct{}),
 	}
-	go sess.waitForExit(logger, stderr)
+	go sess.waitForExit(logger, stdout, stderr)
 
 	return sess, nil
 }
 
-func (s *Session) waitForExit(logger *log.Logger, stderr io.Reader) {
+func (s *Session) waitForExit(logger *log.Logger, stdout, stderr io.Reader) {
 	// copy stderr to the logger until stderr is closed
-	scanner := bufio.NewScanner(stderr)
+	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
 		logger.Error(scanner.Text())
 	}

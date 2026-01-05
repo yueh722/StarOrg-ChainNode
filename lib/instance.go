@@ -140,5 +140,9 @@ func (i *Instance) GetErr() error {
 		return i.Err
 	}
 
-	return i.Session.exitErr
+	if i.Session != nil {
+		return i.Session.exitErr
+	}
+
+	return errors.New("unknow error")
 }

@@ -344,3 +344,7 @@ func TestUpdatePort(t *testing.T) {
 		assert.Equal(t, "", result)
 	})
 }
+
+func TestPrvKey(t *testing.T) {
+
+}

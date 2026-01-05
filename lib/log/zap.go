@@ -29,9 +29,9 @@ func NewLogger(appName string) *Logger {
 	}
 }
 
-func NewCometbftNodeLogger(nodeID string, store queuestore.QueueStore) *Logger {
+func NewCometbftNodeLogger(nodeID, logPath string, store queuestore.QueueStore) *Logger {
 	return &Logger{
-		s: NewStreamSugaredLogger(nodeID, store),
+		s: NewStreamSugaredLogger(nodeID, logPath, store),
 	}
 }
 
