@@ -2,7 +2,7 @@ package server
 
 import (
 	"chain/lib"
-	"chain/lib/logdb"
+	"chain/lib/cmdlogstore"
 	"chain/rpc/commandlog"
 	"chain/rpc/common"
 	"chain/rpc/server/command_manager"
@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -65,12 +64,10 @@ type ClientSub struct {
 var chainStateFile = filepath.Join(utils.GetAppDataPath("SetupService"), "setup.json")
 
 func init() {
-	if err := os.MkdirAll(filepath.Dir(chainStateFile), 0755); err != nil {
-		log.Fatal(err)
-	}
+	utils.TryCreateDir(filepath.Dir(chainStateFile))
 }
 
-func NewSetupService(store logdb.CommandLogStore, stream *StreamService) *SetupService {
+func NewSetupService(store cmdlogstore.CommandLogStore, stream *StreamService) *SetupService {
 
 	cmdEvent, err := commandlog.NewCommandRepo(store)
 	if err != nil {
@@ -219,6 +216,7 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 	}
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
+		log.Println("send node command failure:", err)
 		return err
 	}
 
@@ -263,7 +261,7 @@ func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) error {
 
 // RPC Method
 // reset chain state to first initialized state
-func (s *SetupService) BroadcastResetChainNode() error {
+func (s *SetupService) BroadcastResetChainNode(resetChain common.SetupResetChain) error {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -277,7 +275,7 @@ func (s *SetupService) BroadcastResetChainNode() error {
 	for nodeID, _ := range s.subs {
 		nodecmds[nodeID] = &nodeCommand{
 			cmd:     common.CmdResetChain,
-			payload: common.SetupResetChain{},
+			payload: resetChain,
 		}
 	}
 
@@ -285,8 +283,14 @@ func (s *SetupService) BroadcastResetChainNode() error {
 		return err
 	}
 
-	s.chainState = &ChainStateInternal{}
+	//clean event log up
+	if err := s.cmdEvent.Reset(); err != nil {
+		return fmt.Errorf("failed to reset cmd event: %v", err)
+	}
 
+	if err := s.chainState.Reset(chainStateFile); err != nil {
+		return fmt.Errorf("failed to reset chain state: %v", err)
+	}
 	return nil
 }
 
@@ -388,7 +392,7 @@ func (s *SetupService) getNotifierByNodeID(nodeID string) *ClientSub {
 }
 
 // RPC Method
-// complete command that sent to node before
+// complete command that sent to node
 func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 
 	log.Printf("[CommandResult] cmd=%s id=%s node=%s status=%s msg=%q err=%q\n",

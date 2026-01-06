@@ -1,6 +1,7 @@
 package client
 
 import (
+	"chain/internal/common"
 	"chain/lib"
 	"chain/utils"
 	"context"
@@ -32,11 +33,12 @@ type ClientConfig struct {
 }
 
 func (c ClientConfig) getLogPath() string {
-	return utils.TryCreateDir(filepath.Join(c.NodeBaseDir, "log"))
+	return utils.TryCreateDir(common.NodeProxyLogPath)
+	//return utils.TryCreateDir(filepath.Join(c.NodeBaseDir, "log"))
 }
 
 func (c ClientConfig) getBinPath() string {
-	return utils.TryCreateDir(filepath.Join(c.NodeBaseDir, "bin"))
+	return utils.TryCreateDir(filepath.Join(c.HomeDir, "bin"))
 }
 
 func (c ClientConfig) getChainlogFilePath() string {
@@ -44,11 +46,11 @@ func (c ClientConfig) getChainlogFilePath() string {
 }
 
 func (c ClientConfig) getAppBinPath() string {
-	return filepath.Join(c.getBinPath(), lib.AppFilePath)
+	return filepath.Join(c.getBinPath(), lib.AppFileName)
 }
 
 func (c ClientConfig) getNodeBinPath() string {
-	return filepath.Join(c.getBinPath(), lib.NodeFilePath)
+	return filepath.Join(c.getBinPath(), lib.NodeFileName)
 }
 
 func New(cfg ClientConfig) (*Client, error) {

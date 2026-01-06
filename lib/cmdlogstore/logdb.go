@@ -1,4 +1,4 @@
-package logdb
+package cmdlogstore
 
 import (
 	"io"

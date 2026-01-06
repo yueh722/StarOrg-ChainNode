@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"time"
 
@@ -190,6 +189,7 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 	}
 
 	//create logStore for receiving error log of node and app
+	//file: nodebasedir/log/chaindb.log
 	if err = c.initLogStore(c.cfg.getChainlogFilePath()); err != nil {
 		return err
 	}
@@ -214,23 +214,27 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 
 // reset chain handler
 func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
 
 	if c.nodeRuntime != nil {
 		c.nodeRuntime.KillNode()
 	} else {
 		//kill all node and app processes
-		utils.KillProcessByPath(c.cfg.getAppBinPath())
-		utils.KillProcessByPath(c.cfg.getNodeBinPath())
+		if err := utils.KillProcessByPath(c.cfg.getAppBinPath()); err != nil {
+			log.Println("failed to kill app process, err:", err)
+		}
+
+		if err := utils.KillProcessByPath(c.cfg.getNodeBinPath()); err != nil {
+			log.Println("failed to kill node process, err:", err)
+		}
 	}
 
 	//remove node base directory
-	if err := lib.ResetChainNode(c.cfg.HomeDir); err != nil {
-		return fmt.Errorf("reset chain node failed, err: %v", err)
+	nodeInfo, err := lib.ResetChainNode(c.cfg.HomeDir, c.cfg.NodeInfo.NodeID)
+	if err != nil {
+		return fmt.Errorf("failed to remove node base directory, err: %v", err)
 	}
 
-	os.Mkdir(c.cfg.HomeDir, os.ModePerm)
+	c.cfg.NodeInfo = nodeInfo
 
 	return nil
 }

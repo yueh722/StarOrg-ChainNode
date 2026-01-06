@@ -33,7 +33,7 @@ func NewStreamWriter(nodeID string, store queuestore.QueueStore) (*StreamWriter,
 	minLevel := zapcore.ErrorLevel
 	encCfg := zap.NewProductionEncoderConfig()
 	encCfg.TimeKey = "time"
-	encCfg.EncodeTime = zapcore.EpochMillisTimeEncoder
+	encCfg.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")
 
 	return &StreamWriter{
 		enc:      zapcore.NewJSONEncoder(encCfg),

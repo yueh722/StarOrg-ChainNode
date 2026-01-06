@@ -27,10 +27,6 @@ type NodeInfo struct {
 	Validator      bool   `json:"validator,omitempty"`
 }
 
-func GetNodeBaseDir(node string) string {
-	return "./"
-}
-
 func GenesisTimeFromUnix(nsec int64) time.Time {
 	return cmttime.Canonical(time.Unix(0, nsec))
 }
@@ -163,13 +159,19 @@ func CheckChainNode(nodeId, nodeDir string) bool {
 	return false
 }
 
-func ResetChainNode(nodeDir string) error {
+func ResetChainNode(homeDir, nodeID string) (*NodeInfo, error) {
+	nodeDir := filepath.Join(homeDir, nodeID)
 	err := os.RemoveAll(nodeDir)
 	if err != nil {
-		return fmt.Errorf("purge chain node path [%v] failed: %v", nodeDir, err)
+		return nil, fmt.Errorf("remove chain node path %v failed: %v", nodeDir, err)
 	}
 
-	return nil
+	nodeInfo, err := ResetPeerConfig(homeDir, nodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	return nodeInfo, nil
 }
 
 func GetNodeInfoFromCometbftConfig(nodeDir string) (*NodeInfo, error) {
@@ -233,6 +235,22 @@ func GetNodeInfo(homeDir string) (*NodeInfo, error) {
 func InitializeNewNodeID(homeDir string) (*NodeInfo, error) {
 	peer := &Peer{
 		NodeId: NewNodeId(),
+	}
+
+	if err := peer.Save(filepath.Join(homeDir, peerConfigFile)); err != nil {
+		return nil, err
+	}
+
+	if err := os.Mkdir(filepath.Join(homeDir, peer.NodeId), os.ModePerm); err != nil {
+		return nil, err
+	}
+
+	return PeerInfoToNodeInfo(peer), nil
+}
+
+func ResetPeerConfig(homeDir, nodeID string) (*NodeInfo, error) {
+	peer := &Peer{
+		NodeId: nodeID,
 	}
 
 	if err := peer.Save(filepath.Join(homeDir, peerConfigFile)); err != nil {

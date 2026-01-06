@@ -1,7 +1,7 @@
 package commandlog
 
 import (
-	"chain/lib/logdb"
+	"chain/lib/cmdlogstore"
 	"chain/rpc/common"
 	"encoding/json"
 	"errors"
@@ -54,12 +54,12 @@ type CommandEventRepo interface {
 	ListCommandByNode(nodeID string) ([]CommandResult, error)
 
 	//HistoryFromDiskByNode(nodeID string) ([]CommandResult, error)
-
+	Reset() error
 	Close() error
 }
 
 type CommandRepo struct {
-	store         logdb.CommandLogStore
+	store         cmdlogstore.CommandLogStore
 	mu            sync.RWMutex
 	latestByID    map[string]CommandResult
 	latestByNode  map[string]map[string]CommandResult // node_name -> map: command_id -> commandResult
@@ -67,7 +67,7 @@ type CommandRepo struct {
 	activatedCmds map[string]CompletedRoutine
 }
 
-func NewCommandRepo(store logdb.CommandLogStore) (*CommandRepo, error) {
+func NewCommandRepo(store cmdlogstore.CommandLogStore) (*CommandRepo, error) {
 	r := &CommandRepo{
 		store:         store,
 		latestByID:    make(map[string]CommandResult),
@@ -77,7 +77,7 @@ func NewCommandRepo(store logdb.CommandLogStore) (*CommandRepo, error) {
 	}
 
 	// load all history records of command log
-	if err := store.Scan(func(rec logdb.CommandLogRow) error {
+	if err := store.Scan(func(rec cmdlogstore.CommandLogRow) error {
 		var e CommandResult
 		if err := json.Unmarshal(rec.Value, &e); err != nil {
 			return nil // 日志容错：坏行跳过
@@ -87,7 +87,7 @@ func NewCommandRepo(store logdb.CommandLogStore) (*CommandRepo, error) {
 		}
 		r.apply(e)
 		return nil
-	}, logdb.Query{}); err != nil {
+	}, cmdlogstore.Query{}); err != nil {
 		return nil, err
 	}
 
@@ -213,7 +213,7 @@ func (r *CommandRepo) ListCommandByNode(nodeID string) ([]CommandResult, error) 
 	}
 
 	last := map[string]CommandResult{}
-	if err := r.store.Scan(func(rec logdb.CommandLogRow) error {
+	if err := r.store.Scan(func(rec cmdlogstore.CommandLogRow) error {
 		var e CommandResult
 		if err := json.Unmarshal(rec.Value, &e); err != nil {
 			return nil
@@ -222,7 +222,7 @@ func (r *CommandRepo) ListCommandByNode(nodeID string) ([]CommandResult, error) 
 			last[e.CommandID] = e
 		}
 		return nil
-	}, logdb.Query{NodeID: nodeID}); err != nil {
+	}, cmdlogstore.Query{NodeID: nodeID}); err != nil {
 		return nil, err
 	}
 
@@ -231,6 +231,15 @@ func (r *CommandRepo) ListCommandByNode(nodeID string) ([]CommandResult, error) 
 		out = append(out, v)
 	}
 	return out, nil
+}
+
+func (r *CommandRepo) Reset() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.latestByNode = make(map[string]map[string]CommandResult)
+	r.historyByID = make(map[string][]CommandResult)
+	r.activatedCmds = make(map[string]CompletedRoutine)
+	return r.store.Reset()
 }
 
 // --- internal helpers ---

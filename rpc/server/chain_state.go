@@ -3,6 +3,7 @@ package server
 import (
 	"chain/lib"
 	"chain/rpc/common"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -102,5 +103,14 @@ func (s *ChainStateInternal) Save(filePath string) error {
 		return err
 	}
 
+	return nil
+}
+
+func (s *ChainStateInternal) Reset(filePath string) error {
+	if err := os.Remove(filePath); err != nil {
+		return fmt.Errorf("failed to remove chain state file %s, err: %v", filePath, err)
+	}
+
+	*s = ChainStateInternal{}
 	return nil
 }

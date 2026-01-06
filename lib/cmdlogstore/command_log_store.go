@@ -1,4 +1,4 @@
-package logdb
+package cmdlogstore
 
 import (
 	"chain/utils"
@@ -19,6 +19,7 @@ type Query struct {
 type CommandLogStore interface {
 	Append(commandID, nodeID string, value []byte) error
 	Scan(fn func(rec CommandLogRow) error, opt Query) error
+	Reset() error
 	io.Closer
 }
 
@@ -141,6 +142,19 @@ func (s *SqliteCommandLogStore) Close() error {
 	if s.sqlDB != nil {
 		return s.sqlDB.Close()
 	}
+	return nil
+}
+
+func (s *SqliteCommandLogStore) Reset() error {
+	ctx, cancel := context.WithTimeout(context.Background(), s.opTimeout)
+	defer cancel()
+
+	if err := s.db.WithContext(ctx).Unscoped().Where("1 = 1").Delete(&CommandLogRow{}).Error; err != nil {
+		return err
+	}
+
+	s.db.WithContext(ctx).Exec("DELETE FROM sqlite_sequence WHERE name = ?", CommandLogRow{}.TableName())
+
 	return nil
 }
 

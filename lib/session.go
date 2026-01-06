@@ -41,7 +41,7 @@ func (lw *LogWriter) Write(p []byte) (n int, err error) {
 		fmt.Println("err", string(p))
 	} else {
 		lw.logger.Info(string(p))
-		fmt.Println("info", string(p))
+		//fmt.Println("info", string(p))
 	}
 
 	return len(p), nil
@@ -59,17 +59,19 @@ func Start(logger *log.Logger, cmd *exec.Cmd, exitFuncs ...ExitFunc) (*Session, 
 		return nil, err
 	}
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
+	/*
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return nil, err
+		}
+		stdout.Close()
+	*/
+
+	cmd.Stdout = &LogWriter{
+		logger:   logger,
+		errLevel: false,
 	}
 
-	/*
-		cmd.Stdout = &LogWriter{
-			logger:   logger,
-			errLevel: false,
-		}
-	*/
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
@@ -80,14 +82,14 @@ func Start(logger *log.Logger, cmd *exec.Cmd, exitFuncs ...ExitFunc) (*Session, 
 		exitFuncs: exitFuncs,
 		exited:    make(chan struct{}),
 	}
-	go sess.waitForExit(logger, stdout, stderr)
+	go sess.waitForExit(logger, nil, stderr)
 
 	return sess, nil
 }
 
 func (s *Session) waitForExit(logger *log.Logger, stdout, stderr io.Reader) {
 	// copy stderr to the logger until stderr is closed
-	scanner := bufio.NewScanner(stdout)
+	scanner := bufio.NewScanner(stderr)
 	for scanner.Scan() {
 		logger.Error(scanner.Text())
 	}

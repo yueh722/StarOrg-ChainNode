@@ -1,7 +1,7 @@
 package server
 
 import (
-	"chain/lib/logdb"
+	"chain/lib/cmdlogstore"
 	"chain/lib/queuestore"
 	"chain/rpc/security"
 	"crypto/rand"
@@ -34,7 +34,7 @@ type ServerConfig struct {
 	AppName       string
 	Addr          string
 	NodelogStore  queuestore.QueueStore
-	SetuplogStore logdb.CommandLogStore
+	SetuplogStore cmdlogstore.CommandLogStore
 	Option        security.SecurityOption
 	Tls           TlsOption
 }

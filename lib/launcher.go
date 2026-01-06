@@ -43,9 +43,7 @@ func (b *Launcher) RunApp() (*Session, error) {
 
 	cmd.Dir = filepath.Dir(b.AppFilePath)
 
-	sess, err := Start(b.Logger, cmd, func(err error) {
-		fmt.Println(err)
-	})
+	sess, err := Start(b.Logger, cmd, func(err error) {})
 	if err != nil {
 		return nil, errors.Wrapf(err, "launcher '%s' failed to start", b.Name)
 	}

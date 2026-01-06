@@ -75,6 +75,7 @@ func init() {
 		"GetChainState",
 		"BroadcastInitializeChainNode",
 		"ControlNode",
+		"BroadcastResetChainNode",
 	}
 
 	slice.ForEach(functions, func(index int, name string) {
@@ -152,7 +153,7 @@ func getChainState(myclient *rpc.Client) (*ChainState, error) {
 	return state, nil
 }
 
-func TestSetupService_ControlNode(t *testing.T) {
+func SetupService_ControlNode(t *testing.T, action common.NodeAction) {
 	myclient, err := getConnection(t)
 	if err != nil {
 		return
@@ -169,7 +170,7 @@ func TestSetupService_ControlNode(t *testing.T) {
 	for _, status := range state.Nodes {
 		ctlNodes = append(ctlNodes, common.SetupControlNode{
 			NodeID: status.NodeID,
-			Action: common.NodeStart,
+			Action: action,
 		})
 	}
 
@@ -177,4 +178,46 @@ func TestSetupService_ControlNode(t *testing.T) {
 		t.Fatal("Failed to call:", err)
 	}
 
+}
+
+func TestSetupService_StartNode(t *testing.T) {
+	SetupService_ControlNode(t, common.NodeStart)
+}
+
+func TestSetupService_RestartNode(t *testing.T) {
+	SetupService_ControlNode(t, common.NodeRestart)
+}
+
+func TestSetupService_StopNode(t *testing.T) {
+	SetupService_ControlNode(t, common.NodeStop)
+}
+
+func TestSetupService_BroadcastResetChainNode(t *testing.T) {
+	myclient, err := getConnection(t)
+	if err != nil {
+		return
+	}
+	// CALL RPC METHOD
+
+	//get chain state
+	state, err := getChainState(myclient)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Println(state)
+
+	//peer list
+	peers := MakePeerList()
+
+	//update nodeID to testData
+	for i, status := range state.Nodes {
+		peers[i].NodeId = status.NodeID
+	}
+
+	var errResult error
+
+	err = myclient.Call(&errResult, methods["BroadcastResetChainNode"], common.SetupResetChain{})
+	if err != nil {
+		t.Fatal("Failed to broadcast reset chain node:", err)
+	}
 }

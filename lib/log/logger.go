@@ -2,6 +2,7 @@ package log
 
 import (
 	"chain/lib/queuestore"
+	"chain/utils"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,11 +22,13 @@ type OutputSpec struct {
 // - Error+ => QueueStore via StreamWriter
 func NewStreamSugaredLogger(nodeID, logPath string, store queuestore.QueueStore) *zap.SugaredLogger {
 
+	utils.TryCreateDir(filepath.Dir(logPath))
+
 	filePath := filepath.Join(logPath)
 
 	encCfg := zap.NewProductionEncoderConfig()
 	encCfg.TimeKey = "time"
-	encCfg.EncodeTime = zapcore.EpochMillisTimeEncoder
+	encCfg.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")
 
 	//fileEnc := zapcore.NewJSONEncoder(encCfg)
 	fileEnc := zapcore.NewConsoleEncoder(encCfg)
