@@ -27,12 +27,15 @@ func NewStreamSugaredLogger(nodeID, logPath string, store queuestore.QueueStore)
 	filePath := filepath.Join(logPath)
 
 	encCfg := zap.NewProductionEncoderConfig()
-	encCfg.TimeKey = "time"
-	encCfg.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")
+	encCfg.TimeKey = ""
+	encCfg.EncodeTime = nil
+
+	//encCfg.TimeKey = "time"
+	//encCfg.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")
 
 	//fileEnc := zapcore.NewJSONEncoder(encCfg)
-	fileEnc := zapcore.NewConsoleEncoder(encCfg)
-	fileWS := zapcore.AddSync(&lumberjack.Logger{
+
+	fileWritSyncer := zapcore.AddSync(&lumberjack.Logger{
 		Filename:  filePath,
 		MaxSize:   100,
 		MaxAge:    365,
@@ -41,8 +44,8 @@ func NewStreamSugaredLogger(nodeID, logPath string, store queuestore.QueueStore)
 	})
 
 	fileCore := zapcore.NewCore(
-		fileEnc,
-		fileWS,
+		zapcore.NewConsoleEncoder(encCfg),
+		fileWritSyncer,
 		zap.LevelEnablerFunc(func(l zapcore.Level) bool { return l >= zapcore.InfoLevel }),
 	)
 
@@ -54,9 +57,6 @@ func NewStreamSugaredLogger(nodeID, logPath string, store queuestore.QueueStore)
 
 	zl := zap.New(
 		tee,
-		zap.AddCaller(),
-		zap.AddCallerSkip(1),
-		zap.AddStacktrace(zapcore.ErrorLevel),
 	)
 
 	return zl.Sugar()

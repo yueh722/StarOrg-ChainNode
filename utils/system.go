@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 )
 
+// return %ProgramData%/appName or %appdata%/appName
 func GetAppDataPath(appName string) string {
 	appData := os.Getenv("ProgramData")
 	if appData == "" {

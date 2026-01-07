@@ -1,6 +1,7 @@
 package nodeproxy
 
 import (
+	"chain/internal/common"
 	"chain/lib"
 	"chain/rpc/client"
 	"errors"
@@ -47,6 +48,8 @@ func StartClient() error {
 		ServerAddr:  cfg.ServerAddr,
 		HomeDir:     cfg.HomeDir,
 		NodeBaseDir: getNodeBaseDir(cfg.HomeDir, nodeInfo.NodeID),
+		LogDir:      common.NodeProxyLogPath,
+		AppDataDir:  common.NodeProxyAppDataPath,
 		NodeInfo:    nodeInfo,
 	})
 	if err != nil {

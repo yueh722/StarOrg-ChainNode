@@ -21,7 +21,9 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 		return nil, rpc.ErrNotificationsUnsupported
 	}
 
-	log.Println("Received SubscribeCommand request, node:", delegator.StatusNode.NodeName)
+	log.Printf("Received SubscribeCommand request from node, id: %s, name: %s\n",
+		delegator.StatusNode.NodeID,
+		delegator.StatusNode.NodeName)
 
 	nodeInfo := delegator.StatusNode.NodeInfo
 	if nodeInfo.NodeID == "" {

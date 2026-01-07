@@ -4,13 +4,16 @@ import (
 	"chain/lib/cmdlogstore"
 	"chain/lib/queuestore"
 	"chain/rpc/security"
+	"chain/utils"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/duke-git/lancet/v2/fileutil"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -31,12 +34,12 @@ type Server struct {
 }
 
 type ServerConfig struct {
-	AppName       string
-	Addr          string
-	NodelogStore  queuestore.QueueStore
-	SetuplogStore cmdlogstore.CommandLogStore
-	Option        security.SecurityOption
-	Tls           TlsOption
+	AppName    string
+	Addr       string
+	AppDataDir string
+	LogDir     string
+	Option     security.SecurityOption
+	Tls        TlsOption
 }
 
 func newCommandID() (string, error) {
@@ -45,6 +48,23 @@ func newCommandID() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b[:]), nil
+}
+
+func NewSetuplogStore(dataFile string) (cmdlogstore.CommandLogStore, error) {
+	utils.TryCreateDir(filepath.Dir(dataFile))
+
+	setuplogStore, err := cmdlogstore.NewSqliteCommandLogStore(cmdlogstore.Config{
+		Path:        dataFile,
+		Loc:         nil,
+		InitTimeout: 3 * time.Second,
+		OpTimeout:   5 * time.Second,
+		BusyTimeout: 10 * time.Second,
+	})
+	if err != nil {
+		log.Fatalf("init setuplogstore failure, err: %v", err)
+	}
+
+	return setuplogStore, nil
 }
 
 func NewServer(cfg ServerConfig) (*Server, error) {
@@ -58,7 +78,9 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 
 	stream := NewStreamService()
 
-	setup := NewSetupService(cfg.SetuplogStore, stream)
+	setuplogStore, _ := NewSetuplogStore(filepath.Join(cfg.AppDataDir, "setuplog.db"))
+
+	setup := NewSetupService(setuplogStore, stream)
 	if err := setup.RegisterService(server); err != nil {
 		return nil, err
 	}
@@ -68,7 +90,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		return nil, err
 	}
 
-	logSrv := NewNodeLogService(cfg.NodelogStore, stream)
+	logSrv := NewNodeLogService(queuestore.NewInMemoryStore(), stream)
 	if err := logSrv.RegisterService(server); err != nil {
 		return nil, err
 	}
@@ -107,11 +129,12 @@ func (s *Server) CheckTlsOption() bool {
 	}
 
 	/*
-		_, err := tls.LoadX509KeyPair(s.tls.TlsCertFile, s.tls.TlsKeyFile)
-		if err != nil {
-			log.Println("failed to load certFile and keyFile, err:", err)
-			return false
-		}
+		// valid tsl files
+			_, err := tls.LoadX509KeyPair(s.tls.TlsCertFile, s.tls.TlsKeyFile)
+			if err != nil {
+				log.Println("failed to load certFile and keyFile, err:", err)
+				return false
+			}
 	*/
 
 	return false

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"chain/internal/common"
 	"chain/lib"
 	"chain/utils"
 	"context"
@@ -29,12 +28,13 @@ type ClientConfig struct {
 	ServerAddr  string
 	HomeDir     string
 	NodeBaseDir string
+	AppDataDir  string
+	LogDir      string
 	NodeInfo    *lib.NodeInfo
 }
 
 func (c ClientConfig) getLogPath() string {
-	return utils.TryCreateDir(common.NodeProxyLogPath)
-	//return utils.TryCreateDir(filepath.Join(c.NodeBaseDir, "log"))
+	return utils.TryCreateDir(c.LogDir)
 }
 
 func (c ClientConfig) getBinPath() string {

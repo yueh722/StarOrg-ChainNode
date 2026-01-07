@@ -73,7 +73,7 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 				NodeInfo:    *c.cfg.NodeInfo,
 				Healthy:     lib.CheckNodeOnline(c.cfg.NodeInfo.RPCAddr),
 				LastCheck:   time.Now().UnixNano(),
-				StartedTime: "",
+				StartedTime: lib.GetNodeCreatedTime(c.nodeRuntime),
 			},
 		},
 	)
@@ -189,7 +189,7 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 	}
 
 	//create logStore for receiving error log of node and app
-	//file: nodebasedir/log/chaindb.log
+	//file: log/chaindb.log
 	if err = c.initLogStore(c.cfg.getChainlogFilePath()); err != nil {
 		return err
 	}
@@ -239,6 +239,7 @@ func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
 	return nil
 }
 
+// start node & app
 func (c *SetupClient) handleStartNode() error {
 	if c.nodeRuntime != nil && c.nodeRuntime.IsRunning() {
 		return errors.New("node or app already running")
@@ -255,6 +256,7 @@ func (c *SetupClient) handleStartNode() error {
 	return nil
 }
 
+// stop node & app
 func (c *SetupClient) handleStopNode() error {
 	err := lib.StopNode(c.nodeRuntime)
 	if err == nil {
@@ -265,6 +267,7 @@ func (c *SetupClient) handleStopNode() error {
 	return err
 }
 
+// restart node & app
 func (c *SetupClient) handleRestartNode() error {
 	if err := c.handleStopNode(); err != nil {
 		return err
@@ -280,6 +283,8 @@ func (c *SetupClient) buildNodeArg() lib.NodeArg {
 		NodeInfo:    c.cfg.NodeInfo,
 		BinPath:     c.cfg.getBinPath(),
 		NodeBaseDir: c.cfg.NodeBaseDir,
+		AppLogger:   nil,
+		NodeLogger:  nil,
 	}
 }
 
@@ -302,9 +307,35 @@ func (c *SetupClient) initLogStore(logFilePath string) error {
 
 	c.logStore = logStore
 
+	ch := c.logStore.GetBroker().Subscribe(256)
+	//subscribe data from store
+	go func() {
+		defer c.logStore.GetBroker().Unsubscribe(ch)
+		for {
+			event, ok := <-ch
+			if !ok {
+				return
+			}
+
+			log.Println("log event:", event)
+			_ = c.reportLog(&event)
+		}
+	}()
+
 	return nil
 }
 
+func (c *SetupClient) reportLog(event *queuestore.PersistedEvent) error {
+
+	method := common.MakeMethodName(common.NodeLogNamespace{}.GetNamesapceString(), "ReportLog")
+	err := c.client.Call(nil, method, *event)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// report result of command to NodeMaster
 func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr error) {
 
 	var (

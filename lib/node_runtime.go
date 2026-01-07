@@ -1,6 +1,8 @@
 package lib
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -17,6 +19,7 @@ type NodeRuntime interface {
 	Error() error
 	KillNode()
 	IsRunning() bool
+	CreatedTime() string
 }
 
 type NodeRuntimeImpl struct {
@@ -82,4 +85,25 @@ func (r NodeRuntimeImpl) KillNode() {
 
 func (r NodeRuntimeImpl) IsRunning() bool {
 	return r.AppInst.IsRunning() && r.NodeInst.IsRunning()
+}
+
+func (r NodeRuntimeImpl) CreatedTime() string {
+
+	timeStr := ""
+	insts := []*Instance{r.NodeInst, r.AppInst}
+	for _, inst := range insts {
+		if inst == nil || !inst.IsRunning() {
+			continue
+		}
+		timeStr = fmt.Sprintf("%s %s", timeStr, inst.StartTime.String())
+	}
+
+	return strings.Trim(timeStr, " ")
+}
+
+func GetNodeCreatedTime(nr NodeRuntime) string {
+	if nr == nil {
+		return ""
+	}
+	return nr.CreatedTime()
 }

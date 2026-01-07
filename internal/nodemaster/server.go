@@ -50,10 +50,10 @@ func StartServer() error {
 	}
 
 	wsServer, err = server.NewServer(server.ServerConfig{
-		AppName:       cfg.AppName,
-		Addr:          cfg.Addr,
-		NodelogStore:  nodelogStore,
-		SetuplogStore: setuplogStore,
+		AppName:    cfg.AppName,
+		Addr:       cfg.Addr,
+		AppDataDir: common.NodeMasterAppDataPath,
+		LogDir:     common.NodeMasterLogPath,
 		Option: security.SecurityOption{
 			FWMode:         cfg.FWMode,
 			AllowOnlyHosts: cfg.AllowOnlyHosts,

@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"chain/lib/log"
 	"chain/lib/queuestore"
 	"fmt"
 	"os"
@@ -112,6 +113,8 @@ type NodeArg struct {
 	BinPath     string
 	NodeBaseDir string
 	runtime     *NodeRuntime
+	NodeLogger  *log.Logger
+	AppLogger   *log.Logger
 }
 
 func WithLogFile(logFilePath string) CtlOption {

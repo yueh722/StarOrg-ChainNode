@@ -32,11 +32,11 @@ func NewStreamWriter(nodeID string, store queuestore.QueueStore) (*StreamWriter,
 
 	minLevel := zapcore.ErrorLevel
 	encCfg := zap.NewProductionEncoderConfig()
-	encCfg.TimeKey = "time"
-	encCfg.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")
+	encCfg.TimeKey = ""
+	encCfg.EncodeTime = nil
 
 	return &StreamWriter{
-		enc:      zapcore.NewJSONEncoder(encCfg),
+		enc:      zapcore.NewJSONEncoder(encCfg), // use json format for saving log into database
 		minLevel: minLevel,
 		store:    store,
 		nodeID:   nodeID,
@@ -69,6 +69,38 @@ func (c *StreamWriter) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapco
 	return ce
 }
 
+var levelPriority = map[string]int{
+	"DEBUG":   0,
+	"INFO":    1,
+	"INF":     1,
+	"WARN":    2,
+	"WARNING": 2,
+	"ERROR":   3,
+	"ERR":     3,
+	"FATAL":   4,
+	"PANIC":   5,
+}
+
+func extractLevel(buf string) (string, bool) {
+	upper := strings.ToUpper(buf)
+
+	for level := range levelPriority {
+		if strings.Contains(upper, " "+level+" ") {
+			return level, true
+		}
+	}
+	return "", false
+}
+
+func shouldKeepLog(buf string) bool {
+	level, ok := extractLevel(buf)
+	if !ok {
+		return false
+	}
+
+	return levelPriority[level] >= levelPriority["ERROR"]
+}
+
 func (c *StreamWriter) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	if !c.Enabled(ent.Level) {
 		return nil
@@ -83,6 +115,10 @@ func (c *StreamWriter) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	}
 	defer buf.Free()
 
+	if !shouldKeepLog(buf.String()) {
+		return nil
+	}
+
 	raw := strings.TrimRight(string(buf.Bytes()), "\n")
 
 	seq := atomic.AddUint64(&c.seq, 1)
@@ -93,7 +129,7 @@ func (c *StreamWriter) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 
 	t := ent.Time
 	if t.IsZero() {
-		t = time.Now()
+		t = time.Now().Local()
 	}
 
 	e := queuestore.PersistedEvent{
@@ -105,6 +141,7 @@ func (c *StreamWriter) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 		JSON:    withSeq,
 	}
 
+	// write log into store
 	return c.store.Put(e)
 }
 

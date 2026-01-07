@@ -2,8 +2,10 @@ package server
 
 import (
 	"chain/lib/queuestore"
+	"chain/rpc/common"
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -27,6 +29,8 @@ func NewNodeLogService(store queuestore.QueueStore, stream *StreamService) *Node
 	service := &NodeLogService{
 		nodeLogStore: store,
 		stream:       stream,
+		unsendLogs:   make(map[string]queuestore.PersistedEvent),
+		mut:          sync.Mutex{},
 	}
 
 	_ = service.nodeLogStore.ScanUnsent(0, func(e queuestore.PersistedEvent) error {
@@ -53,6 +57,7 @@ func (s *NodeLogService) PublishLog() {
 		s.mut.Unlock()
 
 		for eventID, unsendLog := range sendingLogs {
+			log.Println("Sending log", eventID, unsendLog)
 			ok := s.stream.ReportState(unsendLog)
 			if ok {
 				s.mut.Lock()
@@ -64,7 +69,7 @@ func (s *NodeLogService) PublishLog() {
 }
 
 func (s *NodeLogService) RegisterService(server *rpc.Server) error {
-	if err := server.RegisterName("nodelog", s); err != nil {
+	if err := server.RegisterName(common.NodeLogNamespace{}.GetNamesapceString(), s); err != nil {
 		return fmt.Errorf("Failed to register nodelog service: %v", err)
 	}
 
@@ -129,6 +134,8 @@ func (s *NodeLogService) ReportLog(e queuestore.PersistedEvent) error {
 	s.mut.Lock()
 	s.unsendLogs[e.EventID] = e
 	s.mut.Unlock()
+
+	log.Println("received event", e.EventID, e)
 
 	//notify receiver to receive error log from node
 	return s.nodeLogStore.Put(e)

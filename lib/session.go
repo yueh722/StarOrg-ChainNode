@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sync"
 	"syscall"
 )
@@ -52,7 +51,7 @@ func (lw *LogWriter) Write(p []byte) (n int, err error) {
 //
 // The provided logger is used log stderr from the running process.
 func Start(logger *log.Logger, cmd *exec.Cmd, exitFuncs ...ExitFunc) (*Session, error) {
-	logger = logger.With("command", filepath.Base(cmd.Path))
+	//logger = logger.With("command", filepath.Base(cmd.Path))
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {

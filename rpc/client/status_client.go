@@ -40,7 +40,7 @@ func (c *StatusClient) ReportNodeStatus() error {
 		NodeInfo:    *nodeInfo,
 		Healthy:     lib.CheckNodeOnline(nodeInfo.RPCAddr),
 		LastCheck:   time.Now().UnixNano(),
-		StartedTime: "",
+		StartedTime: utils.GetProcessCreatedTime(lib.NodeFileName, lib.AppFileName),
 	})
 	return err
 }

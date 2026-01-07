@@ -35,9 +35,10 @@ type CmdManager struct {
 type cmdState struct {
 	id string
 
-	// cmdErr channel 用于传递命令的错误
+	// cmdErr channel 用于接收当命令完成的时候的错误信息，通常由远程调用来设置。
 	cmdErr chan error
 
+	// finalErr channel 用于传递当前命令的最终错误信息。
 	finalErr chan error
 
 	once sync.Once
@@ -58,7 +59,6 @@ func (m *CmdManager) ActivateCommand(ctx context.Context, opt ActivateOptions) e
 		return fmt.Errorf("StartFn is nil")
 	}
 	if opt.Timeout <= 0 {
-		// 给个默认值，避免永不超时导致资源泄漏
 		opt.Timeout = 30 * time.Second
 	}
 
@@ -111,7 +111,7 @@ func (m *CmdManager) CompleteCommand(commandID string, err error) error {
 		return ErrCommandNotFound
 	}
 
-	// 通过 cmdErr 错误通道传递错误信息
+	// 通过 cmdErr 错误通道传递命令是否成功完成
 	st.cmdErr <- err
 	return nil
 }
@@ -124,20 +124,26 @@ func (m *CmdManager) SyncMultipleCommands(commandIDs ...string) <-chan Result {
 	wg.Add(len(commandIDs))
 
 	for _, id := range commandIDs {
-		id := id
-		go func() {
+
+		go func(cmdID string) {
 			defer wg.Done()
 
-			st := m.get(id)
+			st := m.get(cmdID)
 			if st == nil {
-				out <- Result{ID: id, Err: ErrCommandNotFound}
+				out <- Result{ID: cmdID, Err: ErrCommandNotFound}
 				return
 			}
 
 			// 等待命令完成，读取错误信息
 			err := <-st.finalErr
-			out <- Result{ID: id, Err: err}
-		}()
+			out <- Result{ID: cmdID, Err: err}
+
+			// cleanup map
+			m.mu.Lock()
+			delete(m.cmds, cmdID)
+			m.mu.Unlock()
+
+		}(id)
 	}
 
 	go func() {
@@ -157,20 +163,13 @@ func (m *CmdManager) get(id string) *cmdState {
 }
 
 func (m *CmdManager) completeInternal(id string, err error) {
-	m.mu.Lock()
-	st := m.cmds[id]
-	m.mu.Unlock()
+	st := m.get(id)
 	if st == nil {
 		return
 	}
 
 	st.once.Do(func() {
-
 		st.finalErr <- err
-
-		// cleanup map
-		m.mu.Lock()
-		delete(m.cmds, id)
-		m.mu.Unlock()
+		close(st.finalErr)
 	})
 }

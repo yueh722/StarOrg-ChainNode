@@ -20,6 +20,16 @@ func (s SetupNamespace) GetSubscriptionName() string {
 	return "subscribeCommand"
 }
 
+type NodeLogNamespace struct{}
+
+func (s NodeLogNamespace) GetNamesapceString() string {
+	return "nodelog"
+}
+
+func (s NodeLogNamespace) GetSubscriptionName() string {
+	return ""
+}
+
 func MakeMethodName(nameSpace, method string) string {
 	if nameSpace == "" || method == "" {
 		return ""
