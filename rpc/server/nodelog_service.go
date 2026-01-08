@@ -2,10 +2,10 @@ package server
 
 import (
 	"chain/lib/queuestore"
+	log "chain/lib/zlog"
 	"chain/rpc/common"
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -14,7 +14,7 @@ import (
 )
 
 //
-// NodeLogService is designed for webserver getting notification from cometbft-node and cometbft-app.
+// NodeLogService is designed for webserver getting zlog of node and app from cometbft-node and cometbft-app.
 // Request from: WebServer
 
 type NodeLogService struct {
@@ -57,7 +57,7 @@ func (s *NodeLogService) PublishLog() {
 		s.mut.Unlock()
 
 		for eventID, unsendLog := range sendingLogs {
-			log.Println("Sending log", eventID, unsendLog)
+			log.Println("Sending zlog", eventID, unsendLog)
 			ok := s.stream.ReportState(unsendLog)
 			if ok {
 				s.mut.Lock()
@@ -137,6 +137,6 @@ func (s *NodeLogService) ReportLog(e queuestore.PersistedEvent) error {
 
 	log.Println("received event", e.EventID, e)
 
-	//notify receiver to receive error log from node
+	//notify receiver to receive error zlog from node
 	return s.nodeLogStore.Put(e)
 }

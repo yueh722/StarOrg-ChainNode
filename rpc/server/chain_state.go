@@ -2,9 +2,9 @@ package server
 
 import (
 	"chain/lib"
+	log "chain/lib/zlog"
 	"chain/rpc/common"
 	"fmt"
-	"log"
 	"os"
 	"time"
 

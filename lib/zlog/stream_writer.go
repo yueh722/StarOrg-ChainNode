@@ -1,4 +1,4 @@
-package log
+package zlog
 
 import (
 	"chain/lib/queuestore"
@@ -34,6 +34,9 @@ func NewStreamWriter(nodeID string, store queuestore.QueueStore) (*StreamWriter,
 	encCfg := zap.NewProductionEncoderConfig()
 	encCfg.TimeKey = ""
 	encCfg.EncodeTime = nil
+
+	//encCfg.TimeKey = "time"
+	//encCfg.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")
 
 	return &StreamWriter{
 		enc:      zapcore.NewJSONEncoder(encCfg), // use json format for saving log into database
@@ -141,7 +144,7 @@ func (c *StreamWriter) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 		JSON:    withSeq,
 	}
 
-	// write log into store
+	// write zlog into store
 	return c.store.Put(e)
 }
 

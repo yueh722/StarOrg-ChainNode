@@ -2,10 +2,19 @@ package main
 
 import (
 	"chain/internal/nodemaster"
+	log "chain/lib/zlog"
 	cmd "chain/winservice"
 	"context"
-	"log"
 )
+
+// nodemaster.exe -c your-path-to-config.ini
+//
+//	option1: load config file from the path you specified
+
+// nodemaster.exe
+//
+//	option1: load config file from %ProgramData%/chain/nodemaster/config.ini
+//	option2: load config file from %appdata%/chain/nodemaster/config.ini
 
 // Service functions
 func serviceMain(ctx context.Context) error {
@@ -51,5 +60,7 @@ func AppMain(ctx context.Context) {
 	err := nodemaster.StartServer()
 	if err != nil {
 		log.Println("start NodeMaster server error:", err)
+	} else {
+		log.Println("NodeMaster server exit without error")
 	}
 }

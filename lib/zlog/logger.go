@@ -1,4 +1,4 @@
-package log
+package zlog
 
 import (
 	"chain/lib/queuestore"
@@ -17,7 +17,7 @@ type OutputSpec struct {
 	Format string // "console" | "json"
 }
 
-// NewStreamSugaredLogger creates a logger target to a store:
+// NewStreamSugaredLogger creates a zlog target to a store:
 // - Info+ => file (JSON, rotated)
 // - Error+ => QueueStore via StreamWriter
 func NewStreamSugaredLogger(nodeID, logPath string, store queuestore.QueueStore) *zap.SugaredLogger {
@@ -29,7 +29,6 @@ func NewStreamSugaredLogger(nodeID, logPath string, store queuestore.QueueStore)
 	encCfg := zap.NewProductionEncoderConfig()
 	encCfg.TimeKey = ""
 	encCfg.EncodeTime = nil
-
 	//encCfg.TimeKey = "time"
 	//encCfg.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")
 
@@ -64,7 +63,7 @@ func NewStreamSugaredLogger(nodeID, logPath string, store queuestore.QueueStore)
 
 // NewZapSugaredLogger 创建一个配置灵活的 zap.SugaredLogger
 // 参数:
-//   - logPath: 日志输出路径数组，如 ["app.log", "stdout"]，支持多个输出目标
+//   - logPath: 日志输出路径数组，如 ["app.zlog", "stdout"]，支持多个输出目标
 //   - logFormat: 日志格式，"plant" 或 "json"
 func NewZapSugaredLogger(
 	targets []OutputSpec,
@@ -82,6 +81,8 @@ func NewZapSugaredLogger(
 
 	// 2. 创建编码器配置
 	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.TimeKey = "time"
+	encoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")
 
 	// 3. 创建多个输出核心
 	var cores []zapcore.Core
@@ -100,6 +101,8 @@ func NewZapSugaredLogger(
 		default:
 			// 文件输出
 			// 使用 lumberjack 进行日志轮转
+			utils.TryCreateDir(filepath.Dir(target.Target))
+
 			writeSyncer = zapcore.AddSync(&lumberjack.Logger{
 				Filename:  target.Target,
 				MaxSize:   100,  // MB

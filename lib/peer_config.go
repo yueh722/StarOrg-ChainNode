@@ -125,7 +125,7 @@ func NewPeerConfig(currPeer *Peer, persistentPeers, homeDir string) (*PeerConfig
 	config.P2P.PersistentPeers = persistentPeers
 	config.Moniker = currPeer.NodeName
 
-	//disable color format of log output
+	//disable color format of zlog output
 	config.LogColors = false
 
 	// don't create empty block

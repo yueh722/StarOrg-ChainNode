@@ -8,7 +8,7 @@ package lib
 
 import (
 	"bufio"
-	"chain/lib/log"
+	"chain/lib/zlog"
 	"fmt"
 	"io"
 	"os"
@@ -30,7 +30,7 @@ type Session struct {
 }
 
 type LogWriter struct {
-	logger   *log.Logger
+	logger   *zlog.Logger
 	errLevel bool
 }
 
@@ -49,9 +49,9 @@ func (lw *LogWriter) Write(p []byte) (n int, err error) {
 // Start will start the provided command and return a Session that can be used
 // to await completion or signal the process.
 //
-// The provided logger is used log stderr from the running process.
-func Start(logger *log.Logger, cmd *exec.Cmd, exitFuncs ...ExitFunc) (*Session, error) {
-	//logger = logger.With("command", filepath.Base(cmd.Path))
+// The provided zlog is used zlog stderr from the running process.
+func Start(logger *zlog.Logger, cmd *exec.Cmd, exitFuncs ...ExitFunc) (*Session, error) {
+	//zlog = zlog.With("command", filepath.Base(cmd.Path))
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -86,8 +86,8 @@ func Start(logger *log.Logger, cmd *exec.Cmd, exitFuncs ...ExitFunc) (*Session, 
 	return sess, nil
 }
 
-func (s *Session) waitForExit(logger *log.Logger, stdout, stderr io.Reader) {
-	// copy stderr to the logger until stderr is closed
+func (s *Session) waitForExit(logger *zlog.Logger, stdout, stderr io.Reader) {
+	// copy stderr to the zlog until stderr is closed
 	scanner := bufio.NewScanner(stderr)
 	for scanner.Scan() {
 		logger.Error(scanner.Text())

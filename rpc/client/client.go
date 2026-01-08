@@ -2,10 +2,10 @@ package client
 
 import (
 	"chain/lib"
+	log "chain/lib/zlog"
 	"chain/utils"
 	"context"
 	"crypto/tls"
-	"log"
 	"net/url"
 	"path/filepath"
 	"sync"

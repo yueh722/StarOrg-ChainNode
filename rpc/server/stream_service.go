@@ -1,8 +1,8 @@
 package server
 
 import (
+	log "chain/lib/zlog"
 	"context"
-	"log"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -30,10 +30,6 @@ func (s *StreamService) GetCustomerCount() int {
 
 	return len(s.subs)
 }
-
-//args
-//app
-//
 
 // SubscribeErrors：JSON-RPC subscription
 // Subscriber call method: "stream_subscribeStream"
@@ -66,7 +62,6 @@ func (s *StreamService) SubscribeStream(ctx context.Context, args SubscribeArgs)
 type StreamReportCallback func(*StreamService, interface{}) bool
 
 func (s *StreamService) ReportState(state interface{}) bool {
-
 	reported := true
 	var err error
 

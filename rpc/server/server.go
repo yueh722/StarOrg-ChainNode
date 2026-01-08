@@ -3,12 +3,12 @@ package server
 import (
 	"chain/lib/cmdlogstore"
 	"chain/lib/queuestore"
+	log "chain/lib/zlog"
 	"chain/rpc/security"
 	"chain/utils"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -61,7 +61,7 @@ func NewSetuplogStore(dataFile string) (cmdlogstore.CommandLogStore, error) {
 		BusyTimeout: 10 * time.Second,
 	})
 	if err != nil {
-		log.Fatalf("init setuplogstore failure, err: %v", err)
+		log.Panicf("init setuplogstore failure, err: %v", err)
 	}
 
 	return setuplogStore, nil
@@ -100,7 +100,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	mux.Handle("/ws", server.WebsocketHandler([]string{"*"}))
 	mux.Handle("/rpc", server)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "RPC Server is running\n")
+		fmt.Fprintf(w, "RPC Server is running")
 	})
 
 	srv := &http.Server{
@@ -132,7 +132,7 @@ func (s *Server) CheckTlsOption() bool {
 		// valid tsl files
 			_, err := tls.LoadX509KeyPair(s.tls.TlsCertFile, s.tls.TlsKeyFile)
 			if err != nil {
-				log.Println("failed to load certFile and keyFile, err:", err)
+				zlog.Println("failed to load certFile and keyFile, err:", err)
 				return false
 			}
 	*/
@@ -155,9 +155,9 @@ func (s *Server) Serve() error {
 
 	parts := strings.SplitN(s.addr, ":", 2)
 	localAddr := net.JoinHostPort("localhost", parts[1])
-	log.Printf("WebSocket endpoint: %s://%s/ws\n", wsprotocol, localAddr)
-	log.Printf("RPC endpoint:  %s://%s/rpc\n", protocol, localAddr)
-	log.Printf("HTTP endpoint:  %s://%s\n", protocol, localAddr)
+	log.Printf("WebSocket endpoint: %s://%s/ws", wsprotocol, localAddr)
+	log.Printf("RPC endpoint:  %s://%s/rpc", protocol, localAddr)
+	log.Printf("HTTP endpoint:  %s://%s", protocol, localAddr)
 
 	if tlsEnabled {
 		protocol = "https"

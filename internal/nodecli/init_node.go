@@ -110,7 +110,7 @@ func initFilesWithConfig(config *cfg.Config, prvkey, nodeId string) error {
 	var pv *privval.FilePV
 	if fileutil.IsExist(privValKeyFile) {
 		pv = privval.LoadFilePV(privValKeyFile, privValStateFile)
-		//logger.Info("Found private validator", "keyFile", privValKeyFile, "stateFile", privValStateFile)
+		//zlog.Info("Found private validator", "keyFile", privValKeyFile, "stateFile", privValStateFile)
 	} else {
 		var err error
 		//pv, err = privval.GenFilePV(privValKeyFile, privValStateFile, genPrivKeyFromString(prvkey))
@@ -118,12 +118,12 @@ func initFilesWithConfig(config *cfg.Config, prvkey, nodeId string) error {
 			return fmt.Errorf("can't generate file pv: %v", err)
 		}
 		pv.Save()
-		//logger.Info("Generated private validator", "keyFile", privValKeyFile, "stateFile", privValStateFile)
+		//zlog.Info("Generated private validator", "keyFile", privValKeyFile, "stateFile", privValStateFile)
 	}
 
 	nodeKeyFile := config.NodeKeyFile()
 	if fileutil.IsExist(nodeKeyFile) {
-		//logger.Info("Found node key", "path", nodeKeyFile)
+		//zlog.Info("Found node key", "path", nodeKeyFile)
 	} else {
 
 		nodeKey := &p2p.NodeKey{
@@ -133,7 +133,7 @@ func initFilesWithConfig(config *cfg.Config, prvkey, nodeId string) error {
 		if err := nodeKey.SaveAs(nodeKeyFile); err != nil {
 			return err
 		}
-		//logger.Info("Generated node key", "path", nodeKeyFile)
+		//zlog.Info("Generated node key", "path", nodeKeyFile)
 	}
 
 	return nil

@@ -1,8 +1,8 @@
 package lib
 
 import (
-	"chain/lib/log"
 	"chain/lib/queuestore"
+	log "chain/lib/zlog"
 	"fmt"
 	"os"
 	"path/filepath"

@@ -1,10 +1,10 @@
 package server
 
 import (
+	log "chain/lib/zlog"
 	"chain/rpc/common"
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -21,7 +21,7 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 		return nil, rpc.ErrNotificationsUnsupported
 	}
 
-	log.Printf("Received SubscribeCommand request from node, id: %s, name: %s\n",
+	log.Printf("Received SubscribeCommand request from node, id: %s, name: %s",
 		delegator.StatusNode.NodeID,
 		delegator.StatusNode.NodeName)
 

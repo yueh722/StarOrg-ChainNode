@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -227,4 +228,9 @@ func buildProcessInfo(p *process.Process) (*ProcessInfo, error) {
 		StartedTime:     startedAt,
 		PID:             pid,
 	}, nil
+}
+
+func GetCurrentProcessInfo() *ProcessInfo {
+	pi, _ := GetProcessInfoByPID(int32(os.Getpid()))
+	return pi
 }

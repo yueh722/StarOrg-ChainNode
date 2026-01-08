@@ -4,26 +4,47 @@ Copyright IBM Corp. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package log
+package zlog
 
 import (
 	"chain/lib/queuestore"
 	"chain/utils"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"go.uber.org/zap"
 )
 
-// NewLogger creates a logger that delegates to the zap.SugaredLogger.
+// NewDefaultAppLog return default zlog of current process which logpath depends on the process name.
+func NewDefaultAppLog() *Logger {
+	pi := utils.GetCurrentProcessInfo()
+	appName := strings.TrimSuffix(filepath.Base(pi.ImagePath), filepath.Ext(pi.ImagePath))
+	appName = strings.ToLower(appName)
+
+	if strings.Contains(appName, "nodeproxy") {
+		appName = "nodeproxy"
+	} else {
+		if strings.Contains(appName, "nodemaster") {
+			appName = "nodemaster"
+		}
+	}
+
+	return NewLogger(appName)
+}
+
+// NewLogger creates a zlog that delegates to the zap.SugaredLogger.
 func NewLogger(appName string) *Logger {
 	return &Logger{
-		//s: NewZapSugaredLogger([]string{utils.GetLogPath(appName, "")}, "json"),
 		s: NewZapSugaredLogger(
 			[]OutputSpec{
 				{
-					Target: utils.GetLogPath(appName),
+					Target: filepath.Join(utils.GetLogPath(appName), appName+".log"),
 					Format: "json",
+				},
+				{
+					Target: "stdout",
+					Format: "console",
 				},
 			}),
 	}
@@ -41,7 +62,7 @@ func NewCometbftNodeLogger(nodeID, logPath string, store queuestore.QueueStore) 
 //
 // The most significant difference between the Logger and the
 // zap.SugaredLogger is that methods without a formatting suffix (f or w) build
-// the log entry message with fmt.Sprintln instead of fmt.Sprint. Without this
+// the zlog entry message with fmt.Sprintln instead of fmt.Sprint. Without this
 // change, arguments are not separated by spaces.
 type Logger struct{ s *zap.SugaredLogger }
 
@@ -50,6 +71,26 @@ func (f *Logger) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+var l = NewDefaultAppLog()
+
+func Println(v ...interface{}) {
+	l.Println(v...)
+}
+
+func Printf(format string, v ...interface{}) {
+	l.Printf(format, v...)
+}
+
+func Panic(v ...interface{}) {
+	l.Panic(v...)
+}
+
+func Panicf(format string, v ...interface{}) {
+	l.Panicf(format, v...)
+}
+
+func (f *Logger) Println(v ...any)                              { f.s.Info(v...) }
+func (f *Logger) Printf(format string, v ...any)                { f.s.Infof(format, v...) }
 func (f *Logger) DPanic(args ...interface{})                    { f.s.DPanicf(formatArgs(args)) }
 func (f *Logger) DPanicf(template string, args ...interface{})  { f.s.DPanicf(template, args...) }
 func (f *Logger) DPanicw(msg string, kvPairs ...interface{})    { f.s.DPanicw(msg, kvPairs...) }

@@ -76,7 +76,7 @@ func NewCommandRepo(store cmdlogstore.CommandLogStore) (*CommandRepo, error) {
 		activatedCmds: make(map[string]CompletedRoutine),
 	}
 
-	// load all history records of command log
+	// load all history records of command zlog
 	if err := store.Scan(func(rec cmdlogstore.CommandLogRow) error {
 		var e CommandResult
 		if err := json.Unmarshal(rec.Value, &e); err != nil {

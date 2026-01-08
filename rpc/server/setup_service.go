@@ -3,6 +3,7 @@ package server
 import (
 	"chain/lib"
 	"chain/lib/cmdlogstore"
+	log "chain/lib/zlog"
 	"chain/rpc/commandlog"
 	"chain/rpc/common"
 	"chain/rpc/server/command_manager"
@@ -10,7 +11,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"path/filepath"
 	"sync"
 	"time"
@@ -71,7 +71,7 @@ func NewSetupService(store cmdlogstore.CommandLogStore, stream *StreamService) *
 
 	cmdEvent, err := commandlog.NewCommandRepo(store)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	return &SetupService{
@@ -249,7 +249,7 @@ func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) error {
 			payload: node,
 		}
 
-		log.Printf("[ControlNode] nodeID: %v, action: %v\n", node.NodeID, node.Action)
+		log.Printf("[ControlNode] nodeID: %v, action: %v", node.NodeID, node.Action)
 	}
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
@@ -283,7 +283,7 @@ func (s *SetupService) BroadcastResetChainNode(resetChain common.SetupResetChain
 		return err
 	}
 
-	//clean event log up
+	//clean event zlog up
 	if err := s.cmdEvent.Reset(); err != nil {
 		return fmt.Errorf("failed to reset cmd event: %v", err)
 	}
@@ -343,7 +343,7 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 
 			//notify all client to initialize node
 			if err := clientSub.Notifier.Notify(clientSub.SubID, env); err != nil {
-				return fmt.Errorf("Failed to notify node: %v, err %v\n", nodeID, err)
+				return fmt.Errorf("Failed to notify node: %v, err %v", nodeID, err)
 			}
 			return nil
 		}
@@ -395,7 +395,7 @@ func (s *SetupService) getNotifierByNodeID(nodeID string) *ClientSub {
 // complete command that sent to node
 func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 
-	log.Printf("[CommandResult] cmd=%s id=%s node=%s status=%s msg=%q err=%q\n",
+	log.Printf("[CommandResult] cmd=%s id=%s node=%s status=%s msg=%q err=%q",
 		res.Cmd, res.CommandID, res.NodeID, res.Status, res.Message, res.Error)
 
 	if reported := s.stream.ReportState(res); reported {

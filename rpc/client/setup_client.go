@@ -3,6 +3,7 @@ package client
 import (
 	"chain/lib"
 	"chain/lib/queuestore"
+	log "chain/lib/zlog"
 	"chain/rpc/commandlog"
 	"chain/rpc/common"
 	"chain/utils"
@@ -10,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -188,8 +188,8 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 		return err
 	}
 
-	//create logStore for receiving error log of node and app
-	//file: log/chaindb.log
+	//create logStore for receiving error zlog of node and app
+	//file: zlog/chaindb.zlog
 	if err = c.initLogStore(c.cfg.getChainlogFilePath()); err != nil {
 		return err
 	}

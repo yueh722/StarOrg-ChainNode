@@ -1,7 +1,7 @@
 package lib
 
 import (
-	"chain/lib/log"
+	"chain/lib/zlog"
 	"fmt"
 	"path/filepath"
 )
@@ -46,7 +46,7 @@ func BuildNodeLauncher(nodeID string, arg NodeArg) *Launcher {
 			"--home": filepath.Join(arg.NodeBaseDir),
 		},
 		Envs:   nil,
-		Logger: log.NewCometbftNodeLogger(nodeID, filepath.Join(arg.LogFilePath, "node", "node.log"), arg.LogStore),
+		Logger: zlog.NewCometbftNodeLogger(nodeID, filepath.Join(arg.LogFilePath, "node", "node.log"), arg.LogStore),
 	}
 
 	return l
@@ -64,7 +64,7 @@ func BuildAppLauncher(nodeID string, arg NodeArg) *Launcher {
 			"--abci-rpc-addr": arg.NodeInfo.RPCAddr,        // rpc
 		},
 		Envs:   nil,
-		Logger: log.NewCometbftNodeLogger(GetAppNameByNodeID(nodeID), filepath.Join(arg.LogFilePath, "app", "app.log"), arg.LogStore),
+		Logger: zlog.NewCometbftNodeLogger(GetAppNameByNodeID(nodeID), filepath.Join(arg.LogFilePath, "app", "app.log"), arg.LogStore),
 	}
 
 	return l

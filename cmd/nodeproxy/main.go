@@ -2,11 +2,20 @@ package main
 
 import (
 	"chain/internal/nodeproxy"
+	log "chain/lib/zlog"
 	cmd "chain/winservice"
 	"context"
-	"log"
 	"os"
 )
+
+// nodeproxy.exe -c your-path-to-config.ini
+//
+//	option1: load config file from the path you specified
+
+// nodeproxy.exe
+//
+//	option1: load config file from %ProgramData%/chain/nodeproxy/config.ini
+//	option2: load config file from %appdata%/chain/nodeproxy/config.ini
 
 // Service functions
 func serviceMain(ctx context.Context) error {
@@ -53,5 +62,7 @@ func AppMain(ctx context.Context) {
 	err := nodeproxy.StartClient()
 	if err != nil {
 		log.Println("start NodeProxy client error:", err)
+	} else {
+		log.Println("NodeProxy client exit without error")
 	}
 }
