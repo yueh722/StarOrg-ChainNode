@@ -55,7 +55,7 @@ func GetLogPath(appName string, moduleNames ...string) string {
 
 func TryCreateDir(path string) string {
 	if err := os.MkdirAll(path, os.ModePerm); err != nil {
-		log.Panicf("create directory %s, error: %v", path, err)
+		log.Fatalf("create directory %s, error: %v", path, err)
 	}
 	return path
 }

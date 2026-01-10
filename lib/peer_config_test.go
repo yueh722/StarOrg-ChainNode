@@ -4,15 +4,16 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
 	"github.com/cometbft/cometbft/v2/crypto/ed25519"
 	"github.com/cometbft/cometbft/v2/p2p"
 	"github.com/cometbft/cometbft/v2/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"path/filepath"
-	"testing"
-	"time"
 )
 
 var nodeDir, _ = filepath.Abs("./testDir")
@@ -206,8 +207,9 @@ func TestPeerConfig_SetGenesis(t *testing.T) {
 		}`
 
 		genesisDoc = fmt.Sprintf(genesisDoc, address, pubKey)
+		genesis, err := types.GenesisDocFromJSON([]byte(genesisDoc))
 
-		err := peerConfig.SetGenesis(genesisDoc, nil)
+		err = peerConfig.SetGenesis(genesis, nil)
 		require.NoError(t, err)
 
 		assert.NotNil(t, peerConfig.genesis)
@@ -233,8 +235,9 @@ func TestPeerConfig_SetGenesis(t *testing.T) {
 		}`
 
 		genesisDoc = fmt.Sprintf(genesisDoc, address, pubKey)
+		genesis, err := types.GenesisDocFromJSON([]byte(genesisDoc))
 
-		err := peerConfig.SetGenesis(genesisDoc, nil)
+		err = peerConfig.SetGenesis(genesis, nil)
 		assert.Error(t, err)
 	})
 
@@ -242,7 +245,8 @@ func TestPeerConfig_SetGenesis(t *testing.T) {
 	t.Run("genesisDoc为空的情况", func(t *testing.T) {
 		var genesisDoc string
 
-		err := peerConfig.SetGenesis(genesisDoc, nil)
+		genesis, err := types.GenesisDocFromJSON([]byte(genesisDoc))
+		err = peerConfig.SetGenesis(genesis, nil)
 		assert.Error(t, err)
 	})
 }

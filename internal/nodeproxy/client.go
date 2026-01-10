@@ -3,11 +3,11 @@ package nodeproxy
 import (
 	"chain/internal/common"
 	"chain/lib"
+	log "chain/lib/zlog"
 	"chain/rpc/client"
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"path/filepath"
 	"strings"
 	"time"

@@ -1,11 +1,11 @@
 package lib
 
 import (
+	log "chain/lib/zlog"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,7 +45,7 @@ func (p *Peer) Save(peerFile string) error {
 	}
 
 	if err := os.MkdirAll(filepath.Dir(peerFile), 0755); err != nil {
-		return fmt.Errorf("error making directory for %s: %w", peerFile, err)
+		return fmt.Errorf("error making directory of file %s: %w", peerFile, err)
 	}
 
 	err = os.WriteFile(peerFile, jsonBytes, 0644)
@@ -75,6 +75,10 @@ func (p *Peer) PersistentPeerID() string {
 
 func (p *Peer) NodeFileID() string {
 	return NodekeyFromNodeID(p.NodeId).ID()
+}
+
+func (p *Peer) ToRPCAddr() string {
+	return fmt.Sprintf("http://%s:%d", p.NodeAddress, p.RPCPort)
 }
 
 func (p *Peer) valid() bool {

@@ -77,9 +77,13 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	server := rpc.NewServer()
 
 	stream := NewStreamService()
+	if err := stream.RegisterService(server); err != nil {
+		return nil, err
+	}
+
+	//transmitLiveTransaction(stream)
 
 	setuplogStore, _ := NewSetuplogStore(filepath.Join(cfg.AppDataDir, "setuplog.db"))
-
 	setup := NewSetupService(setuplogStore, stream)
 	if err := setup.RegisterService(server); err != nil {
 		return nil, err

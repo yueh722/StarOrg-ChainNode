@@ -1,6 +1,7 @@
 package lib
 
 import (
+	log "chain/lib/zlog"
 	"fmt"
 	"net/url"
 	"os"
@@ -10,14 +11,11 @@ import (
 
 	cometbftConfig "github.com/cometbft/cometbft/v2/config"
 	"github.com/cometbft/cometbft/v2/crypto"
-	"github.com/cometbft/cometbft/v2/libs/log"
 	"github.com/cometbft/cometbft/v2/privval"
 	"github.com/cometbft/cometbft/v2/types"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
-
-var logger = log.NewLogger(os.Stdout)
 
 var nodeDirPerm os.FileMode = 0o755
 
@@ -257,7 +255,7 @@ func (cfg *PeerConfig) writeNodeKeyFile() error {
 		return err
 	}
 
-	logger.Info("Generated node key", "path", nodeKeyFile)
+	log.Info("Generated node key", "path", nodeKeyFile)
 	return nil
 }
 
@@ -280,7 +278,7 @@ func (cfg *PeerConfig) writeValidatorFiles() error {
 		return fmt.Errorf("can't generate file pv: %w", err)
 	}
 	pv.Save()
-	logger.Info("Generated private validator", "keyFile", privValKeyFile,
+	log.Info("Generated private validator", "keyFile", privValKeyFile,
 		"stateFile", privValStateFile)
 
 	return nil

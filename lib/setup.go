@@ -273,7 +273,7 @@ func PeerInfoToNodeInfo(peer *Peer) *NodeInfo {
 		NodeID:         peer.NodeId,
 		NodeAddress:    peer.NodeAddress,
 		ProxyApp:       fmt.Sprintf("tcp://%s:%d", peer.NodeAddress, peer.ABCIPort),
-		RPCAddr:        fmt.Sprintf("http://%s:%d", peer.NodeAddress, peer.RPCPort),
+		RPCAddr:        peer.ToRPCAddr(),
 		WebServiceAddr: fmt.Sprintf("%s:%d", peer.NodeAddress, peer.WebServicePort),
 		Validator:      peer.IsValidator,
 	}

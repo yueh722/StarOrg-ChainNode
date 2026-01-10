@@ -1,7 +1,6 @@
 package lib
 
 import (
-	"chain/lib/zlog"
 	log "chain/lib/zlog"
 	"fmt"
 	"os"
@@ -20,7 +19,7 @@ type Launcher struct {
 	AppFilePath string
 	Args        map[string]string
 	Envs        []string
-	Logger      *zlog.Logger
+	Logger      *log.Logger
 }
 
 // Sample
@@ -45,7 +44,7 @@ func (b *Launcher) RunApp() (*Session, error) {
 	cmd.Dir = filepath.Dir(b.AppFilePath)
 
 	sess, err := Start(b.Logger, cmd, func(err error) {
-		//close zlog file here
+		//close log file here
 	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "launcher '%s' failed to start", b.Name)

@@ -4,10 +4,10 @@ import (
 	"chain/internal/common"
 	"chain/lib/cmdlogstore"
 	"chain/lib/queuestore"
+	log "chain/lib/zlog"
 	"chain/rpc/security"
 	"chain/rpc/server"
 	"chain/utils"
-	"log"
 	"path/filepath"
 	"time"
 )

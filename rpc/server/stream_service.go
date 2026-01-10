@@ -2,7 +2,9 @@ package server
 
 import (
 	log "chain/lib/zlog"
+	"chain/rpc/common"
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -15,12 +17,25 @@ type customerSub struct {
 
 // StreamService is used to provide live stream data about chain network for webserver.
 type StreamService struct {
-	subs map[rpc.ID]customerSub
-	mut  sync.Mutex
+	subs      map[rpc.ID]customerSub
+	mut       sync.Mutex
+	namespace common.Namespace
 }
 
 func NewStreamService() *StreamService {
-	return &StreamService{}
+	return &StreamService{
+		subs:      make(map[rpc.ID]customerSub),
+		mut:       sync.Mutex{},
+		namespace: common.StreamNamespace{},
+	}
+}
+
+func (s *StreamService) RegisterService(server *rpc.Server) error {
+	if err := server.RegisterName(s.namespace.GetNamesapceString(), s); err != nil {
+		return fmt.Errorf("Failed to register stream service: %v", err)
+	}
+
+	return nil
 }
 
 func (s *StreamService) GetCustomerCount() int {

@@ -41,7 +41,7 @@ func (s *StatusService) ReportNodeStatus(status *common.StatusNode) error {
 		s.stream.ReportState(status)
 	}
 
-	//zlog.Printf("[NodeStatus] %v\n", status)
+	//log.Printf("[NodeStatus] %v\n", status)
 	return nil
 }
 

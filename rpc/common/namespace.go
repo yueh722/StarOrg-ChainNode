@@ -10,6 +10,20 @@ const (
 	NameSpaceSetupService = "chain"
 )
 
+type Namespace interface {
+	GetNamesapceString() string
+	GetSubscriptionName() string
+}
+
+type StreamNamespace struct{}
+
+func (s StreamNamespace) GetNamesapceString() string {
+	return "stream"
+}
+func (s StreamNamespace) GetSubscriptionName() string {
+	return "subscribeStream"
+}
+
 type SetupNamespace struct{}
 
 func (s SetupNamespace) GetNamesapceString() string {

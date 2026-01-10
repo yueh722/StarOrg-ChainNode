@@ -32,13 +32,13 @@ func LoadChainState(filePath string) *ChainStateInternal {
 
 	file, err := os.ReadFile(filePath)
 	if err != nil {
-		log.Printf("Error reading file %s: %v", filePath, err)
+		log.Printf("Error reading chain state file %s: %v", filePath, err)
 		return state
 	}
 
 	err = cmtjson.Unmarshal(file, state)
 	if err != nil {
-		log.Printf("Error unmarshalling file contents: %v", err)
+		log.Printf("Error unmarshalling file contents to chain state: %v", err)
 		return state
 	}
 

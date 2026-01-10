@@ -118,12 +118,12 @@ func initFilesWithConfig(config *cfg.Config, prvkey, nodeId string) error {
 			return fmt.Errorf("can't generate file pv: %v", err)
 		}
 		pv.Save()
-		//zlog.Info("Generated private validator", "keyFile", privValKeyFile, "stateFile", privValStateFile)
+		//log.Info("Generated private validator", "keyFile", privValKeyFile, "stateFile", privValStateFile)
 	}
 
 	nodeKeyFile := config.NodeKeyFile()
 	if fileutil.IsExist(nodeKeyFile) {
-		//zlog.Info("Found node key", "path", nodeKeyFile)
+		//log.Info("Found node key", "path", nodeKeyFile)
 	} else {
 
 		nodeKey := &p2p.NodeKey{
@@ -133,7 +133,7 @@ func initFilesWithConfig(config *cfg.Config, prvkey, nodeId string) error {
 		if err := nodeKey.SaveAs(nodeKeyFile); err != nil {
 			return err
 		}
-		//zlog.Info("Generated node key", "path", nodeKeyFile)
+		//log.Info("Generated node key", "path", nodeKeyFile)
 	}
 
 	return nil

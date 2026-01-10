@@ -128,7 +128,6 @@ func NewZapSugaredLogger(
 
 	// 5. 创建 Logger
 	logger := zap.New(teeCore,
-		zap.AddCaller(),
 		zap.AddCallerSkip(1),
 		zap.AddStacktrace(zapcore.ErrorLevel),
 	)

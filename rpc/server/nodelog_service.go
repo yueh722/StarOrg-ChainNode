@@ -57,7 +57,7 @@ func (s *NodeLogService) PublishLog() {
 		s.mut.Unlock()
 
 		for eventID, unsendLog := range sendingLogs {
-			log.Println("Sending zlog", eventID, unsendLog)
+			log.Println("Sending log", eventID, unsendLog)
 			ok := s.stream.ReportState(unsendLog)
 			if ok {
 				s.mut.Lock()
