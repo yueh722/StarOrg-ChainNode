@@ -3,11 +3,39 @@ package server
 import (
 	"chain/lib"
 	"chain/lib/zlog"
-	"sync"
 	"time"
 )
 
-var once sync.Once
+func ListenTransaction(peer *lib.Peer) <-chan lib.TransactionDetail {
+	txDetailChan := make(chan lib.TransactionDetail)
+
+	go func() {
+		defer func() {
+			close(txDetailChan)
+		}()
+
+		var sinceHeight int64 = 0
+
+		for {
+			if lib.CheckNodeOnline(peer.ToRPCAddr()) == false {
+				return
+			}
+
+			txs, err := lib.GetTransaction(peer.ToRPCAddr(), &sinceHeight)
+			if err != nil {
+				zlog.Info("GetTransaction err:", err)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			for _, tx := range txs {
+				txDetailChan <- tx
+			}
+		}
+	}()
+
+	return txDetailChan
+}
 
 func transmitLiveTransaction(stream *StreamService) {
 
@@ -24,7 +52,7 @@ func transmitLiveTransaction(stream *StreamService) {
 				continue
 			}
 
-			txCh := lib.ListenTransaction(activatedPeer)
+			txCh := ListenTransaction(activatedPeer)
 			for tx := range txCh {
 				if ok := stream.ReportState(tx); !ok {
 					zlog.Info("failed to transmit live transaction")

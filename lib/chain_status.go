@@ -1,10 +1,12 @@
 package lib
 
 import (
-	"chain/lib/zlog"
 	"chain/utils"
+	"encoding/json"
 	"fmt"
-	"time"
+
+	coretypes "github.com/cometbft/cometbft/v2/rpc/core/types"
+	"github.com/tidwall/gjson"
 )
 
 const (
@@ -26,7 +28,7 @@ func rpcRoutine(name string) any {
 
 func CheckNodeOnline(rpcAddr string) bool {
 
-	url := fmt.Sprintf("%s/status", rpcAddr)
+	url := fmt.Sprintf("%s/v2/status", rpcAddr)
 
 	_, err := utils.HttpGet(url)
 	if err != nil {
@@ -50,40 +52,89 @@ func GetActivatedNode(peers PeerList) *Peer {
 	return nil
 }
 
-func GetTransaction(rpcAddr string, height int) ([]TransactionDetail, int, error) {
+type TransactionDetail struct {
+	Key   string
+	Value string
+}
+
+// Tx
+// Parameters
+// hash (string): The hash of the transaction
+// prove (bool): If the response should include proof the transaction was included in a block.
+
+// Request
+// Http
+//
+//	curl  http://127.0.0.1:26657/v1/tx
+//
+// JSONRPC
+//
+//	curl -X POST https://localhost:26657/v1 -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tx\"}"
+func GetTransaction2(rpcAddr string, height int) ([]TransactionDetail, int, error) {
+
+	url := fmt.Sprintf("%s/v2/tx?hash=%s&prove=false", rpcAddr, "")
+
+	_, err := utils.HttpGet(url)
+	if err != nil {
+		return nil, 0, err
+	}
 
 	return nil, 0, nil
 }
 
-type TransactionDetail struct {
+func makeResultData(resultBytes []byte) map[string]interface{} {
+
+	resultMap := map[string]interface{}{
+		"hash": nil,
+	}
+
+	if resultBytes == nil {
+		return resultMap
+	}
+
+	if v := gjson.Parse(string(resultBytes)).Get("error.data").String(); v != "" {
+		resultMap["error"] = v
+		return resultMap
+	}
+
+	if v := gjson.Parse(string(resultBytes)).Get("result.hash").String(); v != "" {
+		resultMap["hash"] = v
+	}
+
+	return resultMap
 }
 
-func ListenTransaction(peer *Peer) <-chan TransactionDetail {
-	txDetailChan := make(chan TransactionDetail)
+// block_results
+// height (integer): Height of the block which contains the results. If no height is specified, the latest block height will be used
+func GetTransaction(rpcAddr string, height *int64) ([]TransactionDetail, error) {
+	url := fmt.Sprintf("%s/v2/block_results", rpcAddr)
+	if *height > 0 {
+		url = fmt.Sprintf("%s/v2/block_results?height=%v", rpcAddr, height)
+	}
+	rawRes, err := utils.HttpGet(url)
+	if err != nil {
+		return nil, err
+	}
 
-	go func() {
-		defer func() {
-			close(txDetailChan)
-		}()
-		sinceWeight := 0
-		for {
-			if CheckNodeOnline(peer.ToRPCAddr()) == false {
-				return
-			}
+	blockResult := &coretypes.ResultBlockResults{}
+	if err := json.Unmarshal(rawRes.([]byte), blockResult); err != nil {
+		return nil, err
+	}
 
-			txs, weight, err := GetTransaction(peer.ToRPCAddr(), sinceWeight)
-			if err != nil {
-				zlog.Info("GetTransaction err:", err)
-				time.Sleep(5 * time.Second)
-				continue
-			}
+	*height = blockResult.Height
 
-			sinceWeight += weight
-			for _, tx := range txs {
-				txDetailChan <- tx
+	txDetails := []TransactionDetail{}
+
+	for _, txRes := range blockResult.TxResults {
+		for _, event := range txRes.Events {
+			for _, attribute := range event.Attributes {
+				txDetails = append(txDetails, TransactionDetail{
+					Key:   attribute.GetKey(),
+					Value: attribute.GetValue(),
+				})
 			}
 		}
-	}()
+	}
 
-	return txDetailChan
+	return txDetails, nil
 }
