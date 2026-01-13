@@ -23,11 +23,9 @@ func getNodeBaseDir(nodeDir, nodeID string) string {
 	return filepath.Join(nodeDir, nodeID)
 }
 
-func StartClient() error {
-
-	cfg, err := GetConfig()
-	if err != nil {
-		return err
+func StartClient(cfg *Config) error {
+	if cfg == nil {
+		return errors.New("config is nil")
 	}
 
 	nodeInfo, err := lib.GetNodeInfo(cfg.HomeDir)

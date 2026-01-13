@@ -10,7 +10,7 @@ import (
 )
 
 // HttpGet performs an HTTP GET request and returns the response body.
-func HttpGet(url string) (interface{}, error) {
+func HttpGet(url string) ([]byte, error) {
 	// Create a new HTTP client with a timeout.
 	client := &http.Client{Timeout: 10 * time.Second}
 
@@ -32,15 +32,7 @@ func HttpGet(url string) (interface{}, error) {
 		return nil, err
 	}
 
-	// Attempt to decode the body as JSON (assuming the response is JSON).
-	var result interface{}
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		// If it's not JSON, return the raw body.
-		return string(body), nil
-	}
-
-	return result, nil
+	return body, nil
 }
 
 // HttpPost performs an HTTP POST request and returns the response body.

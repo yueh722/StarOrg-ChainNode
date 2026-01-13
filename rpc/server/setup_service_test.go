@@ -74,6 +74,7 @@ func init() {
 	functions := []string{
 		"GetChainState",
 		"BroadcastInitializeChainNode",
+		"BroadcastAddChainNode",
 		"ControlNode",
 		"BroadcastResetChainNode",
 	}
@@ -95,6 +96,42 @@ func MakePeerList() lib.PeerList {
 			RPCPort:        26657,
 			ABCIPort:       26658,
 			WebServicePort: 1000,
+			IsValidator:    true,
+		},
+		{
+			NodeName:       "node02",
+			NodeId:         lib.NewNodeId(),
+			PrivKey:        lib.NewPrivKey(),
+			NodeKey:        lib.NewNodeKey(),
+			NodeAddress:    "127.0.0.1",
+			P2PPort:        36656,
+			RPCPort:        36657,
+			ABCIPort:       36658,
+			WebServicePort: 2000,
+			IsValidator:    true,
+		},
+		{
+			NodeName:       "node03",
+			NodeId:         lib.NewNodeId(),
+			PrivKey:        lib.NewPrivKey(),
+			NodeKey:        lib.NewNodeKey(),
+			NodeAddress:    "127.0.0.1",
+			P2PPort:        46656,
+			RPCPort:        46657,
+			ABCIPort:       46658,
+			WebServicePort: 2000,
+			IsValidator:    true,
+		},
+		{
+			NodeName:       "node04",
+			NodeId:         lib.NewNodeId(),
+			PrivKey:        lib.NewPrivKey(),
+			NodeKey:        lib.NewNodeKey(),
+			NodeAddress:    "127.0.0.1",
+			P2PPort:        56656,
+			RPCPort:        56657,
+			ABCIPort:       56658,
+			WebServicePort: 2000,
 			IsValidator:    true,
 		},
 	}
@@ -142,6 +179,67 @@ func TestSetupService_BroadcastInitializeChainNode(t *testing.T) {
 	if err != nil {
 		t.Fatal("Failed to broadcast init chain node:", err)
 	}
+}
+
+func getPeerInternalByID(csInternal *ChainStateInternal, nodeID string) *lib.Peer {
+	for _, peer := range csInternal.Peers {
+		if peer.NodeId == nodeID {
+			return &peer
+		}
+	}
+	return nil
+}
+
+func TestSetupService_BroadcastAddChainNode(t *testing.T) {
+
+	myclient, err := getConnection(t)
+	if err != nil {
+		return
+	}
+	// CALL RPC METHOD
+
+	//get chain state
+	state, err := getChainState(myclient)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Println(state)
+
+	//peer list
+	peers := MakePeerList()
+
+	csInternal := LoadChainState(chainStateFile)
+	if csInternal == nil {
+		t.Fatal("Failed to load chain state")
+	}
+
+	// update peer data for which already exist.
+	for _, status := range state.Nodes {
+		peer, ok := slice.FindBy(peers, func(index int, p lib.Peer) bool {
+			return p.NodeName == status.NodeName
+		})
+		if !ok {
+			// new peer
+			peer.NodeId = status.NodeID
+			continue
+		}
+
+		peer.NodeId = status.NodeID
+		peer.NodeKey = getPeerInternalByID(csInternal, status.NodeID).NodeKey
+		peer.PrivKey = getPeerInternalByID(csInternal, status.NodeID).PrivKey
+	}
+
+	// add node
+	for i, status := range state.Nodes {
+		if status.NodeName == "" {
+			var errResult error
+			err = myclient.Call(&errResult, methods["BroadcastAddChainNode"], peers[i])
+			if err != nil {
+				t.Fatal("Failed to broadcast add chain node:", peers[i].NodeName, err)
+			}
+		}
+	}
+
 }
 
 func getChainState(myclient *rpc.Client) (*ChainState, error) {

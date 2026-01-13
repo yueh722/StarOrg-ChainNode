@@ -85,6 +85,14 @@ func (p *Peer) valid() bool {
 	return true
 }
 
+func (p *Peer) ToJson() string {
+	if jsonBytes, err := json.Marshal(p); err == nil {
+		return string(jsonBytes)
+	}
+
+	return ""
+}
+
 type PeerList []Peer
 
 func (peers PeerList) BuildPersistentPeers() string {

@@ -189,7 +189,7 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 	}
 
 	//create logStore for receiving error zlog of node and app
-	//file: zlog/chaindb.zlog
+	//file: log/chaindb.log
 	if err = c.initLogStore(c.cfg.getChainlogFilePath()); err != nil {
 		return err
 	}

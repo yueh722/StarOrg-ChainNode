@@ -3,9 +3,11 @@ package main
 import (
 	"chain/internal/nodeproxy"
 	log "chain/lib/zlog"
+	"chain/utils"
 	cmd "chain/winservice"
 	"context"
 	"os"
+	"path/filepath"
 )
 
 // nodeproxy.exe -c your-path-to-config.ini
@@ -15,12 +17,11 @@ import (
 // nodeproxy.exe
 //
 //	option1: load config file from %ProgramData%/chain/nodeproxy/config.ini
-//	option2: load config file from %appdata%/chain/nodeproxy/config.ini
 
 // Service functions
-func serviceMain(ctx context.Context) error {
+func serviceMain(ctx context.Context, runtime cmd.ServiceRuntime) error {
 	log.Println("Service started")
-	AppMain(ctx)
+	AppMain(ctx, runtime)
 	return nil
 }
 
@@ -30,11 +31,11 @@ func serviceStop() error {
 }
 
 // Console function
-func consoleMain(ctx context.Context) error {
+func consoleMain(ctx context.Context, runtime cmd.ServiceRuntime) error {
 	log.Println("Console mode")
 	log.Println("Press Ctrl+C to exit")
 
-	AppMain(ctx)
+	AppMain(ctx, runtime)
 	return nil
 }
 
@@ -58,11 +59,20 @@ func main() {
 	}
 }
 
-func AppMain(ctx context.Context) {
-	err := nodeproxy.StartClient()
+func AppMain(ctx context.Context, runtime cmd.ServiceRuntime) {
+
+	appDataPath := utils.GetAppDataPath("nodeproxy")
+	cfgFiles := []string{runtime.ConfigPath, filepath.Join(appDataPath, "config.ini")}
+
+	cfg, err := nodeproxy.LoadConfig(cfgFiles, nodeproxy.GetDefaultConfig())
 	if err != nil {
-		log.Println("start NodeProxy client error:", err)
+		log.Fatal(err)
+	}
+
+	err = nodeproxy.StartClient(cfg)
+	if err != nil {
+		log.Error("start NodeProxy client error:", err)
 	} else {
-		log.Println("NodeProxy client exit without error")
+		log.Info("NodeProxy client exit without error")
 	}
 }

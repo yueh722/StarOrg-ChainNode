@@ -73,13 +73,16 @@ func (f *Logger) Write(p []byte) (n int, err error) {
 
 var l = NewDefaultAppLog()
 
-func Info(v ...interface{})                  { l.Println(v...) }
+func Info(v ...interface{})                  { l.Info(v...) }
+func Infof(format string, v ...interface{})  { l.Infof(format, v...) }
+func Error(v ...interface{})                 { l.Error(v...) }
+func Errorf(format string, v ...interface{}) { l.Errorf(format, v...) }
 func Println(v ...interface{})               { l.Println(v...) }
 func Printf(format string, v ...interface{}) { l.Printf(format, v...) }
 func Panic(v ...interface{})                 { l.Panic(v...) }
 func Panicf(format string, v ...interface{}) { l.Panicf(format, v...) }
-func Fatal(v ...interface{})                 { l.Panic(v...) }
-func Fatalf(format string, v ...interface{}) { l.Panicf(format, v...) }
+func Fatal(v ...interface{})                 { l.Fatal(v...) }
+func Fatalf(format string, v ...interface{}) { l.Fatalf(format, v...) }
 
 func (f *Logger) Println(v ...any)                              { f.s.Info(v...) }
 func (f *Logger) Printf(format string, v ...any)                { f.s.Infof(format, v...) }

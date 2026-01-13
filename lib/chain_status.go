@@ -28,7 +28,7 @@ func rpcRoutine(name string) any {
 
 func CheckNodeOnline(rpcAddr string) bool {
 
-	url := fmt.Sprintf("%s/v2/status", rpcAddr)
+	url := fmt.Sprintf("%s/v1/status", rpcAddr)
 
 	_, err := utils.HttpGet(url)
 	if err != nil {
@@ -72,7 +72,7 @@ type TransactionDetail struct {
 //	curl -X POST https://localhost:26657/v1 -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tx\"}"
 func GetTransaction2(rpcAddr string, height int) ([]TransactionDetail, int, error) {
 
-	url := fmt.Sprintf("%s/v2/tx?hash=%s&prove=false", rpcAddr, "")
+	url := fmt.Sprintf("%s/v1/tx?hash=%s&prove=false", rpcAddr, "")
 
 	_, err := utils.HttpGet(url)
 	if err != nil {
@@ -107,17 +107,19 @@ func makeResultData(resultBytes []byte) map[string]interface{} {
 // block_results
 // height (integer): Height of the block which contains the results. If no height is specified, the latest block height will be used
 func GetTransaction(rpcAddr string, height *int64) ([]TransactionDetail, error) {
-	url := fmt.Sprintf("%s/v2/block_results", rpcAddr)
+	url := fmt.Sprintf("%s/v1/block_results", rpcAddr)
 	if *height > 0 {
-		url = fmt.Sprintf("%s/v2/block_results?height=%v", rpcAddr, height)
+		url = fmt.Sprintf("%s/v1/block_results?height=%v", rpcAddr, height)
 	}
 	rawRes, err := utils.HttpGet(url)
 	if err != nil {
 		return nil, err
 	}
 
+	resultJson := gjson.Get(string(rawRes), "result").Raw
+
 	blockResult := &coretypes.ResultBlockResults{}
-	if err := json.Unmarshal(rawRes.([]byte), blockResult); err != nil {
+	if err := json.Unmarshal([]byte(resultJson), blockResult); err != nil {
 		return nil, err
 	}
 

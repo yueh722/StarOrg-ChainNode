@@ -9,11 +9,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var globalConfigPath string
+
 // Global variables for application registration
 var (
 	serviceMainFunc MainFunc
 	serviceStopFunc StopFunc
-	consoleMainFunc func(ctx context.Context) error
+	consoleMainFunc func(ctx context.Context, runtime ServiceRuntime) error
 	serviceOptions  []Option
 )
 
@@ -24,7 +26,7 @@ func RegisterService(mainFunc MainFunc, stopFunc StopFunc) {
 }
 
 // RegisterConsole registers console function
-func RegisterConsole(mainFunc func(ctx context.Context) error) {
+func RegisterConsole(mainFunc func(ctx context.Context, runtime ServiceRuntime) error) {
 	consoleMainFunc = mainFunc
 }
 
@@ -36,10 +38,20 @@ func SetConfig(opts ...Option) {
 func rootCmd() *cobra.Command {
 	executablePath, _ := os.Executable()
 	executableName := filepath.Base(executablePath)
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use: executableName,
 		Run: runConsoleMode,
 	}
+
+	cmd.PersistentFlags().StringVarP(
+		&globalConfigPath,
+		"config",
+		"c",
+		"",
+		"config file path (ini file)",
+	)
+
+	return cmd
 }
 
 // NewServiceCmd creates the service management command
@@ -76,7 +88,7 @@ func runConsoleMode(cmd *cobra.Command, args []string) {
 	}
 
 	ctx := context.Background()
-	if err := consoleMainFunc(ctx); err != nil {
+	if err := consoleMainFunc(ctx, ServiceRuntime{ConfigPath: globalConfigPath}); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

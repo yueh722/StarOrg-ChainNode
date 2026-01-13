@@ -8,6 +8,7 @@ import (
 	"chain/rpc/security"
 	"chain/rpc/server"
 	"chain/utils"
+	"errors"
 	"path/filepath"
 	"time"
 )
@@ -42,14 +43,12 @@ func init() {
 }
 
 // StartServer function won't return until server down or failure.
-func StartServer() error {
-
-	cfg, err := GetConfig()
-	if err != nil {
-		return err
+func StartServer(cfg *Config) error {
+	if cfg == nil {
+		return errors.New("config is nil")
 	}
 
-	wsServer, err = server.NewServer(server.ServerConfig{
+	wsServer, err := server.NewServer(server.ServerConfig{
 		AppName:    cfg.AppName,
 		Addr:       cfg.Addr,
 		AppDataDir: common.NodeMasterAppDataPath,

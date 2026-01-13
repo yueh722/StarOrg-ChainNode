@@ -3,6 +3,7 @@ package server
 import (
 	"chain/lib"
 	"chain/lib/zlog"
+	"log"
 	"time"
 )
 
@@ -51,7 +52,7 @@ func transmitLiveTransaction(stream *StreamService) {
 				time.Sleep(10 * time.Millisecond)
 				continue
 			}
-
+			log.Println("found activated peer:", activatedPeer.NodeName, activatedPeer.ToRPCAddr())
 			txCh := ListenTransaction(activatedPeer)
 			for tx := range txCh {
 				if ok := stream.ReportState(tx); !ok {

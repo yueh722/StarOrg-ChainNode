@@ -12,8 +12,12 @@ import (
 	winsvc "github.com/kardianos/service"
 )
 
+type ServiceRuntime struct {
+	ConfigPath string
+}
+
 // 类型定义
-type MainFunc func(ctx context.Context) error
+type MainFunc func(ctx context.Context, runtime ServiceRuntime) error
 type StopFunc func() error
 
 // Config 服务配置
@@ -39,6 +43,7 @@ type serviceWrapper struct {
 	mainFunc MainFunc
 	stopFunc StopFunc
 	cancel   context.CancelFunc
+	runtime  ServiceRuntime
 }
 
 func (sw *serviceWrapper) Start(s winsvc.Service) error {
@@ -47,7 +52,7 @@ func (sw *serviceWrapper) Start(s winsvc.Service) error {
 
 	go func() {
 		if sw.mainFunc != nil {
-			_ = sw.mainFunc(ctx)
+			_ = sw.mainFunc(ctx, sw.runtime)
 		}
 	}()
 
@@ -89,6 +94,9 @@ func RunWithConfig(mainFunc MainFunc, stopFunc StopFunc, config Config) error {
 	wrapper := &serviceWrapper{
 		mainFunc: mainFunc,
 		stopFunc: stopFunc,
+		runtime: ServiceRuntime{
+			ConfigPath: globalConfigPath,
+		},
 	}
 
 	// 创建服务配置
