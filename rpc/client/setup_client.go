@@ -68,7 +68,7 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 		cmdChan,
 		common.SetupNamespace{}.GetSubscriptionName(),
 		common.DelegatorInfo{
-			App: common.DelegatorApp,
+			App: c.cfg.AppName,
 			StatusNode: common.StatusNode{
 				NodeInfo:    *c.cfg.NodeInfo,
 				Healthy:     lib.CheckNodeOnline(c.cfg.NodeInfo.RPCAddr),
@@ -79,6 +79,7 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 	)
 
 	if err != nil {
+		log.Error("SubscribeCommand error: ", err)
 		return errChan
 	}
 
@@ -150,9 +151,11 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 	//reload nodeInfo of cfg
 	c.cfg.NodeInfo, err = lib.GetNodeInfo(c.cfg.HomeDir)
 	if err != nil {
-		log.Println("failed to reload node info upon initialized chain node, err:", err)
+		log.Error("failed to reload node info upon initialized chain node, err:", err)
 		return err
 	}
+
+	log.Info("[handleInitChainNodeCmd] succeed.", c.NodeID(), c.NodeName())
 
 	return nil
 }
@@ -172,9 +175,11 @@ func (c *SetupClient) handleUpdateChainCfgCmd(cmd *common.CommandEnvelope) error
 		c.cfg.NodeInfo.NodeID,
 	)
 	if err != nil {
-		log.Printf("failed to add chain node id: %s, node name: %s, err: %v", cmd.NodeID, c.NodeName(), err)
+		log.Errorf("failed to add chain node id: %s, node name: %s, err: %v", cmd.NodeID, c.NodeName(), err)
 		return err
 	}
+
+	log.Info("[handleUpdateChainCfgCmd] succeed. %s : %s", c.NodeID(), c.NodeName())
 
 	return nil
 }
@@ -208,6 +213,8 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 	if err != nil {
 		return fmt.Errorf("failed to %s chain node id: %s, node name: %s, err: %v", arg.Action, cmd.NodeID, err)
 	}
+
+	log.Info("[handleControlNodeCmd] succeed. %s %s : %s", arg.Action, c.NodeID(), c.NodeName())
 
 	return nil
 }

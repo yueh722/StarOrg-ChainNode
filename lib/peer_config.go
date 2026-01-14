@@ -65,7 +65,7 @@ func LoadPeerConfig(homeDir, nodeID string) (*PeerConfig, error) {
 
 	//peer-config
 	peer := &Peer{}
-	peerCfgFilePath := filepath.Join(nodeDir, peerConfigFile)
+	peerCfgFilePath := filepath.Join(homeDir, peerConfigFile)
 	if err := peer.Load(peerCfgFilePath); err != nil {
 		return nil, err
 	}

@@ -69,6 +69,8 @@ func AppMain(ctx context.Context, runtime cmd.ServiceRuntime) {
 		log.Fatal(err)
 	}
 
+	log.Info("applied config data: ", cfg)
+
 	err = nodeproxy.StartClient(cfg)
 	if err != nil {
 		log.Error("start NodeProxy client error:", err)

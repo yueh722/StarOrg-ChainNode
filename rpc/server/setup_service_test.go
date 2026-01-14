@@ -19,7 +19,7 @@ func MakePeerList4() lib.PeerList {
 			NodeId:         lib.NewNodeId(),
 			PrivKey:        lib.NewPrivKey(),
 			NodeKey:        lib.NewNodeKey(),
-			NodeAddress:    "192.168.1.1",
+			NodeAddress:    "127.0.0.1",
 			P2PPort:        26656,
 			RPCPort:        26657,
 			ABCIPort:       26658,
@@ -31,7 +31,7 @@ func MakePeerList4() lib.PeerList {
 			NodeId:         lib.NewNodeId(),
 			PrivKey:        lib.NewPrivKey(),
 			NodeKey:        lib.NewNodeKey(),
-			NodeAddress:    "192.168.1.2",
+			NodeAddress:    "127.0.0.1",
 			P2PPort:        36656,
 			RPCPort:        36657,
 			ABCIPort:       36658,
@@ -43,7 +43,7 @@ func MakePeerList4() lib.PeerList {
 			NodeId:         lib.NewNodeId(),
 			PrivKey:        lib.NewPrivKey(),
 			NodeKey:        lib.NewNodeKey(),
-			NodeAddress:    "192.168.1.3",
+			NodeAddress:    "127.0.0.1",
 			P2PPort:        46656,
 			RPCPort:        46657,
 			ABCIPort:       46658,
@@ -55,7 +55,7 @@ func MakePeerList4() lib.PeerList {
 			NodeId:         lib.NewNodeId(),
 			PrivKey:        lib.NewPrivKey(),
 			NodeKey:        lib.NewNodeKey(),
-			NodeAddress:    "192.168.1.4",
+			NodeAddress:    "127.0.0.1",
 			P2PPort:        56656,
 			RPCPort:        56657,
 			ABCIPort:       56658,
@@ -84,7 +84,7 @@ func init() {
 	})
 }
 
-func MakePeerList() lib.PeerList {
+func MakePeer_01_02() lib.PeerList {
 	peers := []lib.Peer{
 		{
 			NodeName:       "node01",
@@ -110,6 +110,13 @@ func MakePeerList() lib.PeerList {
 			WebServicePort: 2000,
 			IsValidator:    true,
 		},
+	}
+
+	return peers
+}
+
+func MakePeer_03_04() lib.PeerList {
+	peers := []lib.Peer{
 		{
 			NodeName:       "node03",
 			NodeId:         lib.NewNodeId(),
@@ -119,7 +126,7 @@ func MakePeerList() lib.PeerList {
 			P2PPort:        46656,
 			RPCPort:        46657,
 			ABCIPort:       46658,
-			WebServicePort: 2000,
+			WebServicePort: 3000,
 			IsValidator:    true,
 		},
 		{
@@ -131,7 +138,7 @@ func MakePeerList() lib.PeerList {
 			P2PPort:        56656,
 			RPCPort:        56657,
 			ABCIPort:       56658,
-			WebServicePort: 2000,
+			WebServicePort: 4000,
 			IsValidator:    true,
 		},
 	}
@@ -165,11 +172,17 @@ func TestSetupService_BroadcastInitializeChainNode(t *testing.T) {
 	}
 	log.Println(state)
 
-	//peer list
-	peers := MakePeerList()
+	//build a peer list that contains node01, node02.
+	peers := MakePeer_01_02()
+
+	//append node03, node04 into above list.
+	//peers = append(peers, MakePeer_03_04()...)
 
 	//update nodeID to testData
 	for i, status := range state.Nodes {
+		if i >= len(peers) {
+			break
+		}
 		peers[i].NodeId = status.NodeID
 	}
 
@@ -203,40 +216,42 @@ func TestSetupService_BroadcastAddChainNode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println(state)
+	t.Log(state)
 
-	//peer list
-	peers := MakePeerList()
+	//peers will be added for chain
+	peers := MakePeer_03_04()
+	assignedIndex := 0
 
-	csInternal := LoadChainState(chainStateFile)
-	if csInternal == nil {
-		t.Fatal("Failed to load chain state")
-	}
-
-	// update peer data for which already exist.
+	//update nodeID to testData
 	for _, status := range state.Nodes {
-		peer, ok := slice.FindBy(peers, func(index int, p lib.Peer) bool {
-			return p.NodeName == status.NodeName
-		})
-		if !ok {
-			// new peer
-			peer.NodeId = status.NodeID
+		if status.Initialized {
 			continue
 		}
 
-		peer.NodeId = status.NodeID
-		peer.NodeKey = getPeerInternalByID(csInternal, status.NodeID).NodeKey
-		peer.PrivKey = getPeerInternalByID(csInternal, status.NodeID).PrivKey
+		if assignedIndex >= len(peers) {
+			t.Fatal("no more available peers to be added")
+		}
+
+		peers[assignedIndex].NodeId = status.NodeID
+		t.Logf("assigned peer for node %v : %v, total: %v\n", peers[assignedIndex].NodeId, peers[assignedIndex].NodeName, assignedIndex)
+		assignedIndex++
+	}
+
+	for _, node := range state.Nodes {
+		if node.Initialized {
+			continue
+		}
+		t.Log("uninitialized peers: ", node)
 	}
 
 	// add node
-	for i, status := range state.Nodes {
-		if status.NodeName == "" {
-			var errResult error
-			err = myclient.Call(&errResult, methods["BroadcastAddChainNode"], peers[i])
-			if err != nil {
-				t.Fatal("Failed to broadcast add chain node:", peers[i].NodeName, err)
-			}
+	for _, peer := range peers {
+
+		t.Log("adding peer: ", peer.NodeId, peer.NodeName)
+		var errResult error
+		err = myclient.Call(&errResult, methods["BroadcastAddChainNode"], peer)
+		if err != nil {
+			t.Fatal("Failed to broadcast add chain node:", peer.NodeName, err)
 		}
 	}
 
@@ -296,21 +311,6 @@ func TestSetupService_BroadcastResetChainNode(t *testing.T) {
 		return
 	}
 	// CALL RPC METHOD
-
-	//get chain state
-	state, err := getChainState(myclient)
-	if err != nil {
-		t.Fatal(err)
-	}
-	log.Println(state)
-
-	//peer list
-	peers := MakePeerList()
-
-	//update nodeID to testData
-	for i, status := range state.Nodes {
-		peers[i].NodeId = status.NodeID
-	}
 
 	var errResult error
 

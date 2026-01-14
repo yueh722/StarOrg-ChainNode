@@ -187,6 +187,10 @@ func runServiceInstall(cmd *cobra.Command, args []string) error {
 
 	// Prepare service arguments: when service starts, execute "service run" command
 	serviceArgs := []string{"service"}
+	if globalConfigPath != "" {
+		// set config file path of current service.
+		serviceArgs = append(serviceArgs, "-c", globalConfigPath)
+	}
 
 	// Build service configuration options
 	opts := make([]Option, 0, len(serviceOptions)+4)

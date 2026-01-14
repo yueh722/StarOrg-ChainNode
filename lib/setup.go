@@ -35,8 +35,8 @@ func GenesisTimeFromUnix(nsec int64) time.Time {
 func InitializeChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, nodeDir string) error {
 
 	currPeer := peers.GetPeerByNodeId(nodeId)
-	if currPeer == nil {
-		return fmt.Errorf("information of peer %s is required", nodeId)
+	if !currPeer.Valid() {
+		return fmt.Errorf("information of peer %s is invalid", nodeId)
 	}
 
 	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), nodeDir)
@@ -76,8 +76,8 @@ func UpdateChainCfg(peers PeerList, homeDir, nodeID string) error {
 func AddChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, nodeDir string) error {
 
 	currPeer := peers.GetPeerByNodeId(nodeId)
-	if currPeer == nil {
-		return fmt.Errorf("information of peer %s is required", nodeId)
+	if !currPeer.Valid() {
+		return fmt.Errorf("information of peer %s is invalid", nodeId)
 	}
 
 	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), nodeDir)

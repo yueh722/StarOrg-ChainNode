@@ -66,6 +66,8 @@ func AppMain(ctx context.Context, runtime cmd.ServiceRuntime) {
 		log.Fatal(err)
 	}
 
+	log.Info("applied config data of master: ", cfg)
+
 	err = nodemaster.StartServer(cfg)
 	if err != nil {
 		log.Println("start NodeMaster server error:", err)

@@ -12,7 +12,7 @@ type DelegatorInfo struct {
 	StatusNode StatusNode
 }
 
-const DelegatorApp = "NodeProxyD"
+const DelegatorApp = "NodeProxyD_"
 
 // Management
 // method: Subscription

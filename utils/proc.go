@@ -12,8 +12,10 @@ import (
 	"github.com/shirou/gopsutil/process"
 )
 
-func KillProcessByPath(path string) error {
-	normTarget, err := normalizePath(path)
+// procNmae string	- image file name of process
+// cmdlineKeyword string -	specify a string that command line contains it.
+func KillProcessByPath(procName string) error {
+	normTarget, err := normalizePath(procName)
 	if err != nil {
 		return err
 	}
@@ -50,7 +52,7 @@ func KillProcessByPath(path string) error {
 		if lastErr != nil {
 			return lastErr
 		}
-		return fmt.Errorf("no process matched the given path %v", path)
+		return fmt.Errorf("no process matched the given path %v", procName)
 	}
 
 	return nil

@@ -53,6 +53,8 @@ func (p *Peer) Save(peerFile string) error {
 		return fmt.Errorf("error writing peer config at %s: %w", peerFile, err)
 	}
 
+	log.Infof("peer config at %s saved with %v : %v", peerFile, p.NodeId, p.NodeName)
+
 	return nil
 }
 
@@ -81,7 +83,19 @@ func (p *Peer) ToRPCAddr() string {
 	return fmt.Sprintf("http://%s:%d", p.NodeAddress, p.RPCPort)
 }
 
-func (p *Peer) valid() bool {
+func (p *Peer) Valid() bool {
+	if p.NodeId == "" ||
+		p.NodeKey == "" ||
+		p.NodeName == "" ||
+		p.PrivKey == "" ||
+		p.NodeAddress == "" ||
+		p.P2PPort == 0 ||
+		p.RPCPort == 0 ||
+		p.ABCIPort == 0 ||
+		p.WebServicePort == 0 {
+		return false
+	}
+
 	return true
 }
 
@@ -225,4 +239,9 @@ func GetNodeNameByNodeId(nodeId string, peers string) string {
 		return peer.NodeName
 	}
 	return ""
+}
+
+func GetNodeByNodeId(nodeId string, peers string) *Peer {
+	peerList := ConvertJsonToPeers(peers)
+	return peerList.GetPeerByNodeId(nodeId)
 }

@@ -49,6 +49,16 @@ func (state *ChainStateInternal) Initialized() bool {
 	return state.GenesisDoc != nil && state.InitializedTime != 0
 }
 
+func (state *ChainStateInternal) IsNodeInitialized(nodeID string) bool {
+	for _, node := range state.Peers {
+		if node.NodeId == nodeID {
+			return true
+		}
+	}
+
+	return false
+}
+
 func NewChainState(chainID string, peerArray string) *ChainStateInternal {
 	Peers := lib.ConvertJsonToPeers(peerArray)
 	GenesisDoc := lib.NewGenesisDoc(chainID, Peers.BuildValidators())
@@ -86,7 +96,7 @@ func (state *ChainStateInternal) CloneAddNode(peerInfo lib.Peer) *ChainStateInte
 		Peers:           newPeers,
 		GenesisDoc:      &newGenesisDoc,
 		InitializedTime: state.InitializedTime,
-		LastAddNodeTime: state.LastAddNodeTime,
+		LastAddNodeTime: time.Now().UnixNano(),
 	}
 
 	return newState
