@@ -27,6 +27,7 @@ type ClientConfig struct {
 	AppName     string
 	ServerAddr  string
 	HomeDir     string
+	BinDir      string
 	NodeBaseDir string
 	AppDataDir  string
 	LogDir      string
@@ -38,18 +39,18 @@ func (c ClientConfig) getLogPath() string {
 }
 
 func (c ClientConfig) getBinPath() string {
-	return utils.TryCreateDir(filepath.Join(c.HomeDir, "bin"))
+	return utils.TryCreateDir(c.BinDir)
 }
 
 func (c ClientConfig) getChainlogFilePath() string {
 	return filepath.Join(c.getLogPath(), "chainlog.db")
 }
 
-func (c ClientConfig) getAppBinPath() string {
+func (c ClientConfig) getAppBinFile() string {
 	return filepath.Join(c.getBinPath(), lib.AppFileName)
 }
 
-func (c ClientConfig) getNodeBinPath() string {
+func (c ClientConfig) getNodeBinFile() string {
 	return filepath.Join(c.getBinPath(), lib.NodeFileName)
 }
 
@@ -59,6 +60,8 @@ func New(cfg ClientConfig) (*Client, error) {
 		client *rpc.Client
 		err    error
 	)
+
+	utils.TryCreateDir(cfg.HomeDir)
 
 	for {
 		client, err = Connect(&cfg.ServerAddr)

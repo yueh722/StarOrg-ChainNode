@@ -14,7 +14,7 @@ import (
 
 // procNmae string	- image file name of process
 // cmdlineKeyword string -	specify a string that command line contains it.
-func KillProcessByPath(procName string) error {
+func KillProcessByProcNameAndCmdline(procName, cmdlineKeyword string) error {
 	normTarget, err := normalizePath(procName)
 	if err != nil {
 		return err
@@ -34,15 +34,29 @@ func KillProcessByPath(procName string) error {
 			continue
 		}
 
-		normExe, err := normalizePath(exe)
+		cmd, err := p.Cmdline()
+		if err != nil || cmd == "" {
+			continue
+		}
+
+		cmdlineMatched := cmdlineKeyword == ""
+		if cmdlineKeyword != "" && strings.Contains(cmd, cmdlineKeyword) {
+			cmdlineMatched = true
+		}
+
+		normExe, err := normalizePath(filepath.Base(exe))
 		if err != nil {
 			continue
 		}
 
-		if normExe == normTarget {
+		procNameMatched := normExe == normTarget
+
+		if procNameMatched && cmdlineMatched {
 			if err := p.Terminate(); err != nil {
 				fmt.Printf("error killing process with PID %d, Proc %s: %v\n", p.Pid, exe, err)
 				lastErr = err
+			} else {
+				fmt.Println("killed process", cmd)
 			}
 			killed++
 		}

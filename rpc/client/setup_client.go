@@ -144,18 +144,18 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 	)
 	if err != nil {
 		nodeName := arg.NodeArray.GetPeerByNodeId(arg.NodeID).NodeName
-		log.Printf("failed to init chain node id: %s, node name: %s, err: %v", cmd.NodeID, nodeName, err)
+		log.Printf("[handleInitChainNodeCmd] failed to init chain node id: %s, node name: %s, err: %v", cmd.NodeID, nodeName, err)
 		return err
 	}
 
 	//reload nodeInfo of cfg
 	c.cfg.NodeInfo, err = lib.GetNodeInfo(c.cfg.HomeDir)
 	if err != nil {
-		log.Error("failed to reload node info upon initialized chain node, err:", err)
+		log.Error("[handleInitChainNodeCmd] failed to reload node info upon initialized chain node, err:", err)
 		return err
 	}
 
-	log.Info("[handleInitChainNodeCmd] succeed.", c.NodeID(), c.NodeName())
+	log.Infof("[handleInitChainNodeCmd] succeed. nodeID: %s, nodeName: %s", c.NodeID(), c.NodeName())
 
 	return nil
 }
@@ -175,11 +175,11 @@ func (c *SetupClient) handleUpdateChainCfgCmd(cmd *common.CommandEnvelope) error
 		c.cfg.NodeInfo.NodeID,
 	)
 	if err != nil {
-		log.Errorf("failed to add chain node id: %s, node name: %s, err: %v", cmd.NodeID, c.NodeName(), err)
+		log.Errorf("failed to add chain nodeID: %s, nodeName: %s, err: %v", cmd.NodeID, c.NodeName(), err)
 		return err
 	}
 
-	log.Info("[handleUpdateChainCfgCmd] succeed. %s : %s", c.NodeID(), c.NodeName())
+	log.Infof("[handleUpdateChainCfgCmd] succeed. nodeID: %s, nodeName: %s", c.NodeID(), c.NodeName())
 
 	return nil
 }
@@ -211,10 +211,10 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to %s chain node id: %s, node name: %s, err: %v", arg.Action, cmd.NodeID, err)
+		return fmt.Errorf("failed to %s chain node id: %s, node name: %s, err: %v", arg.Action, cmd.NodeID, c.NodeName(), err)
 	}
 
-	log.Info("[handleControlNodeCmd] succeed. %s %s : %s", arg.Action, c.NodeID(), c.NodeName())
+	log.Infof("[handleControlNodeCmd] succeed. action: %s, nodeID: %s, nodeName: %s", arg.Action, c.NodeID(), c.NodeName())
 
 	return nil
 }
@@ -222,18 +222,21 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 // reset chain handler
 func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
 
-	if c.nodeRuntime != nil {
+	forceKill := false
+	if forceKill && c.nodeRuntime != nil {
 		c.nodeRuntime.KillNode()
 	} else {
 		//kill all node and app processes
-		if err := utils.KillProcessByPath(c.cfg.getAppBinPath()); err != nil {
+		if err := utils.KillProcessByProcNameAndCmdline(lib.AppFileName, c.cfg.NodeInfo.NodeID); err != nil {
 			log.Println("failed to kill app process, err:", err)
 		}
 
-		if err := utils.KillProcessByPath(c.cfg.getNodeBinPath()); err != nil {
+		if err := utils.KillProcessByProcNameAndCmdline(lib.NodeFileName, c.cfg.NodeInfo.NodeID); err != nil {
 			log.Println("failed to kill node process, err:", err)
 		}
 	}
+
+	time.Sleep(2 * time.Second)
 
 	//remove node base directory
 	nodeInfo, err := lib.ResetChainNode(c.cfg.HomeDir, c.cfg.NodeInfo.NodeID)

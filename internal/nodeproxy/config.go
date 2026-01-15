@@ -2,7 +2,9 @@ package nodeproxy
 
 import (
 	"chain/lib/zlog"
+	"chain/utils"
 	"fmt"
+	"path/filepath"
 
 	"github.com/duke-git/lancet/v2/fileutil"
 	_ "github.com/spf13/viper/remote"
@@ -19,10 +21,13 @@ type Config struct {
 var defaultConfig = Config{
 	ServerAddr: "ws://localhost:8080/ws",
 	AppName:    "NodeProxy",
-	HomeDir:    "n:/cometbft",
+	HomeDir:    filepath.Join(utils.GetAppDataPath("node")),
 }
 
 func GetDefaultConfig() Config {
+	if defaultConfig.BinDir == "" {
+		defaultConfig.BinDir = filepath.Join(defaultConfig.HomeDir, "bin")
+	}
 	return defaultConfig
 }
 
@@ -49,6 +54,11 @@ func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, error) {
 		}
 
 		zlog.Infof("config file %s applied", cfgFile)
+
+		if cfg.BinDir == "" {
+			cfg.BinDir = filepath.Join(cfg.HomeDir, "bin")
+		}
+
 		return cfg, nil
 	}
 

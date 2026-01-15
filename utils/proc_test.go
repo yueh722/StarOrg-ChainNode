@@ -19,11 +19,12 @@ func TestGetProcessInfoByProcName(t *testing.T) {
 }
 
 func TestKillProcessByPath(t *testing.T) {
-	procNames := []string{"c:\\windows\\system32\\cmd.exe", "notepad.exe", "C:\\Program Files\\Sublime Text\\sublime_text.exe"}
+	procNames := []string{"cometbft.exe", "abci-v2-Identity-app.exe"}
 	for _, name := range procNames {
-		err := KillProcessByPath(name)
+		err := KillProcessByProcNameAndCmdline(name, "8d7f11f96878634cdf167958e6764ed71195121e")
 		if err != nil {
 			t.Log(err.Error())
 		}
+
 	}
 }

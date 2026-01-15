@@ -95,11 +95,6 @@ func (i *Instance) Stop() error {
 	go func() {
 		i.Wait()
 		close(done)
-
-		i.Session = nil
-		i.Pid = 0
-		i.StartTime = time.Time{}
-
 	}()
 
 	i.Session.Signal(syscall.SIGTERM)
@@ -132,7 +127,12 @@ func (i *Instance) Wait() (int, error) {
 }
 
 func (i *Instance) IsRunning() bool {
-	return i.Err == nil && i.Session != nil && i.Session.exitErr == nil
+	return i.Session != nil && i.Session.exitTime == 0
+
+	//return i.Err == nil && i.Session != nil && i.Session.exitErr == nil
+
+	//running, err := utils.IsProcessRunning(i.Pid)
+	//return running && err == nil
 }
 
 func (i *Instance) GetErr() error {

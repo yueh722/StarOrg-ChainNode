@@ -45,6 +45,7 @@ func StartClient(cfg *Config) error {
 		AppName:     cfg.AppName,
 		ServerAddr:  cfg.ServerAddr,
 		HomeDir:     cfg.HomeDir,
+		BinDir:      cfg.BinDir,
 		NodeBaseDir: getNodeBaseDir(cfg.HomeDir, nodeInfo.NodeID),
 		LogDir:      common.NodeProxyLogPath,
 		AppDataDir:  common.NodeProxyAppDataPath,

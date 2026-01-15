@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"sync"
 	"syscall"
+	"time"
 )
 
 type ExitFunc func(error)
@@ -25,6 +26,7 @@ type Session struct {
 	command    *exec.Cmd
 	exited     chan struct{}
 	exitErr    error
+	exitTime   int64
 	waitStatus syscall.WaitStatus
 	exitFuncs  []ExitFunc
 }
@@ -104,6 +106,7 @@ func (s *Session) waitForExit(logger *zlog.Logger, stdout, stderr io.Reader) {
 	defer s.mutex.Unlock()
 	s.exitErr = err
 	s.waitStatus = s.command.ProcessState.Sys().(syscall.WaitStatus)
+	s.exitTime = time.Now().UnixNano()
 	for _, exit := range s.exitFuncs {
 		exit(s.exitErr)
 	}

@@ -48,13 +48,13 @@ type nodeCommand struct {
 // SetupService is designed for nodeproxy getting setup command dispatched from NodeMaster.
 // Request from: NodeProxy
 type SetupService struct {
-	mu         sync.Mutex
-	subs       map[string]*ClientSub
-	stream     *StreamService
-	cmdEvent   commandlog.CommandEventRepo
-	chainState *ChainStateInternal
-	cmdManager *command_manager.CmdManager
-	initNodes  map[string]string
+	mu            sync.Mutex
+	subs          map[string]*ClientSub
+	stream        *StreamService
+	cmdEvent      commandlog.CommandEventRepo
+	chainState    *ChainStateInternal
+	cmdManager    *command_manager.CmdManager
+	NodeNameCache map[string]string
 }
 
 type ClientSub struct {
@@ -78,12 +78,12 @@ func NewSetupService(store cmdlogstore.CommandLogStore, stream *StreamService) *
 	}
 
 	return &SetupService{
-		subs:       make(map[string]*ClientSub),
-		cmdEvent:   cmdEvent,
-		stream:     stream,
-		chainState: LoadChainState(chainStateFile),
-		cmdManager: command_manager.NewCmdManager(),
-		initNodes:  make(map[string]string),
+		subs:          make(map[string]*ClientSub),
+		cmdEvent:      cmdEvent,
+		stream:        stream,
+		chainState:    LoadChainState(chainStateFile),
+		cmdManager:    command_manager.NewCmdManager(),
+		NodeNameCache: make(map[string]string),
 	}
 }
 
@@ -152,6 +152,10 @@ func (s *SetupService) BroadcastInitializeChainNode(
 
 	nodecmds := make(map[string]*nodeCommand, len(s.subs))
 
+	for _, clientSub := range s.subs {
+		log.Info("clientSub: ", clientSub.NodeID, clientSub.Notifier, clientSub.SubID)
+	}
+
 	for nodeID, _ := range s.subs {
 		peer := lib.GetNodeByNodeId(nodeID, nodeArray)
 		if peer == nil || !peer.Valid() {
@@ -159,7 +163,7 @@ func (s *SetupService) BroadcastInitializeChainNode(
 			continue
 		}
 
-		s.initNodes[nodeID] = peer.NodeName
+		s.NodeNameCache[nodeID] = peer.NodeName
 
 		nodecmds[nodeID] = &nodeCommand{
 			cmd: common.CmdInitializeChainNode,
@@ -207,7 +211,7 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 
 	newChainState := s.chainState.CloneAddNode(peerInfo)
 
-	nodecmds := make(map[string]*nodeCommand, len(s.subs))
+	nodecmds := make(map[string]*nodeCommand)
 
 	log.Info("prepare add node:", peerInfo.NodeId, peerInfo.NodeName)
 	log.Info("peers already initialized: ", slice.Map(s.chainState.Peers, func(_ int, peer lib.Peer) string {
@@ -236,6 +240,7 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 			log.Info("build init command with node", nodeID, clientStub.StatusNode.NodeName)
 
 		} else {
+
 			if !clientStub.StatusNode.Initialized {
 				log.Info("this node has not initialized, Ignore sending update command to it, ", peerInfo.NodeId, peerInfo.NodeName)
 				continue
@@ -251,7 +256,7 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 
 		}
 
-		s.initNodes[nodeID] = clientStub.StatusNode.NodeName
+		s.NodeNameCache[nodeID] = peerInfo.NodeName
 
 		nodecmds[nodeID] = &nodeCommand{
 			cmd:     cmd,
@@ -285,6 +290,12 @@ func (s *SetupService) PeerInitializationCompleted(nodeIDs []string) {
 	}
 }
 
+func (s *SetupService) ResetNodeStatus() {
+	for _, clientSub := range s.subs {
+		clientSub.StatusNode.Initialized = false
+	}
+}
+
 // RPC Method
 // send start,stop,restart command to specified node
 func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) error {
@@ -296,15 +307,20 @@ func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) error {
 		return ReturnError(errors.New("please initialize chain node first"))
 	}
 
-	nodecmds := make(map[string]*nodeCommand, len(ctlNodes))
+	nodecmds := make(map[string]*nodeCommand)
 
-	for _, node := range ctlNodes {
-		nodecmds[node.NodeID] = &nodeCommand{
-			cmd:     common.CmdControlNode,
-			payload: node,
+	for _, ctlNode := range ctlNodes {
+		if !s.chainState.IsNodeInitialized(ctlNode.NodeID) {
+			log.Warnf("the node %v has not initialized, Ignore sending control command to it", ctlNode.NodeID)
+			continue
 		}
 
-		log.Printf("[ControlNode] nodeID: %v, action: %v", node.NodeID, node.Action)
+		nodecmds[ctlNode.NodeID] = &nodeCommand{
+			cmd:     common.CmdControlNode,
+			payload: ctlNode,
+		}
+
+		log.Printf("[ControlNode] nodeID: %v, action: %v", ctlNode.NodeID, ctlNode.Action)
 	}
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
@@ -346,6 +362,9 @@ func (s *SetupService) BroadcastResetChainNode(resetChain common.SetupResetChain
 	if err := s.chainState.Reset(chainStateFile); err != nil {
 		return fmt.Errorf("failed to reset chain state: %v", err)
 	}
+
+	s.ResetNodeStatus()
+
 	return nil
 }
 
@@ -453,7 +472,7 @@ func (s *SetupService) getNotifierByNodeID(nodeID string) *ClientSub {
 func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 
 	log.Printf("[CommandResult] cmd=%s id=%s node=%s : %s status=%s err=%q",
-		res.Cmd, res.CommandID, res.NodeID, s.initNodes[res.NodeID], res.Status, res.Error)
+		res.Cmd, res.CommandID, res.NodeID, s.NodeNameCache[res.NodeID], res.Status, res.Error)
 
 	if reported := s.stream.ReportState(res); reported {
 		//set reported state for cmdEvent

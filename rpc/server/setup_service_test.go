@@ -176,7 +176,7 @@ func TestSetupService_BroadcastInitializeChainNode(t *testing.T) {
 	peers := MakePeer_01_02()
 
 	//append node03, node04 into above list.
-	//peers = append(peers, MakePeer_03_04()...)
+	peers = append(peers, MakePeer_03_04()...)
 
 	//update nodeID to testData
 	for i, status := range state.Nodes {

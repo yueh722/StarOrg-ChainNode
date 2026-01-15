@@ -149,8 +149,7 @@ func StopNode(runtime NodeRuntime) error {
 		return nil
 	}
 
-	runtime.KillNode()
-	return nil
+	return runtime.KillNode()
 }
 
 func RestartNode(nodeID string, opts ...CtlOption) NodeRuntime {

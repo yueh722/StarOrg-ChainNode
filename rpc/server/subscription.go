@@ -62,6 +62,7 @@ func (s *SetupService) AddOrUpdateSubscription(clientSub *ClientSub) {
 	defer s.mu.Unlock()
 
 	s.subs[clientSub.NodeID] = clientSub
+	s.NodeNameCache[clientSub.NodeID] = clientSub.StatusNode.NodeName
 
 	log.Info("add subscription:", clientSub.NodeID, clientSub.Notifier, clientSub.SubID)
 }
