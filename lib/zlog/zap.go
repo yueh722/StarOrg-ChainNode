@@ -30,11 +30,11 @@ func NewDefaultAppLog() *Logger {
 		}
 	}
 
-	return NewLogger(appName)
+	return NewLogger(appName, nil)
 }
 
 // NewLogger creates a zlog that delegates to the zap.SugaredLogger.
-func NewLogger(appName string) *Logger {
+func NewLogger(appName string, store queuestore.QueueStore) *Logger {
 	return &Logger{
 		s: NewZapSugaredLogger(
 			[]OutputSpec{

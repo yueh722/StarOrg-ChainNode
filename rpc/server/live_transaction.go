@@ -3,34 +3,72 @@ package server
 import (
 	"chain/lib"
 	"chain/lib/zlog"
-	"log"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/tidwall/gjson"
 )
 
-func ListenTransaction(peer *lib.Peer) <-chan lib.TransactionDetail {
-	txDetailChan := make(chan lib.TransactionDetail)
+func mustGetConnection(addresses []string) *websocket.Conn {
+	for {
+		for _, address := range addresses {
+
+			zlog.Info("prepare connecting to ", address)
+			c, _, err := websocket.DefaultDialer.Dial(address, nil)
+			if err != nil {
+				zlog.Error("failed to connect websocket of node RPC", err)
+				continue
+			}
+
+			zlog.Info("successfully connected to node RPC:", address)
+			return c
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func ListenTransaction(peer *lib.Peer) <-chan lib.StatusTransaction {
+	txDetailChan := make(chan lib.StatusTransaction)
 
 	go func() {
 		defer func() {
 			close(txDetailChan)
 		}()
 
-		var sinceHeight int64 = 0
+		if lib.CheckNodeOnline(peer.ToRPCAddr()) == false {
+			return
+		}
+
+		conn := mustGetConnection(peer.ToWebsocketAddr())
+
+		// subscribe Tx
+		msg := `{"jsonrpc":"2.0","method":"subscribe","id":"1","params":{"query":"tm.event='Tx'"}}`
+		_ = conn.WriteMessage(websocket.TextMessage, []byte(msg))
 
 		for {
-			if lib.CheckNodeOnline(peer.ToRPCAddr()) == false {
-				return
+			_, message, err := conn.ReadMessage()
+			if err != nil {
+				zlog.Error("failed to read message from tx subscription:", err)
+				break
 			}
 
-			txs, err := lib.GetTransaction(peer.ToRPCAddr(), &sinceHeight)
-			if err != nil {
-				zlog.Info("GetTransaction err:", err)
-				time.Sleep(5 * time.Second)
+			txBase64 := gjson.Parse(string(message)).Get("result.data.value.TxResult.tx").String()
+			//txBytes, _ := base64.StdEncoding.DecodeString(txBase64)
+
+			height := gjson.Parse(string(message)).Get("result.data.value.TxResult.height").Int()
+			txHash := gjson.Parse(string(message)).Get(`result.events.tx\.hash.0`).String()
+
+			if txBase64 == "" || txHash == "" {
 				continue
 			}
 
-			for _, tx := range txs {
-				txDetailChan <- tx
+			zlog.Info("txBase64 bytes:", txBase64, "height:", height, "hash:", (txHash))
+
+			txDetailChan <- lib.StatusTransaction{
+				Data:   txBase64,
+				Hash:   txHash,
+				Height: height,
 			}
 		}
 	}()
@@ -38,12 +76,12 @@ func ListenTransaction(peer *lib.Peer) <-chan lib.TransactionDetail {
 	return txDetailChan
 }
 
-func transmitLiveTransaction(stream *StreamService) {
+func startTransmitLiveTransaction(stream *StreamService) {
 
 	//read chain state
 	chainStateInternal := LoadChainState(chainStateFile)
 
-	// start go-routine to fetch live transactions from node and transmit to transaction subscribers
+	// start go-routine to fetch live transactions from node and transmit tx to transaction subscribers
 	go func() {
 
 		for {
@@ -52,7 +90,7 @@ func transmitLiveTransaction(stream *StreamService) {
 				time.Sleep(10 * time.Millisecond)
 				continue
 			}
-			log.Println("found activated peer:", activatedPeer.NodeName, activatedPeer.ToRPCAddr())
+			zlog.Println("found activated peer:", activatedPeer.NodeName, activatedPeer.ToRPCAddr())
 			txCh := ListenTransaction(activatedPeer)
 			for tx := range txCh {
 				if ok := stream.ReportState(tx); !ok {

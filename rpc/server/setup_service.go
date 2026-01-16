@@ -145,7 +145,11 @@ func (s *SetupService) BroadcastInitializeChainNode(
 	defer s.mu.Unlock()
 
 	if s.chainState.Initialized() {
-		return ReturnError(errors.New("chain already initialized"))
+		return (errors.New("chain already initialized"))
+	}
+
+	if err := lib.ValidNodeArray(nodeArray); err != nil {
+		return err
 	}
 
 	newChainState := NewChainState(chainID, nodeArray)

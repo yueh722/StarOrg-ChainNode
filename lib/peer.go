@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -81,6 +82,13 @@ func (p *Peer) NodeFileID() string {
 
 func (p *Peer) ToRPCAddr() string {
 	return fmt.Sprintf("http://%s:%d", p.NodeAddress, p.RPCPort)
+}
+
+func (p *Peer) ToWebsocketAddr() []string {
+	return []string{
+		fmt.Sprintf("ws://%s:%d/websocket", p.NodeAddress, p.RPCPort),
+		fmt.Sprintf("wss://%s:%d/websocket", p.NodeAddress, p.RPCPort),
+	}
 }
 
 func (p *Peer) Valid() bool {
@@ -244,4 +252,24 @@ func GetNodeNameByNodeId(nodeId string, peers string) string {
 func GetNodeByNodeId(nodeId string, peers string) *Peer {
 	peerList := ConvertJsonToPeers(peers)
 	return peerList.GetPeerByNodeId(nodeId)
+}
+
+func ValidNodeArray(nodeArray string) error {
+	peerList := ConvertJsonToPeers(nodeArray)
+	for _, p := range peerList {
+
+		if p.NodeId == "" ||
+			p.NodeKey == "" ||
+			p.NodeName == "" ||
+			p.PrivKey == "" ||
+			p.NodeAddress == "" {
+			return errors.New("nodeID or NodeKey or NodeName or PrivKey or NodeAddress is empty")
+		}
+
+		CorrectP2PPortIfNeedTo(&p.P2PPort)
+		CorrectRPCPortIfNeedTo(&p.RPCPort)
+		CorrectABCIPortIfNeedTo(&p.ABCIPort)
+		CorrectWebServicePortIfNeedTo(&p.WebServicePort)
+	}
+	return nil
 }

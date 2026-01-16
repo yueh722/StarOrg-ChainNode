@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-func MakePeerList4() lib.PeerList {
+func MakeLocalPeerList4() lib.PeerList {
 	peers := []lib.Peer{
 		{
 			NodeName:       "node01",
@@ -84,7 +84,7 @@ func init() {
 	})
 }
 
-func MakePeer_01_02() lib.PeerList {
+func MakeLocalNet_Peer_01_02() lib.PeerList {
 	peers := []lib.Peer{
 		{
 			NodeName:       "node01",
@@ -115,7 +115,7 @@ func MakePeer_01_02() lib.PeerList {
 	return peers
 }
 
-func MakePeer_03_04() lib.PeerList {
+func MakeLocalNet_Peer_03_04() lib.PeerList {
 	peers := []lib.Peer{
 		{
 			NodeName:       "node03",
@@ -173,10 +173,10 @@ func TestSetupService_BroadcastInitializeChainNode(t *testing.T) {
 	log.Println(state)
 
 	//build a peer list that contains node01, node02.
-	peers := MakePeer_01_02()
+	peers := MakeLocalNet_Peer_01_02()
 
 	//append node03, node04 into above list.
-	peers = append(peers, MakePeer_03_04()...)
+	peers = append(peers, MakeLocalNet_Peer_03_04()...)
 
 	//update nodeID to testData
 	for i, status := range state.Nodes {
@@ -219,7 +219,7 @@ func TestSetupService_BroadcastAddChainNode(t *testing.T) {
 	t.Log(state)
 
 	//peers will be added for chain
-	peers := MakePeer_03_04()
+	peers := MakeLocalNet_Peer_03_04()
 	assignedIndex := 0
 
 	//update nodeID to testData

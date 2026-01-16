@@ -82,7 +82,7 @@ func (s *StreamService) ReportState(state interface{}) bool {
 
 	err = s.notify(state)
 	if err != nil {
-		log.Println("notify stream data error", err)
+		log.Error("notify stream data error", err)
 		reported = false
 	}
 

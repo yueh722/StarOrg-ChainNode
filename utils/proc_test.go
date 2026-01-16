@@ -2,11 +2,13 @@ package utils
 
 import (
 	"testing"
+
+	"github.com/tidwall/gjson"
 )
 
 func TestGetProcessInfoByProcName(t *testing.T) {
 
-	procNames := []string{"cmd.exe", "notepad.exe", "sublime_text"}
+	procNames := []string{"cmd.exe", "notepad.exe"}
 	for _, name := range procNames {
 		pi, err := GetProcessInfoByProcName(name)
 		if err != nil {
@@ -27,4 +29,24 @@ func TestKillProcessByPath(t *testing.T) {
 		}
 
 	}
+}
+
+func TestJson(t *testing.T) {
+	ss := `{
+	"data": {
+		"index": 1,
+		"height": 12,
+	},
+	"result": {
+		"a.b": 1,
+		"c.d": [
+					"hash1"
+				],
+	},
+}`
+
+	v1 := gjson.Get(ss, "result.a\\.b").Int()
+	v2 := gjson.Get(ss, `result.c\.d.0`).String()
+
+	t.Log(v1, v2)
 }

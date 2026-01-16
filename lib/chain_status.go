@@ -2,10 +2,8 @@ package lib
 
 import (
 	"chain/utils"
-	"encoding/json"
 	"fmt"
 
-	coretypes "github.com/cometbft/cometbft/v2/rpc/core/types"
 	"github.com/tidwall/gjson"
 )
 
@@ -28,7 +26,7 @@ func rpcRoutine(name string) any {
 
 func CheckNodeOnline(rpcAddr string) bool {
 
-	url := fmt.Sprintf("%s/v1/status", rpcAddr)
+	url := fmt.Sprintf("%s/status", rpcAddr)
 
 	_, err := utils.HttpGet(url)
 	if err != nil {
@@ -52,9 +50,10 @@ func GetActivatedNode(peers PeerList) *Peer {
 	return nil
 }
 
-type TransactionDetail struct {
-	Key   string
-	Value string
+type StatusTransaction struct {
+	Data   string
+	Hash   string
+	Height int64
 }
 
 // Tx
@@ -65,14 +64,14 @@ type TransactionDetail struct {
 // Request
 // Http
 //
-//	curl  http://127.0.0.1:26657/v1/tx
+//	curl  http://127.0.0.1:26657/tx
 //
 // JSONRPC
 //
-//	curl -X POST https://localhost:26657/v1 -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tx\"}"
-func GetTransaction2(rpcAddr string, height int) ([]TransactionDetail, int, error) {
+//	curl -X POST https://localhost:26657 -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tx\"}"
+func GetTransaction2(rpcAddr string, height int) ([]StatusTransaction, int, error) {
 
-	url := fmt.Sprintf("%s/v1/tx?hash=%s&prove=false", rpcAddr, "")
+	url := fmt.Sprintf("%s/tx?hash=%s&prove=false", rpcAddr, "")
 
 	_, err := utils.HttpGet(url)
 	if err != nil {
@@ -92,51 +91,14 @@ func makeResultData(resultBytes []byte) map[string]interface{} {
 		return resultMap
 	}
 
-	if v := gjson.Parse(string(resultBytes)).Get("error.data").String(); v != "" {
+	if v := gjson.Parse(string(resultBytes)).Get("error\\.data").String(); v != "" {
 		resultMap["error"] = v
 		return resultMap
 	}
 
-	if v := gjson.Parse(string(resultBytes)).Get("result.hash").String(); v != "" {
+	if v := gjson.Parse(string(resultBytes)).Get("result\\.hash").String(); v != "" {
 		resultMap["hash"] = v
 	}
 
 	return resultMap
-}
-
-// block_results
-// height (integer): Height of the block which contains the results. If no height is specified, the latest block height will be used
-func GetTransaction(rpcAddr string, height *int64) ([]TransactionDetail, error) {
-	url := fmt.Sprintf("%s/v1/block_results", rpcAddr)
-	if *height > 0 {
-		url = fmt.Sprintf("%s/v1/block_results?height=%v", rpcAddr, height)
-	}
-	rawRes, err := utils.HttpGet(url)
-	if err != nil {
-		return nil, err
-	}
-
-	resultJson := gjson.Get(string(rawRes), "result").Raw
-
-	blockResult := &coretypes.ResultBlockResults{}
-	if err := json.Unmarshal([]byte(resultJson), blockResult); err != nil {
-		return nil, err
-	}
-
-	*height = blockResult.Height
-
-	txDetails := []TransactionDetail{}
-
-	for _, txRes := range blockResult.TxResults {
-		for _, event := range txRes.Events {
-			for _, attribute := range event.Attributes {
-				txDetails = append(txDetails, TransactionDetail{
-					Key:   attribute.GetKey(),
-					Value: attribute.GetValue(),
-				})
-			}
-		}
-	}
-
-	return txDetails, nil
 }

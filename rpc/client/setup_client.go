@@ -222,17 +222,18 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 // reset chain handler
 func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
 
-	forceKill := false
-	if forceKill && c.nodeRuntime != nil {
-		c.nodeRuntime.KillNode()
+	if c.nodeRuntime != nil {
+		if err := c.nodeRuntime.KillNode(); err != nil {
+			log.Error("[handleResetChainCmd] failed to kill node, err:", err)
+		}
 	} else {
 		//kill all node and app processes
 		if err := utils.KillProcessByProcNameAndCmdline(lib.AppFileName, c.cfg.NodeInfo.NodeID); err != nil {
-			log.Println("failed to kill app process, err:", err)
+			log.Error("[handleResetChainCmd] failed to kill app process, err:", err)
 		}
 
 		if err := utils.KillProcessByProcNameAndCmdline(lib.NodeFileName, c.cfg.NodeInfo.NodeID); err != nil {
-			log.Println("failed to kill node process, err:", err)
+			log.Error("[handleResetChainCmd] failed to kill node process, err:", err)
 		}
 	}
 

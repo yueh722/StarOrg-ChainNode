@@ -205,7 +205,7 @@ func GetNodeInfoFromCometbftConfig(nodeDir string) (*NodeInfo, error) {
 		return item.Name == cmtcfg.Moniker
 	})
 
-	//update listen address with node address
+	//update listening address with node address
 	nodeKey, err := p2p.LoadNodeKey(cmtcfg.NodeKeyFile())
 	if err != nil {
 		return nil, err
