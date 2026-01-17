@@ -161,14 +161,14 @@ func CheckChainNode(nodeId, nodeDir string) bool {
 	return false
 }
 
-func ResetChainNode(homeDir, nodeID string) (*NodeInfo, error) {
+func ResetChainNode(homeDir, nodeID, nodeName string) (*NodeInfo, error) {
 	nodeDir := filepath.Join(homeDir, nodeID)
 	err := os.RemoveAll(nodeDir)
 	if err != nil {
 		return nil, fmt.Errorf("remove chain node path %v failed: %v", nodeDir, err)
 	}
 
-	nodeInfo, err := ResetPeerConfig(homeDir, nodeID)
+	nodeInfo, err := ResetPeerConfig(homeDir, nodeID, nodeName)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func ResetChainNode(homeDir, nodeID string) (*NodeInfo, error) {
 
 func GetNodeInfoFromCometbftConfig(nodeDir string) (*NodeInfo, error) {
 
-	// load config from config.toml in homeDir
+	// load config from config.toml in nodeDir
 	viper.AddConfigPath(filepath.Join(nodeDir, "config"))
 	viper.SetConfigName("config")
 	if err := viper.ReadInConfig(); err != nil {
@@ -234,25 +234,25 @@ func GetNodeInfo(homeDir string) (*NodeInfo, error) {
 	return PeerInfoToNodeInfo(peer), nil
 }
 
-func InitializeNewNodeID(homeDir string) (*NodeInfo, error) {
-	peer := &Peer{
-		NodeId: NewNodeId(),
+func ExtractNodeNameFromAppName(appName string) string {
+	if len(appName) <= len(DelegatorApp) {
+		return ""
 	}
-
-	if err := peer.Save(filepath.Join(homeDir, peerConfigFile)); err != nil {
-		return nil, err
-	}
-
-	if err := os.Mkdir(filepath.Join(homeDir, peer.NodeId), os.ModePerm); err != nil {
-		return nil, err
-	}
-
-	return PeerInfoToNodeInfo(peer), nil
+	return appName[len(DelegatorApp):]
 }
 
-func ResetPeerConfig(homeDir, nodeID string) (*NodeInfo, error) {
+func InitializeNewNodeID(homeDir, appName string) (*NodeInfo, error) {
+	return ResetPeerConfig(homeDir, NewNodeId(), appName)
+}
+
+func ResetPeerConfig(homeDir, nodeID, nodeName string) (*NodeInfo, error) {
+	if nodeName == "" {
+		nodeName = RandomNodeName()
+	}
+
 	peer := &Peer{
-		NodeId: nodeID,
+		NodeId:   nodeID,
+		NodeName: nodeName,
 	}
 
 	if err := peer.Save(filepath.Join(homeDir, peerConfigFile)); err != nil {
@@ -276,4 +276,19 @@ func PeerInfoToNodeInfo(peer *Peer) *NodeInfo {
 		WebServiceAddr: fmt.Sprintf("%s:%d", peer.NodeAddress, peer.WebServicePort),
 		Validator:      peer.IsValidator,
 	}
+}
+
+func IsNodeInitialized(nodeInfo *NodeInfo) bool {
+	if nodeInfo == nil {
+		return false
+	}
+
+	if nodeInfo.NodeName == "" ||
+		nodeInfo.ProxyApp == "" ||
+		nodeInfo.WebServiceAddr == "" ||
+		nodeInfo.RPCAddr == "" {
+		return false
+	}
+
+	return true
 }

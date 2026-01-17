@@ -1,6 +1,7 @@
 package nodeproxy
 
 import (
+	"chain/lib"
 	"chain/lib/zlog"
 	"chain/utils"
 	"fmt"
@@ -48,8 +49,10 @@ func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, error) {
 			return nil, fmt.Errorf("read config file error: %v", err)
 		}
 
+		defaultSection := iniFile.Section("default")
+
 		cfg := &Config{}
-		if err := iniFile.Section("default").MapTo(cfg); err != nil {
+		if err := defaultSection.MapTo(cfg); err != nil {
 			return nil, fmt.Errorf("data in config file error: ", err)
 		}
 
@@ -57,6 +60,16 @@ func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, error) {
 
 		if cfg.BinDir == "" {
 			cfg.BinDir = filepath.Join(cfg.HomeDir, "bin")
+		}
+
+		if cfg.AppName == "" {
+			newAppName := lib.RandomNodeName()
+			defaultSection.Key("AppName").SetValue(newAppName)
+			if err := iniFile.SaveTo(cfgFile); err != nil {
+				return nil, fmt.Errorf("save config file of NodeProxy error: %v", err)
+			}
+
+			zlog.Info("create a random node name with current config", newAppName)
 		}
 
 		return cfg, nil

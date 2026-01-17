@@ -8,6 +8,8 @@ const (
 	NodeFileName = "cometbft.exe"
 )
 
+const DelegatorApp = "NodeProxyD_"
+
 var (
 	DefaultP2PPort        uint16 = 26656
 	DefaultRPCPort        uint16 = 26657

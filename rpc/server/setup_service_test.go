@@ -184,6 +184,7 @@ func TestSetupService_BroadcastInitializeChainNode(t *testing.T) {
 			break
 		}
 		peers[i].NodeId = status.NodeID
+		peers[i].NodeName = status.NodeName
 	}
 
 	var errResult error
@@ -233,6 +234,7 @@ func TestSetupService_BroadcastAddChainNode(t *testing.T) {
 		}
 
 		peers[assignedIndex].NodeId = status.NodeID
+		peers[assignedIndex].NodeName = status.NodeName
 		t.Logf("assigned peer for node %v : %v, total: %v\n", peers[assignedIndex].NodeId, peers[assignedIndex].NodeName, assignedIndex)
 		assignedIndex++
 	}

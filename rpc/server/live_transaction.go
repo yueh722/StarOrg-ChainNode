@@ -13,14 +13,14 @@ func mustGetConnection(addresses []string) *websocket.Conn {
 	for {
 		for _, address := range addresses {
 
-			zlog.Info("prepare connecting to ", address)
+			zlog.Info("[live transaction] prepare connecting to ", address)
 			c, _, err := websocket.DefaultDialer.Dial(address, nil)
 			if err != nil {
-				zlog.Error("failed to connect websocket of node RPC", err)
+				zlog.Error("[live transaction] failed to connect websocket of node RPC", err)
 				continue
 			}
 
-			zlog.Info("successfully connected to node RPC:", address)
+			zlog.Info("[live transaction] successfully connected to node RPC:", address)
 			return c
 		}
 
@@ -49,7 +49,7 @@ func ListenTransaction(peer *lib.Peer) <-chan lib.StatusTransaction {
 		for {
 			_, message, err := conn.ReadMessage()
 			if err != nil {
-				zlog.Error("failed to read message from tx subscription:", err)
+				zlog.Error("[live transaction] failed to read message from tx subscription:", err)
 				break
 			}
 
@@ -63,7 +63,7 @@ func ListenTransaction(peer *lib.Peer) <-chan lib.StatusTransaction {
 				continue
 			}
 
-			zlog.Info("txBase64 bytes:", txBase64, "height:", height, "hash:", (txHash))
+			zlog.Info("[live transaction] txBase64 bytes:", txBase64, "height:", height, "hash:", (txHash))
 
 			txDetailChan <- lib.StatusTransaction{
 				Data:   txBase64,
@@ -79,22 +79,26 @@ func ListenTransaction(peer *lib.Peer) <-chan lib.StatusTransaction {
 func startTransmitLiveTransaction(stream *StreamService) {
 
 	//read chain state
-	chainStateInternal := LoadChainState(chainStateFile)
+	chainStateInternal := &ChainStateInternal{}
 
 	// start go-routine to fetch live transactions from node and transmit tx to transaction subscribers
 	go func() {
 
 		for {
+			if chainStateInternal.Peers == nil {
+				chainStateInternal = LoadChainState(chainStateFile)
+			}
+
 			activatedPeer := lib.GetActivatedNode(chainStateInternal.Peers)
 			if activatedPeer == nil {
 				time.Sleep(10 * time.Millisecond)
 				continue
 			}
-			zlog.Println("found activated peer:", activatedPeer.NodeName, activatedPeer.ToRPCAddr())
+			zlog.Println("[live transaction] found activated peer:", activatedPeer.NodeName, activatedPeer.ToRPCAddr())
 			txCh := ListenTransaction(activatedPeer)
 			for tx := range txCh {
 				if ok := stream.ReportState(tx); !ok {
-					zlog.Info("failed to transmit live transaction")
+					zlog.Info("[live transaction] failed to transmit live transaction")
 				}
 				time.Sleep(1 * time.Second)
 			}

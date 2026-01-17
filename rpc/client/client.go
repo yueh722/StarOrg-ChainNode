@@ -71,7 +71,7 @@ func New(cfg ClientConfig) (*Client, error) {
 			continue
 		}
 
-		log.Println("server connected successfully:", cfg.ServerAddr)
+		log.Println("server connected successfully: ", cfg.ServerAddr)
 		break
 	}
 
@@ -100,7 +100,7 @@ func (c *Client) Reconnect() {
 		c.Conn = client
 		c.SetupClient.Update(client)
 		c.StatusClient.Update(client)
-		log.Println("Reconnected successfully:", c.Cfg.ServerAddr)
+		log.Println("Reconnected successfully: ", c.Cfg.ServerAddr)
 		break
 	}
 }

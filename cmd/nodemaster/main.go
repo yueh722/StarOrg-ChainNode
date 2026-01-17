@@ -6,6 +6,7 @@ import (
 	"chain/utils"
 	cmd "chain/winservice"
 	"context"
+	"encoding/json"
 	"path/filepath"
 )
 
@@ -66,7 +67,8 @@ func AppMain(ctx context.Context, runtime cmd.ServiceRuntime) {
 		log.Fatal(err)
 	}
 
-	log.Info("applied config data of master: ", cfg)
+	cfgByte, _ := json.MarshalIndent(cfg, "", "  ")
+	log.Info("applied config data of master: \n", string(cfgByte))
 
 	err = nodemaster.StartServer(cfg)
 	if err != nil {

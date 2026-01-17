@@ -36,13 +36,13 @@ func StartClient(cfg *Config) error {
 
 	if nodeInfo == nil {
 		// init new node id if current node is uninitialized
-		if nodeInfo, err = lib.InitializeNewNodeID(cfg.HomeDir); err != nil {
+		if nodeInfo, err = lib.InitializeNewNodeID(cfg.HomeDir, cfg.AppName); err != nil {
 			return fmt.Errorf("failed to initialize new nodeID: %v", err)
 		}
 	}
 
 	nodeClient, err := client.New(client.ClientConfig{
-		AppName:     cfg.AppName,
+		AppName:     lib.DelegatorApp + cfg.AppName,
 		ServerAddr:  cfg.ServerAddr,
 		HomeDir:     cfg.HomeDir,
 		BinDir:      cfg.BinDir,

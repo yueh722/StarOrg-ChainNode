@@ -94,13 +94,13 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 		for !exitSub {
 			select {
 			case cmdEnvelope := <-cmdChan:
-				log.Printf("command: %v", cmdEnvelope.Payload)
+				log.Println("recived command: ", cmdEnvelope.Cmd)
 				err := c.handleCmd(&cmdEnvelope)
 				if err != nil {
-					log.Printf("failed to handle cmd: %v", err)
+					log.Println("failed to handle cmd: ", err)
 				}
 			case errChan := <-sub.Err():
-				log.Printf("subscription Err: %v", errChan)
+				log.Println("subscription Err: ", errChan)
 				exitSub = true
 				break
 			}
@@ -148,7 +148,7 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 		return err
 	}
 
-	//reload nodeInfo of cfg
+	//reload nodeInfo
 	c.cfg.NodeInfo, err = lib.GetNodeInfo(c.cfg.HomeDir)
 	if err != nil {
 		log.Error("[handleInitChainNodeCmd] failed to reload node info upon initialized chain node, err:", err)
@@ -240,7 +240,7 @@ func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
 	time.Sleep(2 * time.Second)
 
 	//remove node base directory
-	nodeInfo, err := lib.ResetChainNode(c.cfg.HomeDir, c.cfg.NodeInfo.NodeID)
+	nodeInfo, err := lib.ResetChainNode(c.cfg.HomeDir, c.cfg.NodeInfo.NodeID, c.cfg.NodeInfo.NodeName)
 	if err != nil {
 		return fmt.Errorf("failed to remove node base directory, err: %v", err)
 	}
@@ -254,6 +254,10 @@ func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
 func (c *SetupClient) handleStartNode() error {
 	if c.nodeRuntime != nil && c.nodeRuntime.IsRunning() {
 		return errors.New("node or app already running")
+	}
+
+	if !lib.IsNodeInitialized(c.cfg.NodeInfo) {
+		return errors.New("node not initialized")
 	}
 
 	nodeArg := c.buildNodeArg()

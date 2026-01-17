@@ -1,6 +1,7 @@
 package server
 
 import (
+	"chain/lib"
 	log "chain/lib/zlog"
 	"chain/rpc/common"
 	"context"
@@ -13,7 +14,7 @@ import (
 // Subscription
 func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.DelegatorInfo) (*rpc.Subscription, error) {
 
-	if !strings.HasPrefix(delegator.App, common.DelegatorApp) {
+	if !strings.HasPrefix(delegator.App, lib.DelegatorApp) {
 		return nil, fmt.Errorf("unknown delegator %v", delegator.App)
 	}
 
@@ -25,7 +26,7 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 	// use initialization status that stored on master side.
 	delegator.StatusNode.Initialized = s.chainState.IsNodeInitialized(delegator.StatusNode.NodeID)
 
-	log.Printf("Received SubscribeCommand request from node, app %s, id: %s, name: %s, initialized: %v",
+	log.Printf("Received SubscribeCommand that requests from node, app: %s, id: %s, name: %s, initialized: %v",
 		delegator.App,
 		delegator.StatusNode.NodeID,
 		delegator.StatusNode.NodeName,
@@ -64,5 +65,4 @@ func (s *SetupService) AddOrUpdateSubscription(clientSub *ClientSub) {
 	s.subs[clientSub.NodeID] = clientSub
 	s.NodeNameCache[clientSub.NodeID] = clientSub.StatusNode.NodeName
 
-	log.Info("add subscription:", clientSub.NodeID, clientSub.Notifier, clientSub.SubID)
 }

@@ -129,7 +129,7 @@ func (s *Server) CheckTlsOption() bool {
 			return true
 		}
 
-		log.Println("crt and key files are not exist. ignore tls option")
+		log.Println("cert and key files are not exist. ignore tls option")
 	}
 
 	/*
@@ -165,11 +165,11 @@ func (s *Server) Serve() error {
 
 	if tlsEnabled {
 		protocol = "https"
-		log.Println("Server starting on", s.addr, "with TLS")
+		log.Println("Server starting on ", s.addr, " with TLS")
 		return s.srv.ListenAndServeTLS(s.tls.TlsCertFile, s.tls.TlsKeyFile)
 	} else {
 		protocol = "http"
-		log.Println("Server starting on", s.addr)
+		log.Println("Server starting on ", s.addr)
 		return s.srv.ListenAndServe()
 	}
 }

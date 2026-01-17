@@ -6,6 +6,7 @@ import (
 	"chain/utils"
 	cmd "chain/winservice"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 )
@@ -69,7 +70,8 @@ func AppMain(ctx context.Context, runtime cmd.ServiceRuntime) {
 		log.Fatal(err)
 	}
 
-	log.Info("applied config data: ", cfg)
+	cfgByte, _ := json.MarshalIndent(cfg, "", "  ")
+	log.Info("applied config data: \n", string(cfgByte))
 
 	err = nodeproxy.StartClient(cfg)
 	if err != nil {

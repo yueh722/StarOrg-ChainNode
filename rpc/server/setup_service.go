@@ -102,14 +102,12 @@ func ReturnError(err error) error {
 // RPC Method
 // Fetch: "retrive chain state and node state"
 func (s *SetupService) GetChainState() *ChainState {
-
 	var nodes []common.StatusNode
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for _, clientSub := range s.subs {
-
 		node := &clientSub.StatusNode
 		if node.Initialized {
 			node.Healthy = lib.CheckNodeOnline(node.RPCAddr)
@@ -118,6 +116,10 @@ func (s *SetupService) GetChainState() *ChainState {
 
 		nodes = append(nodes, *node)
 	}
+
+	slice.SortBy(nodes, func(a, b common.StatusNode) bool {
+		return a.NodeInfo.NodeName < b.NodeInfo.NodeName
+	})
 
 	if s.chainState.Initialized() {
 		return &ChainState{
@@ -155,10 +157,6 @@ func (s *SetupService) BroadcastInitializeChainNode(
 	newChainState := NewChainState(chainID, nodeArray)
 
 	nodecmds := make(map[string]*nodeCommand, len(s.subs))
-
-	for _, clientSub := range s.subs {
-		log.Info("clientSub: ", clientSub.NodeID, clientSub.Notifier, clientSub.SubID)
-	}
 
 	for nodeID, _ := range s.subs {
 		peer := lib.GetNodeByNodeId(nodeID, nodeArray)
@@ -419,7 +417,7 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 				return ReturnError(errors.New("client not initialized"))
 			}
 
-			log.Info("sending command to node", clientSub.Notifier, clientSub.SubID, nodeID)
+			log.Info("sending command to node", nodeID)
 
 			//notify all client to initialize node
 			if err := clientSub.Notifier.Notify(clientSub.SubID, env); err != nil {
@@ -475,8 +473,8 @@ func (s *SetupService) getNotifierByNodeID(nodeID string) *ClientSub {
 // complete command that sent to node
 func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 
-	log.Printf("[CommandResult] cmd=%s id=%s node=%s : %s status=%s err=%q",
-		res.Cmd, res.CommandID, res.NodeID, s.NodeNameCache[res.NodeID], res.Status, res.Error)
+	log.Printf("[CommandResult] cmd: %s, nodeID: %s, nodeName: %s, status: %s, err: %v",
+		res.Cmd, res.NodeID, s.NodeNameCache[res.NodeID], res.Status, res.Error)
 
 	if reported := s.stream.ReportState(res); reported {
 		//set reported state for cmdEvent
@@ -487,8 +485,10 @@ func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 		err = errors.New(res.Error)
 	}
 
+	// complete command
 	_ = s.cmdManager.CompleteCommand(res.CommandID, err)
 
+	// complete log status of command event
 	_, err = s.cmdEvent.Complete(res.CommandID, res.Status == commandlog.CmdSuccess, res.Message, res.Error, res.Output)
 
 	return err

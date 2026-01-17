@@ -180,6 +180,14 @@ func (peers PeerList) ToJson() string {
 	return ""
 }
 
+func RandomNodeName() string {
+	nodeKey := &p2p.NodeKey{
+		PrivKey: ed25519.GenPrivKey(),
+	}
+
+	return nodeKey.ID()[:5]
+}
+
 func NewNodeId() string {
 	nodeKey := &p2p.NodeKey{
 		PrivKey: ed25519.GenPrivKey(),

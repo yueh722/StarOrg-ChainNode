@@ -12,8 +12,6 @@ type DelegatorInfo struct {
 	StatusNode StatusNode
 }
 
-const DelegatorApp = "NodeProxyD_"
-
 // Management
 // method: Subscription
 type SetupInitializeChainNode struct {
