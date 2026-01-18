@@ -111,7 +111,7 @@ func (s *SetupService) GetChainState() *ChainState {
 		node := &clientSub.StatusNode
 		if node.Initialized {
 			node.Healthy = lib.CheckNodeOnline(node.RPCAddr)
-			node.LastCheck = time.Now().UnixNano()
+			node.LastCheck = utils.NowString()
 		}
 
 		nodes = append(nodes, *node)
@@ -295,6 +295,7 @@ func (s *SetupService) PeerInitializationCompleted(nodeIDs []string) {
 func (s *SetupService) ResetNodeStatus() {
 	for _, clientSub := range s.subs {
 		clientSub.StatusNode.Initialized = false
+		lib.ResetNodeInfo(&clientSub.StatusNode.NodeInfo)
 	}
 }
 

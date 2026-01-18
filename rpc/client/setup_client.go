@@ -72,7 +72,7 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 			StatusNode: common.StatusNode{
 				NodeInfo:    *c.cfg.NodeInfo,
 				Healthy:     lib.CheckNodeOnline(c.cfg.NodeInfo.RPCAddr),
-				LastCheck:   time.Now().UnixNano(),
+				LastCheck:   utils.NowString(),
 				StartedTime: lib.GetNodeCreatedTime(c.nodeRuntime),
 			},
 		},
@@ -229,11 +229,11 @@ func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
 	} else {
 		//kill all node and app processes
 		if err := utils.KillProcessByProcNameAndCmdline(lib.AppFileName, c.cfg.NodeInfo.NodeID); err != nil {
-			log.Error("[handleResetChainCmd] failed to kill app process, err:", err)
+			log.Info("[handleResetChainCmd] failed to kill app process, err: ", err)
 		}
 
 		if err := utils.KillProcessByProcNameAndCmdline(lib.NodeFileName, c.cfg.NodeInfo.NodeID); err != nil {
-			log.Error("[handleResetChainCmd] failed to kill node process, err:", err)
+			log.Info("[handleResetChainCmd] failed to kill node process, err: ", err)
 		}
 	}
 

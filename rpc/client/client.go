@@ -3,9 +3,12 @@ package client
 import (
 	"chain/lib"
 	log "chain/lib/zlog"
+	"chain/rpc/security"
 	"chain/utils"
 	"context"
 	"crypto/tls"
+	"fmt"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"sync"
@@ -54,6 +57,16 @@ func (c ClientConfig) getNodeBinFile() string {
 	return filepath.Join(c.getBinPath(), lib.NodeFileName)
 }
 
+func MakeRpcHeader(clientID string) http.Header {
+	clientID = fmt.Sprintf("%s:%v", clientID, security.RandString(8))
+
+	header := http.Header{}
+	header.Set("Authorization", fmt.Sprintf("Bearer %s", security.GenerateToken(clientID, security.SharedSecret)))
+	header.Set("X-Client-ID", clientID)
+
+	return header
+}
+
 func New(cfg ClientConfig) (*Client, error) {
 
 	var (
@@ -64,7 +77,7 @@ func New(cfg ClientConfig) (*Client, error) {
 	utils.TryCreateDir(cfg.HomeDir)
 
 	for {
-		client, err = Connect(&cfg.ServerAddr)
+		client, err = Connect(&cfg.ServerAddr, MakeRpcHeader(cfg.AppName))
 		if err != nil {
 			log.Println(err)
 			time.Sleep(5 * time.Second)
@@ -91,7 +104,7 @@ func (c *Client) Reconnect() {
 	defer c.mux.Unlock()
 
 	for {
-		client, err := Connect(&c.Cfg.ServerAddr)
+		client, err := Connect(&c.Cfg.ServerAddr, MakeRpcHeader(c.Cfg.AppName))
 		if err != nil {
 			log.Println(err)
 			time.Sleep(5 * time.Second)
@@ -106,7 +119,7 @@ func (c *Client) Reconnect() {
 }
 
 // Connect will update rawurl to the real url that connected.
-func Connect(rawurl *string) (*rpc.Client, error) {
+func Connect(rawurl *string, header http.Header) (*rpc.Client, error) {
 
 	serverAddrs := map[string]bool{}
 
@@ -138,9 +151,9 @@ func Connect(rawurl *string) (*rpc.Client, error) {
 				TLSClientConfig: tlsConfig,
 			}
 
-			client, err = rpc.DialOptions(context.Background(), addr, rpc.WithWebsocketDialer(dialer))
+			client, err = rpc.DialOptions(context.Background(), addr, rpc.WithWebsocketDialer(dialer), rpc.WithHeaders(header))
 		} else {
-			client, err = rpc.DialContext(context.Background(), addr)
+			client, err = rpc.DialOptions(context.Background(), addr, rpc.WithHeaders(header))
 		}
 
 		if err != nil {

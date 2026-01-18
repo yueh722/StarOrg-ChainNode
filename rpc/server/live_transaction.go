@@ -16,11 +16,11 @@ func mustGetConnection(addresses []string) *websocket.Conn {
 			zlog.Info("[live transaction] prepare connecting to ", address)
 			c, _, err := websocket.DefaultDialer.Dial(address, nil)
 			if err != nil {
-				zlog.Error("[live transaction] failed to connect websocket of node RPC", err)
+				zlog.Error("[live transaction] failed to connect websocket of node RPC ", err)
 				continue
 			}
 
-			zlog.Info("[live transaction] successfully connected to node RPC:", address)
+			zlog.Info("[live transaction] successfully connected to node RPC: ", address)
 			return c
 		}
 
@@ -63,7 +63,7 @@ func ListenTransaction(peer *lib.Peer) <-chan lib.StatusTransaction {
 				continue
 			}
 
-			zlog.Info("[live transaction] txBase64 bytes:", txBase64, "height:", height, "hash:", (txHash))
+			zlog.Info("[live transaction] txBase64 bytes: %v, height: %v, hash: %v", txBase64, height, (txHash))
 
 			txDetailChan <- lib.StatusTransaction{
 				Data:   txBase64,
@@ -94,7 +94,7 @@ func startTransmitLiveTransaction(stream *StreamService) {
 				time.Sleep(10 * time.Millisecond)
 				continue
 			}
-			zlog.Println("[live transaction] found activated peer:", activatedPeer.NodeName, activatedPeer.ToRPCAddr())
+			zlog.Printf("[live transaction] found activated peer: %v %v", activatedPeer.NodeName, activatedPeer.ToRPCAddr())
 			txCh := ListenTransaction(activatedPeer)
 			for tx := range txCh {
 				if ok := stream.ReportState(tx); !ok {

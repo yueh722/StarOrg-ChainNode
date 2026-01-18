@@ -292,3 +292,15 @@ func IsNodeInitialized(nodeInfo *NodeInfo) bool {
 
 	return true
 }
+
+func ResetNodeInfo(nodeInfo *NodeInfo) {
+	if nodeInfo == nil {
+		return
+	}
+
+	nodeInfo.NodeAddress = ""
+	nodeInfo.WebServiceAddr = ""
+	nodeInfo.RPCAddr = ""
+	nodeInfo.ProxyApp = ""
+	nodeInfo.Validator = false
+}

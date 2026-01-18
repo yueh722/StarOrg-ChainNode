@@ -50,7 +50,7 @@ type SetupControlNode struct {
 type StatusNode struct {
 	lib.NodeInfo `json:"lib_._node_info"`
 	Healthy      bool   `json:"healthy,omitempty"`
-	LastCheck    int64  `json:"last_check,omitempty"`
+	LastCheck    string `json:"last_check,omitempty"`
 	StartedTime  string `json:"started_time,omitempty"`
 	Initialized  bool   `json:"initialized,omitempty"`
 }

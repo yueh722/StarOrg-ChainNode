@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // return %ProgramData%/appName or %appdata%/appName
@@ -58,4 +59,8 @@ func TryCreateDir(path string) string {
 		log.Fatalf("create directory %s, error: %v", path, err)
 	}
 	return path
+}
+
+func NowString() string {
+	return time.Now().Format("2006-01-02 15:04:05")
 }

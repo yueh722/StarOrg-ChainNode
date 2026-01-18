@@ -5,6 +5,7 @@ import (
 	"chain/lib/queuestore"
 	log "chain/lib/zlog"
 	"chain/rpc/security"
+	"chain/rpc/server/middleware"
 	"chain/utils"
 	"crypto/rand"
 	"encoding/hex"
@@ -107,9 +108,14 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		fmt.Fprintf(w, "RPC Server is running")
 	})
 
+	middlewares := []middleware.Middleware{
+		security.NewFirewall(cfg.Option).Middleware,
+		security.NewAuth(cfg.Option.TokenSecret).Middleware,
+	}
+
 	srv := &http.Server{
 		Addr:    cfg.Addr,
-		Handler: security.NewFirewall(cfg.Option).Wrap(mux),
+		Handler: middleware.Chain(mux, middlewares...),
 	}
 
 	return &Server{

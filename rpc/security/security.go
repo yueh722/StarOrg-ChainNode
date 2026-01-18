@@ -8,6 +8,7 @@ import (
 type SecurityOption struct {
 	FWMode         FirewallMode
 	AllowOnlyHosts []string // 这里只放 IP
+	TokenSecret    []byte
 }
 
 type FirewallMode string
@@ -46,14 +47,14 @@ func NewFirewall(opt SecurityOption) *Firewall {
 	return fw
 }
 
-func (fw *Firewall) Wrap(next http.Handler) http.Handler {
+func (fw *Firewall) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if isLocalIP(clientIP(r.RemoteAddr)) {
 			next.ServeHTTP(w, r)
 			return
 		}
-		
+
 		switch fw.mode {
 
 		case AllowAll:

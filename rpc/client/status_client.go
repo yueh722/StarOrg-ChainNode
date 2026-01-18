@@ -4,7 +4,6 @@ import (
 	"chain/lib"
 	"chain/rpc/common"
 	"chain/utils"
-	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/shirou/gopsutil/disk"
@@ -39,7 +38,7 @@ func (c *StatusClient) ReportNodeStatus() error {
 	err = c.client.Call(nil, "status_reportNodeStatus", common.StatusNode{
 		NodeInfo:    *nodeInfo,
 		Healthy:     lib.CheckNodeOnline(nodeInfo.RPCAddr),
-		LastCheck:   time.Now().UnixNano(),
+		LastCheck:   utils.NowString(),
 		StartedTime: utils.GetProcessCreatedTime(lib.NodeFileName, lib.AppFileName),
 		Initialized: false,
 	})

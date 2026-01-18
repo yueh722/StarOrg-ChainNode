@@ -56,6 +56,7 @@ func StartServer(cfg *Config) error {
 		Option: security.SecurityOption{
 			FWMode:         cfg.FWMode,
 			AllowOnlyHosts: cfg.AllowOnlyHosts,
+			TokenSecret:    security.SharedSecret,
 		},
 		Tls: cfg.Tls,
 	})
