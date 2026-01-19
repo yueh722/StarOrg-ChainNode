@@ -9,7 +9,6 @@ package lib
 import (
 	"bufio"
 	"chain/lib/zlog"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -39,7 +38,7 @@ type LogWriter struct {
 func (lw *LogWriter) Write(p []byte) (n int, err error) {
 	if lw.errLevel {
 		lw.logger.Error(string(p))
-		fmt.Println("err", string(p))
+		//fmt.Println("err", string(p))
 	} else {
 		lw.logger.Info(string(p))
 		//fmt.Println("info", string(p))

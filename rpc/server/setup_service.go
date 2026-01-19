@@ -490,7 +490,7 @@ func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 	_ = s.cmdManager.CompleteCommand(res.CommandID, err)
 
 	// complete log status of command event
-	_, err = s.cmdEvent.Complete(res.CommandID, res.Status == commandlog.CmdSuccess, res.Message, res.Error, res.Output)
+	_, err = s.cmdEvent.Complete(res.CommandID, res.Status == commandlog.CmdSuccess, res.Message, res.Error)
 
 	return err
 }

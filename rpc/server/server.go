@@ -102,7 +102,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/ws", server.WebsocketHandler([]string{"*"}))
+	mux.Handle("/websocket", server.WebsocketHandler([]string{"*"}))
 	mux.Handle("/rpc", server)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "RPC Server is running")

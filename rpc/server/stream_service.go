@@ -80,6 +80,12 @@ func (s *StreamService) ReportState(state interface{}) bool {
 	reported := true
 	var err error
 
+	// ReportState receives following kind of data and will transmit these data to subscribers.
+	// *common.StatusNode
+	// *common.StatusStorage
+	// commandlog.CommandResult
+	// lib.StatusTransaction
+
 	err = s.notify(state)
 	if err != nil {
 		log.Error("notify stream data error", err)

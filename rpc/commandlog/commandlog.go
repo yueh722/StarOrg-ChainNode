@@ -39,16 +39,13 @@ type CommandResult struct {
 	ReportedAt int64 `json:"reported_at"`           // report time (always)
 	StartedAt  int64 `json:"started_at,omitempty"`  // optional
 	FinishedAt int64 `json:"finished_at,omitempty"` // optional
-
-	// optional: structured output, logs, extra metadata, etc.
-	Output json.RawMessage `json:"output,omitempty"`
 }
 
 type CompletedRoutine func(err error)
 
 type CommandEventRepo interface {
 	Update(r CommandResult, fn CompletedRoutine) error
-	Complete(commandID string, success bool, message string, errStr string, output json.RawMessage) (CommandResult, error)
+	Complete(commandID string, success bool, message string, errStr string) (CommandResult, error)
 
 	GetCommand(commandID string) (CommandResult, error)
 	ListCommandByNode(nodeID string) ([]CommandResult, error)
@@ -133,7 +130,7 @@ func (r *CommandRepo) Update(e CommandResult, completedRoutine CompletedRoutine)
 	return nil
 }
 
-func (r *CommandRepo) Complete(commandID string, success bool, message string, errStr string, output json.RawMessage) (CommandResult, error) {
+func (r *CommandRepo) Complete(commandID string, success bool, message string, errStr string) (CommandResult, error) {
 	cur, err := r.GetCommand(commandID)
 	if err != nil {
 		// command does not exist in the memory, ignore status update.
@@ -147,7 +144,6 @@ func (r *CommandRepo) Complete(commandID string, success bool, message string, e
 	}
 	cur.FinishedAt = now
 	cur.Message = message
-	cur.Output = output
 
 	if success {
 		cur.Status = CmdSuccess

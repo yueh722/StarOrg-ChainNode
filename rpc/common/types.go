@@ -59,11 +59,11 @@ type StatusNode struct {
 // each client will report storage information of host to server freqently
 // method: RPC
 type StatusStorage struct {
-	Path        string
-	TotalSpace  uint64
-	FreeSpace   uint64
-	UsedSpace   uint64
-	UsedPercent float64
+	Path        string  `json:"path,omitempty"`
+	TotalSpace  uint64  `json:"total_space,omitempty"`
+	FreeSpace   uint64  `json:"free_space,omitempty"`
+	UsedSpace   uint64  `json:"used_space,omitempty"`
+	UsedPercent float64 `json:"used_percent,omitempty"`
 }
 
 type CmdType string

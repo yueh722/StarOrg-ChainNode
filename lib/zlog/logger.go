@@ -36,7 +36,7 @@ func NewStreamSugaredLogger(nodeID, logPath string, store queuestore.QueueStore)
 
 	fileWritSyncer := zapcore.AddSync(&lumberjack.Logger{
 		Filename:  filePath,
-		MaxSize:   100,
+		MaxSize:   10,
 		MaxAge:    365,
 		Compress:  true,
 		LocalTime: true,

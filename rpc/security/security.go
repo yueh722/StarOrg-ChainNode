@@ -7,7 +7,7 @@ import (
 
 type SecurityOption struct {
 	FWMode         FirewallMode
-	AllowOnlyHosts []string // 这里只放 IP
+	AllowOnlyHosts []string //ip slice
 	TokenSecret    []byte
 }
 
@@ -117,4 +117,8 @@ func isLocalIP(ip net.IP) bool {
 		return true
 	}
 	return false
+}
+
+func parseCIDR() {
+	//ipv4addr, ipv4net := net.ParseCIDR("10.0.0.0/24")
 }

@@ -376,7 +376,6 @@ func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr er
 		ReportedAt: time.Now().UnixNano(),
 		StartedAt:  cmd.IssuedAt,
 		FinishedAt: time.Now().UnixNano(),
-		Output:     nil,
 	})
 	if err != nil {
 		log.Println("", err)

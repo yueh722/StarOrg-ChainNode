@@ -148,7 +148,7 @@ func MakeLocalNet_Peer_03_04() lib.PeerList {
 }
 
 func getConnection(t *testing.T) (*rpc.Client, error) {
-	wsurl := "wss://localhost:8080/ws"
+	wsurl := "wss://localhost:8080/websocket"
 	myclient, err := Connect(&wsurl, MakeRpcHeader("simulator"))
 	if err != nil {
 		t.Fatal("Failed to connect:", err)

@@ -51,9 +51,9 @@ func GetActivatedNode(peers PeerList) *Peer {
 }
 
 type StatusTransaction struct {
-	Data   string
-	Hash   string
-	Height int64
+	Data   string `json:"data,omitempty"`
+	Hash   string `json:"hash,omitempty"`
+	Height int64  `json:"height,omitempty"`
 }
 
 // Tx
