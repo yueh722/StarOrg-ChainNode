@@ -8,7 +8,6 @@ import (
 	"chain/rpc/common"
 	"chain/utils"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -31,6 +30,7 @@ var router = map[common.CmdType]func(*SetupClient, *common.CommandEnvelope) erro
 	common.CmdUpdateChainCfg:      (*SetupClient).handleUpdateChainCfgCmd,
 	common.CmdControlNode:         (*SetupClient).handleControlNodeCmd,
 	common.CmdResetChain:          (*SetupClient).handleResetChainCmd,
+	common.CmdAddValidator:        (*SetupClient).HandleAddValidator,
 }
 
 func newSetupClient(client *rpc.Client, cfg ClientConfig) *SetupClient {
@@ -50,6 +50,14 @@ func (c *SetupClient) NodeName() string {
 
 func (c *SetupClient) Update(client *rpc.Client) {
 	c.client = client
+}
+
+func (c *SetupClient) GetCurrentPeer() *lib.Peer {
+	peerInfo, err := lib.GetPeerInfo(c.cfg.HomeDir)
+	if err != nil {
+		return &lib.Peer{}
+	}
+	return peerInfo
 }
 
 func (c *SetupClient) SubscribeCommand() <-chan error {
@@ -164,7 +172,7 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 func (c *SetupClient) handleUpdateChainCfgCmd(cmd *common.CommandEnvelope) error {
 
 	arg := common.SetupUpdateChainCfg{}
-	err := json.Unmarshal(cmd.Payload, &arg)
+	err := cmtjson.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
 	}
@@ -188,7 +196,7 @@ func (c *SetupClient) handleUpdateChainCfgCmd(cmd *common.CommandEnvelope) error
 func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 
 	arg := common.SetupControlNode{}
-	err := json.Unmarshal(cmd.Payload, &arg)
+	err := cmtjson.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
 	}
@@ -268,6 +276,27 @@ func (c *SetupClient) handleStartNode() error {
 	}
 
 	c.nodeRuntime = runtime
+
+	return nil
+}
+
+// add validator
+func (c *SetupClient) HandleAddValidator(cmd *common.CommandEnvelope) error {
+
+	arg := common.SetupAddValidator{}
+	err := cmtjson.Unmarshal(cmd.Payload, &arg)
+	if err != nil {
+		return err
+	}
+
+	if isvalidator, _ := lib.IsNodeOriginalValidator(c.cfg.NodeBaseDir); !isvalidator {
+		return errors.New("Ignore add validator from current node. current node is not an original validator, which does not have right to commit transaction.")
+	}
+
+	if err := lib.SendAddValidatorRequest(c.GetCurrentPeer().ToWebServiceAddr(), &arg.AddValidatorReq); err != nil {
+		return fmt.Errorf("failed to send add validator request, err: %v", err)
+	}
+
 	return nil
 }
 

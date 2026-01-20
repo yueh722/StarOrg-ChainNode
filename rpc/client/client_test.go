@@ -147,6 +147,25 @@ func MakeLocalNet_Peer_03_04() lib.PeerList {
 	return peers
 }
 
+func MakeLocalNet_Peer_05_06() lib.PeerList {
+	peers := []lib.Peer{
+		{
+			NodeName:       "node05",
+			NodeId:         lib.NewNodeId(),
+			PrivKey:        lib.NewPrivKey(),
+			NodeKey:        lib.NewNodeKey(),
+			NodeAddress:    "127.0.0.1",
+			P2PPort:        57656,
+			RPCPort:        57657,
+			ABCIPort:       57658,
+			WebServicePort: 4700,
+			IsValidator:    true,
+		},
+	}
+
+	return peers
+}
+
 func getConnection(t *testing.T) (*rpc.Client, error) {
 	wsurl := "wss://localhost:8080/websocket"
 	myclient, err := Connect(&wsurl, MakeRpcHeader("simulator"))
@@ -179,7 +198,7 @@ func TestSetupService_BroadcastInitializeChainNode(t *testing.T) {
 	peers := MakeLocalNet_Peer_01_02()
 
 	//append node03, node04 into above list.
-	peers = append(peers, MakeLocalNet_Peer_03_04()...)
+	//peers = append(peers, MakeLocalNet_Peer_03_04()...)
 
 	//update nodeID to testData
 	for i, status := range state.Nodes {

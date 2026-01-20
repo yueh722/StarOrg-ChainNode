@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/v2/config"
-	"github.com/cometbft/cometbft/v2/p2p"
 	"github.com/cometbft/cometbft/v2/types"
 	cmttime "github.com/cometbft/cometbft/v2/types/time"
 	"github.com/duke-git/lancet/v2/slice"
@@ -45,7 +44,7 @@ func InitializeChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, n
 	}
 
 	var validators []types.GenesisValidator
-	if currPeer.IsValidator {
+	if currPeer.IsValidator && len(genesisDoc.Validators) == 0 {
 		//update validators of genesisDoc
 		validators = peers.BuildValidators()
 	} else {
@@ -176,52 +175,46 @@ func ResetChainNode(homeDir, nodeID, nodeName string) (*NodeInfo, error) {
 	return nodeInfo, nil
 }
 
-func GetNodeInfoFromCometbftConfig(nodeDir string) (*NodeInfo, error) {
+func IsNodeOriginalValidator(nodeDir string) (bool, error) {
 
 	// load config from config.toml in nodeDir
 	viper.AddConfigPath(filepath.Join(nodeDir, "config"))
 	viper.SetConfigName("config")
 	if err := viper.ReadInConfig(); err != nil {
-		return nil, err
+		return false, err
 	}
 
 	cmtcfg := config.DefaultConfig()
 	if err := viper.Unmarshal(cmtcfg); err != nil {
-		return nil, err
+		return false, err
 	}
 
 	cmtcfg.SetRoot(nodeDir)
 
 	if err := cmtcfg.ValidateBasic(); err != nil {
-		return nil, fmt.Errorf("error in config file: %w", err)
+		return false, fmt.Errorf("error in config file: %w", err)
 	}
 
 	genesisDoc, err := types.GenesisDocFromFile(cmtcfg.GenesisFile())
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	_, isValidator := slice.FindBy(genesisDoc.Validators, func(index int, item types.GenesisValidator) bool {
 		return item.Name == cmtcfg.Moniker
 	})
 
-	//update listening address with node address
-	nodeKey, err := p2p.LoadNodeKey(cmtcfg.NodeKeyFile())
-	if err != nil {
-		return nil, err
-	}
-	nodeHost := NewPersistentPeers(cmtcfg.P2P.PersistentPeers).GetNodeHostById(nodeKey.ID())
-	RPCAddress, err := UpdateHost(cmtcfg.RPC.ListenAddress, nodeHost)
-	if err != nil {
+	return isValidator, nil
+}
+
+func GetPeerInfo(homeDir string) (*Peer, error) {
+	peer := &Peer{}
+
+	if err := peer.Load(filepath.Join(homeDir, peerConfigFile)); err != nil {
 		return nil, err
 	}
 
-	return &NodeInfo{
-		NodeName:  cmtcfg.Moniker,
-		RPCAddr:   RPCAddress,
-		ProxyApp:  cmtcfg.ProxyApp,
-		Validator: isValidator,
-	}, nil
+	return peer, nil
 }
 
 func GetNodeInfo(homeDir string) (*NodeInfo, error) {

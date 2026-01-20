@@ -38,6 +38,17 @@ func (p *Peer) PrivateKey() crypto.PrivKey {
 	return nil
 }
 
+func (p *Peer) BuildValidator() types.GenesisValidator {
+	pubKey := p.PrivateKey().PubKey()
+
+	return types.GenesisValidator{
+		Address: pubKey.Address(),
+		PubKey:  pubKey,
+		Power:   10,
+		Name:    p.NodeName,
+	}
+}
+
 func (p *Peer) Save(peerFile string) error {
 
 	jsonBytes, err := json.MarshalIndent(p, "", "  ")
@@ -82,6 +93,10 @@ func (p *Peer) NodeFileID() string {
 
 func (p *Peer) ToRPCAddr() string {
 	return fmt.Sprintf("http://%s:%d", p.NodeAddress, p.RPCPort)
+}
+
+func (p *Peer) ToWebServiceAddr() string {
+	return fmt.Sprintf("http://%s:%d", p.NodeAddress, p.WebServicePort)
 }
 
 func (p *Peer) ToWebsocketAddr() []string {
@@ -154,19 +169,11 @@ func (peers PeerList) BuildValidators() []types.GenesisValidator {
 	genVals := make([]types.GenesisValidator, len(peers))
 
 	for i, peer := range peers {
-
 		if !peer.IsValidator {
 			continue
 		}
 
-		pubKey := peer.PrivateKey().PubKey()
-
-		genVals[i] = types.GenesisValidator{
-			Address: pubKey.Address(),
-			PubKey:  pubKey,
-			Power:   1,
-			Name:    peer.NodeName,
-		}
+		genVals[i] = peer.BuildValidator()
 	}
 
 	return genVals

@@ -89,12 +89,9 @@ func (state *ChainStateInternal) CloneAddNode(peerInfo lib.Peer) *ChainStateInte
 
 	newPeers := append(state.Peers, peerInfo)
 
-	newGenesisDoc := *state.GenesisDoc
-	newGenesisDoc.Validators = newPeers.BuildValidators()
-
 	newState := &ChainStateInternal{
 		Peers:           newPeers,
-		GenesisDoc:      &newGenesisDoc,
+		GenesisDoc:      state.GenesisDoc,
 		InitializedTime: state.InitializedTime,
 		LastAddNodeTime: time.Now().UnixNano(),
 	}

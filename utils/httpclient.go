@@ -36,12 +36,12 @@ func HttpGet(url string) ([]byte, error) {
 }
 
 // HttpPost performs an HTTP POST request and returns the response body.
-func HttpPost(url string, args ...any) (interface{}, error) {
+func HttpPost(url string, arg any) (interface{}, error) {
 	// Create a new HTTP client with a timeout.
 	client := &http.Client{Timeout: 10 * time.Second}
 
 	// Convert the arguments to JSON.
-	body, err := json.Marshal(args)
+	body, err := json.Marshal(arg)
 	if err != nil {
 		return nil, err
 	}

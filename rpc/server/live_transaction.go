@@ -85,7 +85,7 @@ func startTransmitLiveTransaction(stream *StreamService) {
 	go func() {
 
 		for {
-			if chainStateInternal.Peers == nil {
+			if chainStateInternal.InitializedTime > 0 && chainStateInternal.Peers == nil {
 				chainStateInternal = LoadChainState(chainStateFile)
 			}
 

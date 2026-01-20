@@ -171,19 +171,10 @@ func (cfg *PeerConfig) SetGenesis(genesisDoc *types.GenesisDoc, validators []typ
 }
 
 func (cfg *PeerConfig) UpdateChainConfig(peers PeerList) error {
-	if err := cfg.SetGenesis(cfg.genesis, peers.BuildValidators()); err != nil {
-		return err
-	}
 
 	cfg.config.P2P.PersistentPeers = peers.BuildPersistentPeers()
 
 	nodeDir := cfg.GetNodeDir()
-	config := cfg.config
-
-	//save genesis.json
-	if err := cfg.genesis.SaveAs(filepath.Join(nodeDir, config.BaseConfig.Genesis)); err != nil {
-		return err
-	}
 
 	//save config.toml
 	cometbftConfig.WriteConfigFile(filepath.Join(nodeDir, "config", "config.toml"), cfg.config)

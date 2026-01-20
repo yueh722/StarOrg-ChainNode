@@ -25,6 +25,10 @@ type SetupUpdateChainCfg struct {
 	NodeArray lib.PeerList
 }
 
+type SetupAddValidator struct {
+	lib.AddValidatorReq
+}
+
 type SetupResetChain struct {
 }
 
@@ -71,6 +75,7 @@ type CmdType string
 const (
 	CmdInitializeChainNode CmdType = "setup_initialize_chain_node"
 	CmdUpdateChainCfg      CmdType = "setup_update_chain_cfg"
+	CmdAddValidator        CmdType = "setup_add_validator"
 	CmdControlNode         CmdType = "setup_control_node"
 	CmdResetChain          CmdType = "setup_reset_chain"
 	CmdPurgeData           CmdType = "setup_purge_data"

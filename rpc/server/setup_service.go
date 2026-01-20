@@ -9,13 +9,17 @@ import (
 	"chain/rpc/server/command_manager"
 	"chain/utils"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"path/filepath"
 	"sync"
 	"time"
 
 	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
+	"github.com/cometbft/cometbft/v2/types"
 	"github.com/duke-git/lancet/v2/maputil"
 	"github.com/duke-git/lancet/v2/slice"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -279,6 +283,62 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 		return fmt.Errorf("save chain state file: %v, err: %v", chainStateFile, err)
 	} else {
 		s.chainState = newChainState
+	}
+
+	//submit adding validator for current peer if it's set to be a validator
+	if peerInfo.IsValidator {
+		if err := s.BroadcaseAddValidator(peerInfo); err != nil {
+			log.Error("broadcast add validator failure:", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *SetupService) isOriginalValidator(nodeName string) bool {
+	_, isValidator := slice.FindBy(s.chainState.GenesisDoc.Validators, func(_ int, v types.GenesisValidator) bool {
+		return strings.ToLower(v.Name) == strings.ToLower(nodeName)
+	})
+	return isValidator
+}
+
+func (s *SetupService) BroadcaseAddValidator(peerInfo lib.Peer) error {
+	if !s.chainState.Initialized() {
+		return errors.New("please initialize chain node first before broadcast add validator")
+	}
+
+	nodecmds := make(map[string]*nodeCommand)
+
+	for nodeID, clientStub := range s.subs {
+
+		if !s.isOriginalValidator(clientStub.StatusNode.NodeName) {
+			//no need to send this kind of command to a non-validator node.
+			continue
+		}
+
+		v := peerInfo.BuildValidator()
+		pubType, ok := lib.ABCIPubKeyTypeToPubKeyName(v.PubKey.Type())
+		if !ok {
+			return fmt.Errorf("invalid public key type: %v", v.PubKey.Type())
+		}
+
+		nodecmds[nodeID] = &nodeCommand{
+			cmd: common.CmdAddValidator,
+			payload: common.SetupAddValidator{
+				AddValidatorReq: lib.AddValidatorReq{
+					PubType: pubType,
+					PubKey:  base64.StdEncoding.EncodeToString(v.PubKey.Bytes()),
+					Power:   v.Power,
+					Name:    v.Name,
+				},
+			},
+		}
+	}
+
+	if err := s.sendNodeCommand(nodecmds); err != nil {
+		log.Error("send node command failure:", err)
+		return err
 	}
 
 	return nil
