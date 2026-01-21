@@ -3,6 +3,7 @@ package server
 import (
 	"chain/lib"
 	"chain/lib/zlog"
+	"chain/utils"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -63,7 +64,7 @@ func ListenTransaction(peer *lib.Peer) <-chan lib.StatusTransaction {
 				continue
 			}
 
-			zlog.Info("[live transaction] txBase64 bytes: %v, height: %v, hash: %v", txBase64, height, (txHash))
+			zlog.Infof("[live transaction] txBase64 bytes: %v, height: %v, hash: %v", txBase64, height, (txHash))
 
 			txDetailChan <- lib.StatusTransaction{
 				Data:   txBase64,
@@ -78,15 +79,24 @@ func ListenTransaction(peer *lib.Peer) <-chan lib.StatusTransaction {
 
 func startTransmitLiveTransaction(stream *StreamService) {
 
-	//read chain state
-	chainStateInternal := &ChainStateInternal{}
-
 	// start go-routine to fetch live transactions from node and transmit tx to transaction subscribers
 	go func() {
 
+		logger := utils.NewThrottledLogger(zlog.Info)
+
 		for {
-			if chainStateInternal.InitializedTime > 0 && chainStateInternal.Peers == nil {
-				chainStateInternal = LoadChainState(chainStateFile)
+
+			var (
+				chainStateInternal = &ChainStateInternal{}
+				err                error
+			)
+
+			if chainStateInternal.InitializedTime == 0 || chainStateInternal.Peers == nil {
+				chainStateInternal, err = LoadChainState(chainStateFile)
+				if err != nil {
+					logger.Log("[live transaction] ", err)
+					continue
+				}
 			}
 
 			activatedPeer := lib.GetActivatedNode(chainStateInternal.Peers)

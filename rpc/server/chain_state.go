@@ -2,7 +2,6 @@ package server
 
 import (
 	"chain/lib"
-	log "chain/lib/zlog"
 	"chain/rpc/common"
 	"fmt"
 	"os"
@@ -26,23 +25,21 @@ type ChainState struct {
 	LastAddNodeTime int64               `json:"last_add_node_time"`
 }
 
-func LoadChainState(filePath string) *ChainStateInternal {
+func LoadChainState(filePath string) (*ChainStateInternal, error) {
 
 	state := &ChainStateInternal{}
 
 	file, err := os.ReadFile(filePath)
 	if err != nil {
-		log.Printf("Error reading chain state file %s: %v", filePath, err)
-		return state
+		return nil, fmt.Errorf("Error reading chain state file: %v", err)
 	}
 
 	err = cmtjson.Unmarshal(file, state)
 	if err != nil {
-		log.Printf("Error unmarshalling file contents to chain state: %v", err)
-		return state
+		return nil, fmt.Errorf("Error unmarshalling file contents to chain state: %v", err)
 	}
 
-	return state
+	return state, nil
 }
 
 func (state *ChainStateInternal) Initialized() bool {

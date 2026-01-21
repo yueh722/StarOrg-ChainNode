@@ -4,11 +4,12 @@ import (
 	"chain/lib"
 	"chain/rpc/common"
 	"chain/rpc/server"
+	"encoding/json"
 	"fmt"
 	"log"
 	"testing"
+	"time"
 
-	"github.com/cometbft/cometbft/v2/libs/json"
 	"github.com/duke-git/lancet/v2/slice"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -177,8 +178,7 @@ func getConnection(t *testing.T) (*rpc.Client, error) {
 	return myclient, nil
 }
 
-func TestSetupService_BroadcastInitializeChainNode(t *testing.T) {
-
+func initializeNodes(t *testing.T, peers lib.PeerList) {
 	myclient, err := getConnection(t)
 	if err != nil {
 		return
@@ -193,12 +193,6 @@ func TestSetupService_BroadcastInitializeChainNode(t *testing.T) {
 
 	stateBytes, _ := json.MarshalIndent(state, "", "  ")
 	log.Println(string(stateBytes))
-
-	//build a peer list that contains node01, node02.
-	peers := MakeLocalNet_Peer_01_02()
-
-	//append node03, node04 into above list.
-	//peers = append(peers, MakeLocalNet_Peer_03_04()...)
 
 	//update nodeID to testData
 	for i, status := range state.Nodes {
@@ -217,6 +211,17 @@ func TestSetupService_BroadcastInitializeChainNode(t *testing.T) {
 	}
 }
 
+func Test_InitializeChainNode(t *testing.T) {
+
+	//build a peer list that contains node01, node02.
+	peers := MakeLocalNet_Peer_01_02()
+
+	//append node03, node04 into above list.
+	peers = append(peers, MakeLocalNet_Peer_03_04()...)
+
+	initializeNodes(t, peers)
+}
+
 func getPeerInternalByID(csInternal *server.ChainStateInternal, nodeID string) *lib.Peer {
 	for _, peer := range csInternal.Peers {
 		if peer.NodeId == nodeID {
@@ -226,8 +231,7 @@ func getPeerInternalByID(csInternal *server.ChainStateInternal, nodeID string) *
 	return nil
 }
 
-func TestSetupService_BroadcastAddChainNode(t *testing.T) {
-
+func addNodes(t *testing.T, peers lib.PeerList) {
 	myclient, err := getConnection(t)
 	if err != nil {
 		return
@@ -241,8 +245,6 @@ func TestSetupService_BroadcastAddChainNode(t *testing.T) {
 	}
 	t.Log(state)
 
-	//peers will be added for chain
-	peers := MakeLocalNet_Peer_03_04()
 	assignedIndex := 0
 
 	//update nodeID to testData
@@ -252,7 +254,7 @@ func TestSetupService_BroadcastAddChainNode(t *testing.T) {
 		}
 
 		if assignedIndex >= len(peers) {
-			t.Fatal("no more available peers to be added")
+			break
 		}
 
 		peers[assignedIndex].NodeId = status.NodeID
@@ -261,17 +263,13 @@ func TestSetupService_BroadcastAddChainNode(t *testing.T) {
 		assignedIndex++
 	}
 
-	for _, node := range state.Nodes {
-		if node.Initialized {
-			continue
-		}
-		t.Log("uninitialized peers: ", node)
-	}
-
 	// add node
-	for _, peer := range peers {
+	for i, peer := range peers {
+		if i >= assignedIndex {
+			break
+		}
 
-		t.Log("adding peer: ", peer.NodeId, peer.NodeName)
+		t.Log("adding peer: ", peer.NodeId, peer.NodeName, "count", i)
 		var errResult error
 		err = myclient.Call(&errResult, methods["BroadcastAddChainNode"], peer)
 		if err != nil {
@@ -279,6 +277,10 @@ func TestSetupService_BroadcastAddChainNode(t *testing.T) {
 		}
 	}
 
+}
+
+func Test_AddChainNode(t *testing.T) {
+	addNodes(t, MakeLocalNet_Peer_03_04())
 }
 
 func getChainState(myclient *rpc.Client) (*server.ChainState, error) {
@@ -317,19 +319,40 @@ func SetupService_ControlNode(t *testing.T, action common.NodeAction) {
 
 }
 
-func TestSetupService_StartNode(t *testing.T) {
+func controlNodes(t *testing.T, peers lib.PeerList, action common.NodeAction) {
+
+	myclient, err := getConnection(t)
+	if err != nil {
+		return
+	}
+
+	ctlNodes := []common.SetupControlNode{}
+
+	for _, peerInfo := range peers {
+		ctlNodes = append(ctlNodes, common.SetupControlNode{
+			NodeID: peerInfo.NodeId,
+			Action: action,
+		})
+	}
+
+	if err := myclient.Call(nil, methods["ControlNode"], ctlNodes); err != nil {
+		t.Fatal("Failed to call:", err)
+	}
+}
+
+func Test_StartAllNodes(t *testing.T) {
 	SetupService_ControlNode(t, common.NodeStart)
 }
 
-func TestSetupService_RestartNode(t *testing.T) {
+func Test_RestartAllNodes(t *testing.T) {
 	SetupService_ControlNode(t, common.NodeRestart)
 }
 
-func TestSetupService_StopNode(t *testing.T) {
+func Test_StopAllNodes(t *testing.T) {
 	SetupService_ControlNode(t, common.NodeStop)
 }
 
-func TestSetupService_BroadcastResetChainNode(t *testing.T) {
+func Test_ResetChainNode(t *testing.T) {
 	myclient, err := getConnection(t)
 	if err != nil {
 		return
@@ -342,4 +365,40 @@ func TestSetupService_BroadcastResetChainNode(t *testing.T) {
 	if err != nil {
 		t.Fatal("Failed to broadcast reset chain node:", err)
 	}
+}
+
+func sleepSec(s int32) {
+	time.Sleep(time.Duration(s) * time.Second)
+}
+
+func TestAutoDeployFromScratch(t *testing.T) {
+	t.Log("start reseting chain...")
+	Test_ResetChainNode(t)
+
+	sleepSec(10)
+
+	t.Log("start initializing chain nodes 01, 02...")
+	peers1 := MakeLocalNet_Peer_01_02()
+	//peers1 = append(peers1, MakeLocalNet_Peer_03_04()...)
+	initializeNodes(t, peers1)
+	sleepSec(10)
+
+	t.Log("start running nodes 01, 02...")
+	controlNodes(t, peers1, common.NodeStart)
+	sleepSec(30)
+
+	t.Log("start adding nodes 03, 04...")
+	peers2 := MakeLocalNet_Peer_03_04()
+	addNodes(t, peers2)
+	sleepSec(10)
+
+	t.Log("start running nodes 03, 04...")
+	controlNodes(t, peers2, common.NodeStart)
+}
+
+func TestAddValidator(t *testing.T) {
+	t.Log("start adding nodes 05, 06...")
+	peers2 := MakeLocalNet_Peer_03_04()
+	addNodes(t, peers2)
+	sleepSec(10)
 }

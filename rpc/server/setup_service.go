@@ -34,6 +34,18 @@ type MultiError struct {
 	Errors map[string]error
 }
 
+func NewMultiError() *MultiError {
+	return &MultiError{Errors: make(map[string]error)}
+}
+
+func (m *MultiError) ErrorOrNil() error {
+	if len(m.Errors) > 0 {
+		return m
+	} else {
+		return nil
+	}
+}
+
 func (m *MultiError) Error() string {
 	errStr, err := json.MarshalIndent(m.Errors, "", "  ")
 	if err != nil {
@@ -81,11 +93,13 @@ func NewSetupService(store cmdlogstore.CommandLogStore, stream *StreamService) *
 		log.Panic(err)
 	}
 
+	chainstate, _ := LoadChainState(chainStateFile)
+
 	return &SetupService{
 		subs:          make(map[string]*ClientSub),
 		cmdEvent:      cmdEvent,
 		stream:        stream,
-		chainState:    LoadChainState(chainStateFile),
+		chainState:    chainstate,
 		cmdManager:    command_manager.NewCmdManager(),
 		NodeNameCache: make(map[string]string),
 	}
@@ -271,7 +285,7 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 	}
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
-		log.Error("send node command failure:", err)
+		log.Info("send node command failure:", err)
 		return err
 	}
 
@@ -288,7 +302,7 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 	//submit adding validator for current peer if it's set to be a validator
 	if peerInfo.IsValidator {
 		if err := s.BroadcaseAddValidator(peerInfo); err != nil {
-			log.Error("broadcast add validator failure:", err)
+			log.Info("broadcast add validator failure:", err)
 			return err
 		}
 	}
@@ -308,7 +322,7 @@ func (s *SetupService) BroadcaseAddValidator(peerInfo lib.Peer) error {
 		return errors.New("please initialize chain node first before broadcast add validator")
 	}
 
-	nodecmds := make(map[string]*nodeCommand)
+	var totalErr = NewMultiError()
 
 	for nodeID, clientStub := range s.subs {
 
@@ -317,31 +331,36 @@ func (s *SetupService) BroadcaseAddValidator(peerInfo lib.Peer) error {
 			continue
 		}
 
-		v := peerInfo.BuildValidator()
-		pubType, ok := lib.ABCIPubKeyTypeToPubKeyName(v.PubKey.Type())
-		if !ok {
-			return fmt.Errorf("invalid public key type: %v", v.PubKey.Type())
+		if !lib.CheckNodeOnline(clientStub.StatusNode.NodeInfo.RPCAddr) {
+			//no need to send command to node that is already offline
+			//continue
 		}
+
+		v := peerInfo.BuildValidator()
+		nodecmds := make(map[string]*nodeCommand)
 
 		nodecmds[nodeID] = &nodeCommand{
 			cmd: common.CmdAddValidator,
 			payload: common.SetupAddValidator{
 				AddValidatorReq: lib.AddValidatorReq{
-					PubType: pubType,
+					PubType: v.PubKey.Type(),
 					PubKey:  base64.StdEncoding.EncodeToString(v.PubKey.Bytes()),
-					Power:   v.Power,
+					Power:   v.Power / 2,
 					Name:    v.Name,
 				},
 			},
 		}
+
+		if err := s.sendNodeCommand(nodecmds); err != nil {
+			log.Info("send node command failure:", err)
+			totalErr.Errors["err"] = err
+			continue
+		}
+
+		break
 	}
 
-	if err := s.sendNodeCommand(nodecmds); err != nil {
-		log.Error("send node command failure:", err)
-		return err
-	}
-
-	return nil
+	return totalErr.ErrorOrNil()
 }
 
 func (s *SetupService) PeerInitializationCompleted(nodeIDs []string) {
@@ -478,7 +497,7 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 				return ReturnError(errors.New("client not initialized"))
 			}
 
-			log.Info("sending command to node", nodeID)
+			log.Infof("sending command [%v] to node %v", env.Cmd, nodeID)
 
 			//notify all client to initialize node
 			if err := clientSub.Notifier.Notify(clientSub.SubID, env); err != nil {
@@ -502,9 +521,7 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 	//wait all node completing initialization task
 	ch := s.cmdManager.SyncMultipleCommands(syncCmds...)
 
-	resErr := &MultiError{
-		Errors: make(map[string]error),
-	}
+	resErr := NewMultiError()
 
 	for result := range ch {
 		if result.Err != nil {
@@ -512,11 +529,7 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 		}
 	}
 
-	if len(resErr.Errors) == 0 {
-		return nil
-	}
-
-	return resErr
+	return resErr.ErrorOrNil()
 }
 
 // internal method
