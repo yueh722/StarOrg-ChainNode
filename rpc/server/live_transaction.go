@@ -41,7 +41,7 @@ func ListenTransaction(peer *lib.Peer) <-chan lib.StatusTransaction {
 			return
 		}
 
-		conn := mustGetConnection(peer.ToWebsocketAddr())
+		conn := mustGetConnection(peer.ToWebsocketAddrs())
 
 		// subscribe Tx
 		msg := `{"jsonrpc":"2.0","method":"subscribe","id":"1","params":{"query":"tm.event='Tx'"}}`

@@ -271,7 +271,7 @@ func PeerInfoToNodeInfo(peer *Peer) *NodeInfo {
 	}
 }
 
-func IsNodeInitialized(nodeInfo *NodeInfo) bool {
+func IsNodeInitialized(homeDir string, nodeInfo *NodeInfo) bool {
 	if nodeInfo == nil {
 		return false
 	}
@@ -280,6 +280,39 @@ func IsNodeInitialized(nodeInfo *NodeInfo) bool {
 		nodeInfo.ProxyApp == "" ||
 		nodeInfo.WebServiceAddr == "" ||
 		nodeInfo.RPCAddr == "" {
+		return false
+	}
+
+	nodeDir := filepath.Join(homeDir, nodeInfo.NodeID)
+	// load config from config.toml in nodeDir
+	viper.AddConfigPath(filepath.Join(nodeDir, "config"))
+	viper.SetConfigName("config")
+	if err := viper.ReadInConfig(); err != nil {
+		//fmt.Println("read cometbft config failure:", err)
+		return false
+	}
+
+	cmtcfg := config.DefaultConfig()
+	if err := viper.Unmarshal(cmtcfg); err != nil {
+		//fmt.Println("unmarshal to cometbft config failure:", err)
+		return false
+	}
+
+	cmtcfg.SetRoot(nodeDir)
+
+	if err := cmtcfg.ValidateBasic(); err != nil {
+		//fmt.Println("error in config file:", err)
+		return false
+	}
+
+	genesisDoc, err := types.GenesisDocFromFile(cmtcfg.GenesisFile())
+	if err != nil {
+		//fmt.Println("failed to read genesisDoc from file:", err)
+		return false
+	}
+
+	if err = genesisDoc.ValidateAndComplete(); err != nil {
+		//fmt.Println("genesisDoc incorrect:", err)
 		return false
 	}
 

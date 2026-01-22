@@ -4,6 +4,7 @@ import (
 	"chain/lib"
 	"chain/rpc/common"
 	"chain/rpc/server"
+	"chain/utils"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,14 +15,14 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-func MakeLocalPeerList4() lib.PeerList {
-	peers := []lib.Peer{
+type ArgNodeList []lib.ArgNodeInfo
+
+func MakeLocalPeerList4() ArgNodeList {
+	peers := []lib.ArgNodeInfo{
 		{
 			NodeName:       "node01",
 			NodeId:         lib.NewNodeId(),
-			PrivKey:        lib.NewPrivKey(),
-			NodeKey:        lib.NewNodeKey(),
-			NodeAddress:    "127.0.0.1",
+			NodeDomainOrIP: "127.0.0.1",
 			P2PPort:        26656,
 			RPCPort:        26657,
 			ABCIPort:       26658,
@@ -31,9 +32,7 @@ func MakeLocalPeerList4() lib.PeerList {
 		{
 			NodeName:       "node02",
 			NodeId:         lib.NewNodeId(),
-			PrivKey:        lib.NewPrivKey(),
-			NodeKey:        lib.NewNodeKey(),
-			NodeAddress:    "127.0.0.1",
+			NodeDomainOrIP: "127.0.0.1",
 			P2PPort:        36656,
 			RPCPort:        36657,
 			ABCIPort:       36658,
@@ -43,9 +42,7 @@ func MakeLocalPeerList4() lib.PeerList {
 		{
 			NodeName:       "node03",
 			NodeId:         lib.NewNodeId(),
-			PrivKey:        lib.NewPrivKey(),
-			NodeKey:        lib.NewNodeKey(),
-			NodeAddress:    "127.0.0.1",
+			NodeDomainOrIP: "127.0.0.1",
 			P2PPort:        46656,
 			RPCPort:        46657,
 			ABCIPort:       46658,
@@ -55,9 +52,7 @@ func MakeLocalPeerList4() lib.PeerList {
 		{
 			NodeName:       "node04",
 			NodeId:         lib.NewNodeId(),
-			PrivKey:        lib.NewPrivKey(),
-			NodeKey:        lib.NewNodeKey(),
-			NodeAddress:    "127.0.0.1",
+			NodeDomainOrIP: "127.0.0.1",
 			P2PPort:        56656,
 			RPCPort:        56657,
 			ABCIPort:       56658,
@@ -86,14 +81,12 @@ func init() {
 	})
 }
 
-func MakeLocalNet_Peer_01_02() lib.PeerList {
-	peers := []lib.Peer{
+func MakeLocalNet_Peer_01_02() ArgNodeList {
+	peers := ArgNodeList{
 		{
 			NodeName:       "node01",
 			NodeId:         lib.NewNodeId(),
-			PrivKey:        lib.NewPrivKey(),
-			NodeKey:        lib.NewNodeKey(),
-			NodeAddress:    "127.0.0.1",
+			NodeDomainOrIP: "127.0.0.1",
 			P2PPort:        26656,
 			RPCPort:        26657,
 			ABCIPort:       26658,
@@ -103,9 +96,7 @@ func MakeLocalNet_Peer_01_02() lib.PeerList {
 		{
 			NodeName:       "node02",
 			NodeId:         lib.NewNodeId(),
-			PrivKey:        lib.NewPrivKey(),
-			NodeKey:        lib.NewNodeKey(),
-			NodeAddress:    "127.0.0.1",
+			NodeDomainOrIP: "127.0.0.1",
 			P2PPort:        36656,
 			RPCPort:        36657,
 			ABCIPort:       36658,
@@ -117,14 +108,12 @@ func MakeLocalNet_Peer_01_02() lib.PeerList {
 	return peers
 }
 
-func MakeLocalNet_Peer_03_04() lib.PeerList {
-	peers := []lib.Peer{
+func MakeLocalNet_Peer_03_04() ArgNodeList {
+	peers := ArgNodeList{
 		{
 			NodeName:       "node03",
 			NodeId:         lib.NewNodeId(),
-			PrivKey:        lib.NewPrivKey(),
-			NodeKey:        lib.NewNodeKey(),
-			NodeAddress:    "127.0.0.1",
+			NodeDomainOrIP: "127.0.0.1",
 			P2PPort:        46656,
 			RPCPort:        46657,
 			ABCIPort:       46658,
@@ -134,9 +123,7 @@ func MakeLocalNet_Peer_03_04() lib.PeerList {
 		{
 			NodeName:       "node04",
 			NodeId:         lib.NewNodeId(),
-			PrivKey:        lib.NewPrivKey(),
-			NodeKey:        lib.NewNodeKey(),
-			NodeAddress:    "127.0.0.1",
+			NodeDomainOrIP: "127.0.0.1",
 			P2PPort:        56656,
 			RPCPort:        56657,
 			ABCIPort:       56658,
@@ -148,14 +135,12 @@ func MakeLocalNet_Peer_03_04() lib.PeerList {
 	return peers
 }
 
-func MakeLocalNet_Peer_05_06() lib.PeerList {
-	peers := []lib.Peer{
+func MakeLocalNet_Peer_05_06() ArgNodeList {
+	peers := ArgNodeList{
 		{
 			NodeName:       "node05",
 			NodeId:         lib.NewNodeId(),
-			PrivKey:        lib.NewPrivKey(),
-			NodeKey:        lib.NewNodeKey(),
-			NodeAddress:    "127.0.0.1",
+			NodeDomainOrIP: "127.0.0.1",
 			P2PPort:        57656,
 			RPCPort:        57657,
 			ABCIPort:       57658,
@@ -178,7 +163,11 @@ func getConnection(t *testing.T) (*rpc.Client, error) {
 	return myclient, nil
 }
 
-func initializeNodes(t *testing.T, peers lib.PeerList) {
+// count:
+//
+//	-1 	init all nodes
+//	N 	init N nodes
+func initializeNodes(t *testing.T, argNodes ArgNodeList) {
 	myclient, err := getConnection(t)
 	if err != nil {
 		return
@@ -196,16 +185,25 @@ func initializeNodes(t *testing.T, peers lib.PeerList) {
 
 	//update nodeID to testData
 	for i, status := range state.Nodes {
-		if i >= len(peers) {
+		if i >= len(argNodes) {
 			break
 		}
-		peers[i].NodeId = status.NodeID
-		peers[i].NodeName = status.NodeName
+
+		nodeAddr, err := utils.FindIPByPrefix(status.IpAddrs, "192.168.1")
+		if err != nil {
+			t.Fatal("don't find available IP address for node", status.NodeName, err)
+		}
+
+		argNodes[i].NodeId = status.NodeID
+		argNodes[i].NodeName = status.NodeName
+		argNodes[i].NodeDomainOrIP = nodeAddr
+
+		t.Log("node info: ", status.NodeName, nodeAddr, status.IpAddrs)
 	}
 
 	var errResult error
 
-	err = myclient.Call(&errResult, methods["BroadcastInitializeChainNode"], "greedisgood", peers.ToJson())
+	err = myclient.Call(&errResult, methods["BroadcastInitializeChainNode"], "greedisgood", argNodes)
 	if err != nil {
 		t.Fatal("Failed to broadcast init chain node:", err)
 	}
@@ -231,7 +229,7 @@ func getPeerInternalByID(csInternal *server.ChainStateInternal, nodeID string) *
 	return nil
 }
 
-func addNodes(t *testing.T, peers lib.PeerList) {
+func addNodes(t *testing.T, argNodes ArgNodeList) {
 	myclient, err := getConnection(t)
 	if err != nil {
 		return
@@ -253,27 +251,34 @@ func addNodes(t *testing.T, peers lib.PeerList) {
 			continue
 		}
 
-		if assignedIndex >= len(peers) {
+		if assignedIndex >= len(argNodes) {
 			break
 		}
 
-		peers[assignedIndex].NodeId = status.NodeID
-		peers[assignedIndex].NodeName = status.NodeName
-		t.Logf("assigned peer for node %v : %v, total: %v\n", peers[assignedIndex].NodeId, peers[assignedIndex].NodeName, assignedIndex)
+		nodeAddr, err := utils.FindIPByPrefix(status.IpAddrs, "192.168.1")
+		if err != nil {
+			t.Fatal("don't find available IP address for node", status.NodeName, err)
+		}
+
+		argNodes[assignedIndex].NodeId = status.NodeID
+		argNodes[assignedIndex].NodeName = status.NodeName
+		argNodes[assignedIndex].NodeDomainOrIP = nodeAddr
+
+		t.Logf("assigned node for node %v : %v, total: %v\n", argNodes[assignedIndex].NodeId, argNodes[assignedIndex].NodeName, assignedIndex)
 		assignedIndex++
 	}
 
 	// add node
-	for i, peer := range peers {
+	for i, node := range argNodes {
 		if i >= assignedIndex {
 			break
 		}
 
-		t.Log("adding peer: ", peer.NodeId, peer.NodeName, "count", i)
+		t.Log("adding node: ", node.NodeId, node.NodeName, "count", i)
 		var errResult error
-		err = myclient.Call(&errResult, methods["BroadcastAddChainNode"], peer)
+		err = myclient.Call(&errResult, methods["BroadcastAddChainNode"], node)
 		if err != nil {
-			t.Fatal("Failed to broadcast add chain node:", peer.NodeName, err)
+			t.Fatal("Failed to broadcast add chain node:", node.NodeName, err)
 		}
 	}
 
@@ -319,7 +324,7 @@ func SetupService_ControlNode(t *testing.T, action common.NodeAction) {
 
 }
 
-func controlNodes(t *testing.T, peers lib.PeerList, action common.NodeAction) {
+func controlNodes(t *testing.T, argNodes ArgNodeList, action common.NodeAction) {
 
 	myclient, err := getConnection(t)
 	if err != nil {
@@ -328,9 +333,9 @@ func controlNodes(t *testing.T, peers lib.PeerList, action common.NodeAction) {
 
 	ctlNodes := []common.SetupControlNode{}
 
-	for _, peerInfo := range peers {
+	for _, nodeInfo := range argNodes {
 		ctlNodes = append(ctlNodes, common.SetupControlNode{
-			NodeID: peerInfo.NodeId,
+			NodeID: nodeInfo.NodeId,
 			Action: action,
 		})
 	}
@@ -359,6 +364,16 @@ func Test_ResetChainNode(t *testing.T) {
 	}
 	// CALL RPC METHOD
 
+	state, err := getChainState(myclient)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if state.InitializedTime == 0 {
+		t.Log("chain has not initialized, no need to reset")
+		return
+	}
+
 	var errResult error
 
 	err = myclient.Call(&errResult, methods["BroadcastResetChainNode"], common.SetupResetChain{})
@@ -372,6 +387,7 @@ func sleepSec(s int32) {
 }
 
 func TestAutoDeployFromScratch(t *testing.T) {
+
 	t.Log("start reseting chain...")
 	Test_ResetChainNode(t)
 

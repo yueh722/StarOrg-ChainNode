@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -23,7 +24,7 @@ func HttpGet(url string) ([]byte, error) {
 
 	// Check for non-200 status codes.
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("received non-200 response code")
+		return nil, fmt.Errorf("failed to send http request, code: %d, err: %v", resp.StatusCode, err)
 	}
 
 	// Read the response body.

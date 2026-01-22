@@ -20,7 +20,7 @@ import (
 type SetupClient struct {
 	client      *rpc.Client
 	logStore    queuestore.QueueStore
-	cfg         ClientConfig
+	cfg         *ClientConfig
 	nodeRuntime lib.NodeRuntime
 	mux         sync.Mutex
 }
@@ -33,7 +33,7 @@ var router = map[common.CmdType]func(*SetupClient, *common.CommandEnvelope) erro
 	common.CmdAddValidator:        (*SetupClient).HandleAddValidator,
 }
 
-func newSetupClient(client *rpc.Client, cfg ClientConfig) *SetupClient {
+func newSetupClient(client *rpc.Client, cfg *ClientConfig) *SetupClient {
 	return &SetupClient{
 		client: client,
 		cfg:    cfg,
@@ -62,7 +62,7 @@ func (c *SetupClient) GetCurrentPeer() *lib.Peer {
 
 func (c *SetupClient) SubscribeCommand() <-chan error {
 
-	var errChan = make(chan error)
+	var errChan = make(chan error, 1)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	//ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -70,24 +70,26 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 
 	cmdChan := make(chan common.CommandEnvelope, 1000)
 
+	statusNode, err := BuildStatusNode(c.cfg, c.nodeRuntime)
+	if err != nil {
+		close(cmdChan)
+		return errChan
+	}
+
 	sub, err := c.client.Subscribe(
 		ctx,
 		common.SetupNamespace{}.GetNamesapceString(),
 		cmdChan,
 		common.SetupNamespace{}.GetSubscriptionName(),
 		common.DelegatorInfo{
-			App: c.cfg.AppName,
-			StatusNode: common.StatusNode{
-				NodeInfo:    *c.cfg.NodeInfo,
-				Healthy:     lib.CheckNodeOnline(c.cfg.NodeInfo.RPCAddr),
-				LastCheck:   utils.NowString(),
-				StartedTime: lib.GetNodeCreatedTime(c.nodeRuntime),
-			},
+			App:        c.cfg.AppName,
+			StatusNode: *statusNode,
 		},
 	)
 
 	if err != nil {
-		log.Error("SubscribeCommand error: ", err)
+		log.Info("SubscribeCommand error: ", err)
+		close(cmdChan)
 		return errChan
 	}
 
@@ -156,6 +158,8 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 		return err
 	}
 
+	c.cfg.Initialized = true
+
 	//reload nodeInfo
 	c.cfg.NodeInfo, err = lib.GetNodeInfo(c.cfg.HomeDir)
 	if err != nil {
@@ -164,6 +168,14 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 	}
 
 	log.Infof("[handleInitChainNodeCmd] succeed. nodeID: %s, nodeName: %s", c.NodeID(), c.NodeName())
+
+	statusNode, err := BuildStatusNode(c.cfg, nil)
+	if err != nil {
+		return err
+	}
+
+	method := common.MakeMethodName(common.SetupNamespace{}.GetNamesapceString(), "InitializationComplete")
+	_ = c.client.Call(nil, method, statusNode)
 
 	return nil
 }
@@ -254,6 +266,7 @@ func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
 	}
 
 	c.cfg.NodeInfo = nodeInfo
+	c.cfg.Initialized = false
 
 	return nil
 }
@@ -264,7 +277,7 @@ func (c *SetupClient) handleStartNode() error {
 		return errors.New("node or app already running")
 	}
 
-	if !lib.IsNodeInitialized(c.cfg.NodeInfo) {
+	if !c.cfg.Initialized {
 		return errors.New("node not initialized")
 	}
 
@@ -294,7 +307,7 @@ func (c *SetupClient) HandleAddValidator(cmd *common.CommandEnvelope) error {
 	}
 
 	if err := lib.SendAddValidatorRequest(c.GetCurrentPeer().ToWebServiceAddr(), &arg.AddValidatorReq); err != nil {
-		return fmt.Errorf("failed to send add validator request, err: %v", err)
+		return err
 	}
 
 	return nil
@@ -395,6 +408,7 @@ func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr er
 	}
 
 	method := common.MakeMethodName(common.SetupNamespace{}.GetNamesapceString(), "ReportCommandResult")
+
 	err := c.client.Call(nil, method, commandlog.CommandResult{
 		CommandID:  cmd.CommandID,
 		Cmd:        cmd.Cmd,

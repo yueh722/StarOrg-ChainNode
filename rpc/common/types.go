@@ -48,11 +48,17 @@ type SetupControlNode struct {
 	Action NodeAction
 }
 
+type HostInfo struct {
+	HostName string   `json:"host_name"`
+	IpAddrs  []string `json:"ip_addrs"`
+}
+
 // Status report
 // each client will report node information to server freqently
 // method: RPC
 type StatusNode struct {
 	lib.NodeInfo `json:"lib_._node_info"`
+	HostInfo     `json:"lib_._host_info"`
 	Healthy      bool   `json:"healthy,omitempty"`
 	LastCheck    string `json:"last_check,omitempty"`
 	StartedTime  string `json:"started_time,omitempty"`

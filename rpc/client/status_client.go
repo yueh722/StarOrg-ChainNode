@@ -1,9 +1,7 @@
 package client
 
 import (
-	"chain/lib"
 	"chain/rpc/common"
-	"chain/utils"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/shirou/gopsutil/disk"
@@ -11,10 +9,10 @@ import (
 
 type StatusClient struct {
 	client *rpc.Client
-	cfg    ClientConfig
+	cfg    *ClientConfig
 }
 
-func newStatusClient(client *rpc.Client, cfg ClientConfig) *StatusClient {
+func newStatusClient(client *rpc.Client, cfg *ClientConfig) *StatusClient {
 	return &StatusClient{
 		client: client,
 		cfg:    cfg,
@@ -28,26 +26,18 @@ func (c *StatusClient) Update(client *rpc.Client) {
 func (c *StatusClient) ReportNodeStatus() error {
 
 	//load information of current node
-	nodeInfo, err := lib.GetNodeInfo(c.cfg.HomeDir)
+	statusNode, err := BuildStatusNode(c.cfg, nil)
 	if err != nil {
 		return err
 	}
 
-	//call RPCAddr/status to check healthy
-
-	err = c.client.Call(nil, "status_reportNodeStatus", common.StatusNode{
-		NodeInfo:    *nodeInfo,
-		Healthy:     lib.CheckNodeOnline(nodeInfo.RPCAddr),
-		LastCheck:   utils.NowString(),
-		StartedTime: utils.GetProcessCreatedTime(lib.NodeFileName, lib.AppFileName),
-		Initialized: false,
-	})
+	err = c.client.Call(nil, "status_reportNodeStatus", statusNode)
 	return err
 }
 
 func (c *StatusClient) ReportStorageStatus() error {
 
-	info, _ := disk.Usage(utils.GetStorageDrive())
+	info, _ := disk.Usage(c.cfg.NodeBaseDir[:len("c:/")])
 
 	err := c.client.Call(nil, "status_reportStorageStatus", common.StatusStorage{
 		Path:        info.Path,

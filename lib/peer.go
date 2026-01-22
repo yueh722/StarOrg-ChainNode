@@ -92,14 +92,24 @@ func (p *Peer) NodeFileID() string {
 }
 
 func (p *Peer) ToRPCAddr() string {
-	return fmt.Sprintf("http://%s:%d", p.NodeAddress, p.RPCPort)
+	// please note that cometbft node will listen rpc port which is always 127.0.0.1
+	// ref: config.toml -> [rpc].laddr
+	return fmt.Sprintf("http://%s:%d", "127.0.0.1", p.RPCPort)
+}
+
+func (p *Peer) ToProxyAppAddr() string {
+	return fmt.Sprintf("tcp://%s:%d", p.NodeAddress, p.ABCIPort)
 }
 
 func (p *Peer) ToWebServiceAddr() string {
 	return fmt.Sprintf("http://%s:%d", p.NodeAddress, p.WebServicePort)
 }
 
-func (p *Peer) ToWebsocketAddr() []string {
+func (p *Peer) ToLocalWebServiceAddr() string {
+	return fmt.Sprintf("http://localhost:%d", p.WebServicePort)
+}
+
+func (p *Peer) ToWebsocketAddrs() []string {
 	return []string{
 		fmt.Sprintf("ws://%s:%d/websocket", p.NodeAddress, p.RPCPort),
 		fmt.Sprintf("wss://%s:%d/websocket", p.NodeAddress, p.RPCPort),
@@ -269,9 +279,9 @@ func GetNodeByNodeId(nodeId string, peers string) *Peer {
 	return peerList.GetPeerByNodeId(nodeId)
 }
 
-func ValidNodeArray(nodeArray string) error {
-	peerList := ConvertJsonToPeers(nodeArray)
-	for _, p := range peerList {
+func ValidNodeArray(peers PeerList) error {
+
+	for _, p := range peers {
 
 		if p.NodeId == "" ||
 			p.NodeKey == "" ||

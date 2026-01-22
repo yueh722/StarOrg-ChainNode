@@ -28,6 +28,8 @@ func StartClient(cfg *Config) error {
 		return errors.New("config is nil")
 	}
 
+	var initialized bool
+
 	nodeInfo, err := lib.GetNodeInfo(cfg.HomeDir)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		//configuration data error.
@@ -35,13 +37,16 @@ func StartClient(cfg *Config) error {
 	}
 
 	if nodeInfo == nil {
+		initialized = false
 		// init new node id if current node is uninitialized
 		if nodeInfo, err = lib.InitializeNewNodeID(cfg.HomeDir, cfg.AppName); err != nil {
 			return fmt.Errorf("failed to initialize new nodeID: %v", err)
 		}
+	} else {
+		initialized = lib.IsNodeInitialized(cfg.HomeDir, nodeInfo)
 	}
 
-	nodeClient, err := client.New(client.ClientConfig{
+	nodeClient, err := client.New(&client.ClientConfig{
 		AppName:     lib.DelegatorApp + cfg.AppName,
 		ServerAddr:  cfg.ServerAddr,
 		HomeDir:     cfg.HomeDir,
@@ -50,6 +55,7 @@ func StartClient(cfg *Config) error {
 		LogDir:      common.NodeProxyLogPath,
 		AppDataDir:  common.NodeProxyAppDataPath,
 		NodeInfo:    nodeInfo,
+		Initialized: initialized,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create client: %v", err)

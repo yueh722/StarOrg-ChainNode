@@ -51,7 +51,7 @@ func SendAddValidatorRequest(webServiceAddr string, req *AddValidatorReq) error 
 	rawUrl := fmt.Sprintf("%s/validator/add", webServiceAddr)
 	result, err := utils.HttpPost(rawUrl, req)
 	if err != nil {
-		return fmt.Errorf("send add validator request failure:", err)
+		return fmt.Errorf("send add validator request failure: %v", err)
 	}
 
 	zlog.Info("send add validator request success:", result)

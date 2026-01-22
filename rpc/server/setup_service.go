@@ -10,7 +10,6 @@ import (
 	"chain/utils"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -47,12 +46,14 @@ func (m *MultiError) ErrorOrNil() error {
 }
 
 func (m *MultiError) Error() string {
-	errStr, err := json.MarshalIndent(m.Errors, "", "  ")
-	if err != nil {
-		return err.Error()
+	//errStr, err := json.MarshalIndent(m.Errors, "", "  ")
+
+	errStr := []string{}
+	for key, err := range m.Errors {
+		errStr = append(errStr, key+": "+err.Error())
 	}
 
-	return string(errStr)
+	return fmt.Sprintf("{ %s }", strings.Join(errStr, ",\n"))
 }
 
 type nodeCommand struct {
@@ -93,7 +94,10 @@ func NewSetupService(store cmdlogstore.CommandLogStore, stream *StreamService) *
 		log.Panic(err)
 	}
 
-	chainstate, _ := LoadChainState(chainStateFile)
+	chainstate, err := LoadChainState(chainStateFile)
+	if err != nil {
+		chainstate = &ChainStateInternal{}
+	}
 
 	return &SetupService{
 		subs:          make(map[string]*ClientSub),
@@ -155,10 +159,10 @@ func (s *SetupService) GetChainState() *ChainState {
 }
 
 // RPC Method
-// Broadcast: "init all clients" with per-client NodeID assignment.
+// Broadcast: "init all node" with per-node NodeID assignment.
 func (s *SetupService) BroadcastInitializeChainNode(
 	chainID string,
-	nodeArray string,
+	nodeArray []lib.ArgNodeInfo,
 ) error {
 
 	s.mu.Lock()
@@ -168,16 +172,18 @@ func (s *SetupService) BroadcastInitializeChainNode(
 		return (errors.New("chain already initialized"))
 	}
 
-	if err := lib.ValidNodeArray(nodeArray); err != nil {
+	peers := lib.ArgNodeArrayToPeers(nodeArray)
+
+	if err := lib.ValidNodeArray(peers); err != nil {
 		return err
 	}
 
-	newChainState := NewChainState(chainID, nodeArray)
+	newChainState := NewChainState(chainID, peers)
 
-	nodecmds := make(map[string]*nodeCommand, len(s.subs))
+	nodecmds := map[string]*nodeCommand{}
 
 	for nodeID, _ := range s.subs {
-		peer := lib.GetNodeByNodeId(nodeID, nodeArray)
+		peer := peers.GetPeerByNodeId(nodeID)
 		if peer == nil || !peer.Valid() {
 			log.Infof("Peer is not valid, Ignore sending init command with peer %v to node", nodeID)
 			continue
@@ -217,7 +223,7 @@ func (s *SetupService) BroadcastInitializeChainNode(
 
 // RPC Method
 // Broadcase: add one node and update others nodes.
-func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
+func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -225,9 +231,11 @@ func (s *SetupService) BroadcastAddChainNode(peerInfo lib.Peer) error {
 		return ReturnError(errors.New("please initialize chain node first"))
 	}
 
-	if s.chainState.IsNodeInitialized(peerInfo.NodeId) {
+	if s.chainState.IsNodeInitialized(node.NodeId) {
 		return ReturnError(errors.New("node already initialized"))
 	}
+
+	peerInfo := node.ToPeer()
 
 	newChainState := s.chainState.CloneAddNode(peerInfo)
 

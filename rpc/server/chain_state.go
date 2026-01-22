@@ -56,12 +56,12 @@ func (state *ChainStateInternal) IsNodeInitialized(nodeID string) bool {
 	return false
 }
 
-func NewChainState(chainID string, peerArray string) *ChainStateInternal {
-	Peers := lib.ConvertJsonToPeers(peerArray)
-	GenesisDoc := lib.NewGenesisDoc(chainID, Peers.BuildValidators())
+func NewChainState(chainID string, peers lib.PeerList) *ChainStateInternal {
+
+	GenesisDoc := lib.NewGenesisDoc(chainID, peers.BuildValidators())
 
 	return &ChainStateInternal{
-		Peers:           Peers,
+		Peers:           peers,
 		GenesisDoc:      GenesisDoc,
 		InitializedTime: time.Now().UnixNano(),
 	}

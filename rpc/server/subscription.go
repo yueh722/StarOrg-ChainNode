@@ -5,6 +5,7 @@ import (
 	log "chain/lib/zlog"
 	"chain/rpc/common"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -26,10 +27,13 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 	// use initialization status that stored on master side.
 	delegator.StatusNode.Initialized = s.chainState.IsNodeInitialized(delegator.StatusNode.NodeID)
 
-	log.Printf("Received SubscribeCommand that requests from node, app: %s, id: %s, name: %s, initialized: %v",
+	nodeHostInfoBytes, _ := json.MarshalIndent(delegator.StatusNode.HostInfo, "", "  ")
+
+	log.Printf("Received SubscribeCommand that requests from node, app: %s, id: %s, name: %s, host: %v, initialized: %v",
 		delegator.App,
 		delegator.StatusNode.NodeID,
 		delegator.StatusNode.NodeName,
+		string(nodeHostInfoBytes),
 		delegator.StatusNode.Initialized,
 	)
 
@@ -65,4 +69,16 @@ func (s *SetupService) AddOrUpdateSubscription(clientSub *ClientSub) {
 	s.subs[clientSub.NodeID] = clientSub
 	s.NodeNameCache[clientSub.NodeID] = clientSub.StatusNode.NodeName
 
+}
+
+// Method
+func (s *SetupService) InitializationComplete(nodeID string, status *common.StatusNode) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if clientStub, ok := s.subs[nodeID]; ok {
+		if status.NodeID == nodeID {
+			clientStub.StatusNode = *status
+		}
+	}
 }

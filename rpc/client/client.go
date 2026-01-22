@@ -3,6 +3,7 @@ package client
 import (
 	"chain/lib"
 	log "chain/lib/zlog"
+	"chain/rpc/common"
 	"chain/rpc/security"
 	"chain/utils"
 	"context"
@@ -10,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -20,9 +22,10 @@ import (
 
 type Client struct {
 	Conn         *rpc.Client
-	Cfg          ClientConfig
+	Cfg          *ClientConfig
 	SetupClient  *SetupClient
 	StatusClient *StatusClient
+	TxClient     *LiveTxClient
 	mux          sync.Mutex
 }
 
@@ -35,6 +38,7 @@ type ClientConfig struct {
 	AppDataDir  string
 	LogDir      string
 	NodeInfo    *lib.NodeInfo
+	Initialized bool
 }
 
 func (c ClientConfig) getLogPath() string {
@@ -67,7 +71,7 @@ func MakeRpcHeader(clientID string) http.Header {
 	return header
 }
 
-func New(cfg ClientConfig) (*Client, error) {
+func New(cfg *ClientConfig) (*Client, error) {
 
 	var (
 		client *rpc.Client
@@ -90,12 +94,14 @@ func New(cfg ClientConfig) (*Client, error) {
 
 	setupClient := newSetupClient(client, cfg)
 	statusClient := newStatusClient(client, cfg)
+	liveTxClient := newLiveTxClient(client, cfg)
 
 	return &Client{
 		Conn:         client,
 		Cfg:          cfg,
 		SetupClient:  setupClient,
 		StatusClient: statusClient,
+		TxClient:     liveTxClient,
 	}, nil
 }
 
@@ -113,6 +119,7 @@ func (c *Client) Reconnect() {
 		c.Conn = client
 		c.SetupClient.Update(client)
 		c.StatusClient.Update(client)
+		c.TxClient.Update(client)
 		log.Println("Reconnected successfully: ", c.Cfg.ServerAddr)
 		break
 	}
@@ -173,4 +180,38 @@ func (c *Client) Register() error {
 	//submit node info status
 
 	return nil
+}
+
+func BuildStatusNode(cfg *ClientConfig, nr lib.NodeRuntime) (*common.StatusNode, error) {
+
+	ips, err := utils.GetAllIPAddresses()
+	if err != nil {
+		log.Fatalf("failed to get IP addresses, %v", err)
+		return nil, err
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Fatalf("failed to get hostname, %v", err)
+		return nil, err
+	}
+
+	nodeStartTime := ""
+	if nr != nil {
+		nodeStartTime = nr.CreatedTime()
+	} else {
+		nodeStartTime = utils.GetProcessCreatedTime(lib.NodeFileName, lib.AppFileName)
+	}
+
+	return &common.StatusNode{
+		NodeInfo: *cfg.NodeInfo,
+		HostInfo: common.HostInfo{
+			HostName: hostname,
+			IpAddrs:  ips,
+		},
+		Healthy:     lib.CheckNodeOnline(cfg.NodeInfo.RPCAddr),
+		LastCheck:   utils.NowString(),
+		StartedTime: nodeStartTime,
+		Initialized: cfg.Initialized,
+	}, nil
 }
