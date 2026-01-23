@@ -42,7 +42,7 @@ func GetActivatedNode(peers PeerList) *Peer {
 	}
 
 	for _, peer := range peers {
-		if CheckNodeOnline(peer.ToRPCAddr()) == true {
+		if CheckNodeOnline(peer.RPCAddr()) == true {
 			return &peer
 		}
 	}

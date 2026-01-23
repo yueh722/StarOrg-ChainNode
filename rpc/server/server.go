@@ -82,8 +82,6 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		return nil, err
 	}
 
-	startTransmitLiveTransaction(stream)
-
 	setuplogStore, _ := NewSetuplogStore(filepath.Join(cfg.AppDataDir, "setuplog.db"))
 	setup := NewSetupService(setuplogStore, stream)
 	if err := setup.RegisterService(server); err != nil {

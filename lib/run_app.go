@@ -58,10 +58,10 @@ func BuildAppLauncher(nodeID string, arg NodeArg) *Launcher {
 		Name:        "Start-Cometbft-App",
 		AppFilePath: filepath.Join(arg.BinPath, AppFileName),
 		Args: map[string]string{
-			"--home":          filepath.Join(arg.NodeBaseDir, "app"),
-			"--socket-addr":   arg.NodeInfo.ProxyApp,       // proxy_app
-			"--http-addr":     arg.NodeInfo.WebServiceAddr, //webservice
-			"--abci-rpc-addr": arg.NodeInfo.RPCAddr,        // rpc
+			"--home":             filepath.Join(arg.NodeBaseDir, "app"),
+			"--proxy-app-listen": arg.NodeInfo.ProxyApp,             // proxy_app
+			"--http-addr-listen": arg.NodeInfo.WebServiceListenAddr, //webservice
+			"--abci-rpc-addr":    arg.NodeInfo.RPCAddr,              // rpc
 		},
 		Envs:   nil,
 		Logger: zlog.NewCometbftNodeLogger(GetAppNameByNodeID(nodeID), filepath.Join(arg.LogFilePath, "app", arg.NodeInfo.NodeName+"_app.log"), arg.LogStore),

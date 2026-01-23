@@ -29,12 +29,12 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 
 	nodeHostInfoBytes, _ := json.MarshalIndent(delegator.StatusNode.HostInfo, "", "  ")
 
-	log.Printf("Received SubscribeCommand that requests from node, app: %s, id: %s, name: %s, host: %v, initialized: %v",
+	log.Printf("Received SubscribeCommand that requests from node, \n app: %s, name: %s, id: %s, initialized: %v, host: %v",
 		delegator.App,
-		delegator.StatusNode.NodeID,
 		delegator.StatusNode.NodeName,
-		string(nodeHostInfoBytes),
+		delegator.StatusNode.NodeID,
 		delegator.StatusNode.Initialized,
+		string(nodeHostInfoBytes),
 	)
 
 	nodeInfo := delegator.StatusNode.NodeInfo
@@ -79,6 +79,7 @@ func (s *SetupService) InitializationComplete(nodeID string, status *common.Stat
 	if clientStub, ok := s.subs[nodeID]; ok {
 		if status.NodeID == nodeID {
 			clientStub.StatusNode = *status
+			log.Infof("node initialization complete, nodeID: %v, nodeName: %v", status.NodeID, status.NodeName)
 		}
 	}
 }

@@ -51,3 +51,12 @@ func MakeMethodName(nameSpace, method string) string {
 
 	return fmt.Sprintf("%s_%s", nameSpace, strutil.LowerFirst(method))
 }
+
+type LiveTxNamespace struct{}
+
+func (s LiveTxNamespace) GetNamesapceString() string {
+	return "liveTx"
+}
+func (s LiveTxNamespace) GetSubscriptionName() string {
+	return ""
+}

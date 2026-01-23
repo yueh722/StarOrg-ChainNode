@@ -3,7 +3,6 @@ package lib
 import (
 	log "chain/lib/zlog"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -87,33 +86,35 @@ func (p *Peer) PersistentPeerID() string {
 	return NodekeyFromBase64(p.NodeKey).ID()
 }
 
-func (p *Peer) NodeFileID() string {
-	return NodekeyFromNodeID(p.NodeId).ID()
-}
-
-func (p *Peer) ToRPCAddr() string {
+func (p *Peer) RPCListenAddr() string {
 	// please note that cometbft node will listen rpc port which is always 127.0.0.1
 	// ref: config.toml -> [rpc].laddr
+	// default: laddr = "tcp://127.0.0.1:26657"
+	return fmt.Sprintf("tcp://%s:%d", "127.0.0.1", p.RPCPort)
+}
+
+func (p *Peer) RPCAddr() string {
+	// please pay attention to listen address of RPCListenAddr before change the server address below.
 	return fmt.Sprintf("http://%s:%d", "127.0.0.1", p.RPCPort)
 }
 
-func (p *Peer) ToProxyAppAddr() string {
-	return fmt.Sprintf("tcp://%s:%d", p.NodeAddress, p.ABCIPort)
+func (p *Peer) RPCWebsocketAddrs() []string {
+	return []string{
+		fmt.Sprintf("ws://%s:%d/websocket", "127.0.0.1", p.RPCPort),
+		fmt.Sprintf("wss://%s:%d/websocket", "127.0.0.1", p.RPCPort),
+	}
 }
 
-func (p *Peer) ToWebServiceAddr() string {
+func (p *Peer) ProxyAppAddr() string {
+	return fmt.Sprintf("tcp://%s:%d", "127.0.0.1", p.ABCIPort)
+}
+
+func (p *Peer) WebServiceAddr() string {
 	return fmt.Sprintf("http://%s:%d", p.NodeAddress, p.WebServicePort)
 }
 
-func (p *Peer) ToLocalWebServiceAddr() string {
-	return fmt.Sprintf("http://localhost:%d", p.WebServicePort)
-}
-
-func (p *Peer) ToWebsocketAddrs() []string {
-	return []string{
-		fmt.Sprintf("ws://%s:%d/websocket", p.NodeAddress, p.RPCPort),
-		fmt.Sprintf("wss://%s:%d/websocket", p.NodeAddress, p.RPCPort),
-	}
+func (p *Peer) WebServiceListenAddr() string {
+	return fmt.Sprintf("%s:%d", p.NodeAddress, p.WebServicePort)
 }
 
 func (p *Peer) Valid() bool {
@@ -216,7 +217,6 @@ func NewNodeId() string {
 
 func NodekeyFromBase64(b64Str string) *p2p.NodeKey {
 	//nodeID is a base64 encoded string of private key,
-	//convert this private key to nodeKey.
 
 	prvKey, err := base64.StdEncoding.DecodeString(b64Str)
 	if err != nil {
@@ -226,25 +226,6 @@ func NodekeyFromBase64(b64Str string) *p2p.NodeKey {
 	return &p2p.NodeKey{
 		PrivKey: ed25519.PrivKey(prvKey),
 	}
-}
-
-func NodekeyFromNodeID(nodeID string) *p2p.NodeKey {
-	//nodeID is a hex encoded string of private key,
-	//convert this private key to nodeKey.
-
-	prvKey, err := hex.DecodeString(nodeID)
-	if err != nil {
-		log.Fatalf("error decoding node key: %v", err)
-	}
-
-	return &p2p.NodeKey{
-		PrivKey: ed25519.PrivKey(prvKey),
-	}
-}
-
-func PersistentPeerIDFromNodeId(nodeID string) string {
-	//use nodeKey.ID() get Persistent peer ID
-	return NodekeyFromNodeID(nodeID).ID()
 }
 
 func NewPrivKey() string {

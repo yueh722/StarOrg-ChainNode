@@ -36,7 +36,6 @@ func (s *StatusService) GetServiceName() string {
 
 // Method
 func (s *StatusService) ReportNodeStatus(status *common.StatusNode) error {
-
 	if s.stream != nil {
 		s.stream.ReportState(status)
 	}

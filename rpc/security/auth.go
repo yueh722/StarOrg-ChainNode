@@ -44,8 +44,8 @@ func GetClientID(ctx context.Context) (string, bool) {
 }
 
 func GenerateToken(clientID string, secret []byte) string {
-	sig := fmt.Sprintf("%x", Signature(time.Now().Unix(), clientID, secret))
-	return fmt.Sprintf("%d:%s", time.Now().Unix(), sig)
+	sig := Signature(time.Now().Unix(), clientID, secret)
+	return fmt.Sprintf("%d:%x", time.Now().Unix(), sig)
 }
 
 func RandString(n int32) string {

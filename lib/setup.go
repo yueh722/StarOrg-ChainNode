@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/cometbft/cometbft/v2/config"
@@ -18,27 +19,27 @@ import (
 const peerConfigFile = "peer_config.json"
 
 type NodeInfo struct {
-	NodeName       string `json:"node_name,omitempty"`
-	NodeID         string `json:"node_id,omitempty"`
-	NodeAddress    string `json:"node_address,omitempty"`
-	ProxyApp       string `json:"proxy_app,omitempty"`        //proxy_app: default 26658
-	RPCAddr        string `json:"rpc_addr,omitempty"`         //rcp: default 26657
-	WebServiceAddr string `json:"web_service_addr,omitempty"` //webapi: default 8080
-	Validator      bool   `json:"validator,omitempty"`
+	NodeName             string `json:"node_name,omitempty"`
+	NodeID               string `json:"node_id,omitempty"`
+	NodeAddress          string `json:"node_address,omitempty"`
+	ProxyApp             string `json:"proxy_app,omitempty"`
+	RPCAddr              string `json:"rpc_addr,omitempty"`
+	WebServiceListenAddr string `json:"web_service_listen_addr,omitempty"`
+	Validator            bool   `json:"validator,omitempty"`
 }
 
 func GenesisTimeFromUnix(nsec int64) time.Time {
 	return cmttime.Canonical(time.Unix(0, nsec))
 }
 
-func InitializeChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, nodeDir string) error {
+func InitializeChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, homeDir string) error {
 
 	currPeer := peers.GetPeerByNodeId(nodeId)
 	if !currPeer.Valid() {
 		return fmt.Errorf("information of peer %s is invalid", nodeId)
 	}
 
-	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), nodeDir)
+	peerConfig, err := NewPeerConfig(currPeer, peers.BuildPersistentPeers(), homeDir)
 	if err != nil {
 		return err
 	}
@@ -261,13 +262,13 @@ func ResetPeerConfig(homeDir, nodeID, nodeName string) (*NodeInfo, error) {
 
 func PeerInfoToNodeInfo(peer *Peer) *NodeInfo {
 	return &NodeInfo{
-		NodeName:       peer.NodeName,
-		NodeID:         peer.NodeId,
-		NodeAddress:    peer.NodeAddress,
-		ProxyApp:       fmt.Sprintf("tcp://%s:%d", peer.NodeAddress, peer.ABCIPort),
-		RPCAddr:        peer.ToRPCAddr(),
-		WebServiceAddr: fmt.Sprintf("%s:%d", peer.NodeAddress, peer.WebServicePort),
-		Validator:      peer.IsValidator,
+		NodeName:             peer.NodeName,
+		NodeID:               peer.NodeId,
+		NodeAddress:          peer.NodeAddress,
+		ProxyApp:             peer.ProxyAppAddr(),
+		RPCAddr:              peer.RPCAddr(),
+		WebServiceListenAddr: peer.WebServiceListenAddr(),
+		Validator:            peer.IsValidator,
 	}
 }
 
@@ -278,7 +279,7 @@ func IsNodeInitialized(homeDir string, nodeInfo *NodeInfo) bool {
 
 	if nodeInfo.NodeName == "" ||
 		nodeInfo.ProxyApp == "" ||
-		nodeInfo.WebServiceAddr == "" ||
+		nodeInfo.WebServiceListenAddr == "" ||
 		nodeInfo.RPCAddr == "" {
 		return false
 	}
@@ -325,8 +326,33 @@ func ResetNodeInfo(nodeInfo *NodeInfo) {
 	}
 
 	nodeInfo.NodeAddress = ""
-	nodeInfo.WebServiceAddr = ""
+	nodeInfo.WebServiceListenAddr = ""
 	nodeInfo.RPCAddr = ""
 	nodeInfo.ProxyApp = ""
 	nodeInfo.Validator = false
+}
+
+func RPCWebsocketAddrs(nodeInfo *NodeInfo) []string {
+
+	var rpcAddr string
+
+	prefixs := []string{
+		"http://",
+		"https://",
+	}
+	for _, prefix := range prefixs {
+		if strings.HasPrefix(nodeInfo.RPCAddr, prefix) {
+			rpcAddr = strings.TrimPrefix(nodeInfo.RPCAddr, prefix)
+			break
+		}
+	}
+
+	if rpcAddr == "" {
+		rpcAddr = nodeInfo.RPCAddr
+	}
+
+	return []string{
+		fmt.Sprintf("ws://%s/websocket", rpcAddr),
+		fmt.Sprintf("wss://%s/websocket", rpcAddr),
+	}
 }

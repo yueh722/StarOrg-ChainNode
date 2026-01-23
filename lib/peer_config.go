@@ -103,12 +103,16 @@ func NewPeerConfig(currPeer *Peer, persistentPeers, homeDir string) (*PeerConfig
 	config.SetRoot(nodeDir)
 
 	// Overwrite default config.
-	config.RPC.ListenAddress, err = updatePort(config.RPC.ListenAddress, currPeer.RPCPort)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to update rpc listen address")
-	}
+	config.RPC.ListenAddress = currPeer.RPCListenAddr()
+	//config.RPC.ListenAddress, err = updatePort(config.RPC.ListenAddress, currPeer.RPCPort)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, "failed to update rpc listen address")
+	//}
 
-	config.BaseConfig.ProxyApp = currPeer.ToProxyAppAddr()
+	config.BaseConfig.ProxyApp, err = updatePort(config.BaseConfig.ProxyApp, currPeer.ABCIPort)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to update abci listen address")
+	}
 
 	config.P2P.ListenAddress, err = updatePort(config.P2P.ListenAddress, currPeer.P2PPort)
 	if err != nil {

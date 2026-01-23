@@ -72,6 +72,7 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 
 	statusNode, err := BuildStatusNode(c.cfg, c.nodeRuntime)
 	if err != nil {
+		errChan <- fmt.Errorf("build status node error: %v", err.Error())
 		close(cmdChan)
 		return errChan
 	}
@@ -88,7 +89,7 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 	)
 
 	if err != nil {
-		log.Info("SubscribeCommand error: ", err)
+		errChan <- fmt.Errorf("%v", err.Error())
 		close(cmdChan)
 		return errChan
 	}
@@ -175,7 +176,9 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 	}
 
 	method := common.MakeMethodName(common.SetupNamespace{}.GetNamesapceString(), "InitializationComplete")
-	_ = c.client.Call(nil, method, statusNode)
+	if err = c.client.Call(nil, method, statusNode); err != nil {
+		log.Info("[handleInitChainNodeCmd] failed to call InitializationComplete, err:", err)
+	}
 
 	return nil
 }
@@ -306,7 +309,7 @@ func (c *SetupClient) HandleAddValidator(cmd *common.CommandEnvelope) error {
 		return errors.New("Ignore add validator from current node. current node is not an original validator, which does not have right to commit transaction.")
 	}
 
-	if err := lib.SendAddValidatorRequest(c.GetCurrentPeer().ToWebServiceAddr(), &arg.AddValidatorReq); err != nil {
+	if err := lib.SendAddValidatorRequest(c.GetCurrentPeer().WebServiceAddr(), &arg.AddValidatorReq); err != nil {
 		return err
 	}
 

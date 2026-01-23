@@ -185,7 +185,8 @@ func (s *SetupService) BroadcastInitializeChainNode(
 	for nodeID, _ := range s.subs {
 		peer := peers.GetPeerByNodeId(nodeID)
 		if peer == nil || !peer.Valid() {
-			log.Infof("Peer is not valid, Ignore sending init command with peer %v to node", nodeID)
+			log.Infof("Peer is not in the initialization list, Ignore sending init command with peer %v to node",
+				s.FormatName(nodeID))
 			continue
 		}
 
@@ -200,7 +201,7 @@ func (s *SetupService) BroadcastInitializeChainNode(
 			},
 		}
 
-		log.Info("build init command with node:", nodeID, peer.NodeName)
+		log.Info("build init command with node:", s.FormatName(nodeID))
 	}
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
@@ -235,17 +236,20 @@ func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) error {
 		return ReturnError(errors.New("node already initialized"))
 	}
 
+	//if !s.HasActivatedValidator() {
+	//	return ReturnError(errors.New("activated validator node not found, please run all nodes first before prepare to add a new node"))
+	//}
+
 	peerInfo := node.ToPeer()
 
 	newChainState := s.chainState.CloneAddNode(peerInfo)
 
 	nodecmds := make(map[string]*nodeCommand)
 
-	log.Info("prepare add node:", peerInfo.NodeId, peerInfo.NodeName)
+	log.Info("prepare add node:", s.FormatName(peerInfo.NodeId))
 	log.Info("peers already initialized: ", slice.Map(s.chainState.Peers, func(_ int, peer lib.Peer) string {
 		return fmt.Sprintf("%v : %v : %v",
-			peer.NodeId,
-			peer.NodeName,
+			s.FormatName(peer.NodeId),
 			s.chainState.IsNodeInitialized(peer.NodeId))
 	}))
 
@@ -265,12 +269,13 @@ func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) error {
 				GenesisDoc: *s.chainState.GenesisDoc,
 			}
 
-			log.Info("build init command with node", nodeID, clientStub.StatusNode.NodeName)
+			log.Info("build init command with node", s.FormatName(peerInfo.NodeId))
 
 		} else {
 
 			if !clientStub.StatusNode.Initialized {
-				log.Info("this node has not initialized, Ignore sending update command to it, ", peerInfo.NodeId, peerInfo.NodeName)
+				log.Info("this node has not initialized, Ignore sending update command to it, ",
+					s.FormatName(nodeID))
 				continue
 			}
 
@@ -280,11 +285,9 @@ func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) error {
 				NodeArray: newChainState.Peers,
 			}
 
-			log.Info("build update chain config command with node", nodeID, clientStub.StatusNode.NodeName)
+			log.Info("build update chain config command with node", s.FormatName(nodeID))
 
 		}
-
-		s.NodeNameCache[nodeID] = peerInfo.NodeName
 
 		nodecmds[nodeID] = &nodeCommand{
 			cmd:     cmd,
@@ -296,6 +299,8 @@ func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) error {
 		log.Info("send node command failure:", err)
 		return err
 	}
+
+	s.NodeNameCache[peerInfo.NodeId] = peerInfo.NodeName
 
 	// update initialization status of new node.
 	s.PeerInitializationCompleted([]string{peerInfo.NodeId})
@@ -339,8 +344,7 @@ func (s *SetupService) BroadcaseAddValidator(peerInfo lib.Peer) error {
 			continue
 		}
 
-		if !lib.CheckNodeOnline(clientStub.StatusNode.NodeInfo.RPCAddr) {
-			//no need to send command to node that is already offline
+		if !clientStub.StatusNode.Healthy {
 			//continue
 		}
 
@@ -401,7 +405,8 @@ func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) error {
 
 	for _, ctlNode := range ctlNodes {
 		if !s.chainState.IsNodeInitialized(ctlNode.NodeID) {
-			log.Warnf("the node %v has not initialized, Ignore sending control command to it", ctlNode.NodeID)
+			log.Warnf("the node %v has not initialized, Ignore sending control command to it",
+				s.FormatName(ctlNode.NodeID))
 			continue
 		}
 
@@ -410,7 +415,7 @@ func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) error {
 			payload: ctlNode,
 		}
 
-		log.Printf("[ControlNode] nodeID: %v, action: %v", ctlNode.NodeID, ctlNode.Action)
+		log.Printf("[ControlNode] node: %v, action: %v", s.FormatName(ctlNode.NodeID), ctlNode.Action)
 	}
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
@@ -505,11 +510,11 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 				return ReturnError(errors.New("client not initialized"))
 			}
 
-			log.Infof("sending command [%v] to node %v", env.Cmd, nodeID)
+			log.Infof("sending command [%v] to node %v", env.Cmd, s.FormatName(nodeID))
 
 			//notify all client to initialize node
 			if err := clientSub.Notifier.Notify(clientSub.SubID, env); err != nil {
-				return fmt.Errorf("Failed to notify node: %v, err %v", nodeID, err)
+				return fmt.Errorf("Failed to notify node: %v, err %v", s.FormatName(nodeID), err)
 			}
 			return nil
 		}
@@ -555,8 +560,8 @@ func (s *SetupService) getNotifierByNodeID(nodeID string) *ClientSub {
 // complete command that sent to node
 func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 
-	log.Printf("[CommandResult] cmd: %s, nodeID: %s, nodeName: %s, status: %s, err: %v",
-		res.Cmd, res.NodeID, s.NodeNameCache[res.NodeID], res.Status, res.Error)
+	log.Printf("[CommandResult] cmd: %s, node: %v, status: %s, err: %v",
+		res.Cmd, s.FormatName(res.NodeID), res.Status, res.Error)
 
 	if reported := s.stream.ReportState(res); reported {
 		//set reported state for cmdEvent
@@ -574,4 +579,31 @@ func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 	_, err = s.cmdEvent.Complete(res.CommandID, res.Status == commandlog.CmdSuccess, res.Message, res.Error)
 
 	return err
+}
+
+func (s *SetupService) FormatName(nodeID string) string {
+	if name, ok := s.NodeNameCache[nodeID]; ok {
+		return fmt.Sprintf("%s | %s", name, nodeID)
+	}
+	return nodeID
+}
+
+func (s *SetupService) HasActivatedValidator() bool {
+
+	for nodeID, clientStub := range s.subs {
+
+		if !s.isOriginalValidator(clientStub.StatusNode.NodeName) {
+			//no need to send this kind of command to a non-validator node.
+			continue
+		}
+
+		if lib.CheckNodeOnline(clientStub.StatusNode.RPCAddr) {
+			log.Info("validator node is online, node: ", s.FormatName(nodeID))
+			return true
+		}
+
+		log.Info("validator node is offline, node: ", s.FormatName(nodeID))
+	}
+
+	return false
 }

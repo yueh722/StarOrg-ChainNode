@@ -1,15 +1,7 @@
 package server
 
-import (
-	"chain/lib"
-	"chain/lib/zlog"
-	"chain/utils"
-	"time"
-
-	"github.com/gorilla/websocket"
-	"github.com/tidwall/gjson"
-)
-
+/*
+// reading live tx from node RPC issued by server-side
 func mustGetConnection(addresses []string) *websocket.Conn {
 	for {
 		for _, address := range addresses {
@@ -37,11 +29,7 @@ func ListenTransaction(peer *lib.Peer) <-chan lib.StatusTransaction {
 			close(txDetailChan)
 		}()
 
-		if lib.CheckNodeOnline(peer.ToRPCAddr()) == false {
-			return
-		}
-
-		conn := mustGetConnection(peer.ToWebsocketAddrs())
+		conn := mustGetConnection(peer.RPCWebsocketAddrs())
 
 		// subscribe Tx
 		msg := `{"jsonrpc":"2.0","method":"subscribe","id":"1","params":{"query":"tm.event='Tx'"}}`
@@ -77,7 +65,7 @@ func ListenTransaction(peer *lib.Peer) <-chan lib.StatusTransaction {
 	return txDetailChan
 }
 
-func startTransmitLiveTransaction(stream *StreamService) {
+func startTransmitLiveTransactionFromServer(stream *StreamService) {
 
 	// start go-routine to fetch live transactions from node and transmit tx to transaction subscribers
 	go func() {
@@ -104,7 +92,7 @@ func startTransmitLiveTransaction(stream *StreamService) {
 				time.Sleep(10 * time.Millisecond)
 				continue
 			}
-			zlog.Printf("[live transaction] found activated peer: %v %v", activatedPeer.NodeName, activatedPeer.ToRPCAddr())
+			zlog.Printf("[live transaction] found activated peer: %v %v", activatedPeer.NodeName, activatedPeer.RPCAddr())
 			txCh := ListenTransaction(activatedPeer)
 			for tx := range txCh {
 				if ok := stream.ReportState(tx); !ok {
@@ -117,3 +105,5 @@ func startTransmitLiveTransaction(stream *StreamService) {
 	}()
 
 }
+
+*/
