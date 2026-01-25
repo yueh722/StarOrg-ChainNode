@@ -58,7 +58,7 @@ func (s *NodeLogService) PublishLog() {
 
 		for eventID, unsendLog := range sendingLogs {
 			log.Println("Sending log", eventID, unsendLog)
-			ok := s.stream.ReportState(unsendLog)
+			ok := s.stream.reportStateInternal(unsendLog)
 			if ok {
 				s.mut.Lock()
 				delete(s.unsendLogs, eventID)

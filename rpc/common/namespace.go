@@ -3,12 +3,70 @@ package common
 import (
 	"fmt"
 
+	"github.com/duke-git/lancet/v2/slice"
 	"github.com/duke-git/lancet/v2/strutil"
 )
 
 const (
 	NameSpaceSetupService = "chain"
 )
+
+var rpcMethods = map[string]string{}
+
+func init() {
+
+	methodsMap := map[string][]string{
+		//client
+		//StatusClient
+		StatusClientNamespace{}.GetNamesapceString(): []string{"IsNodeRpcAlive"},
+
+		/////////////////////////////////////////////
+		//server
+		//setup service
+		SetupNamespace{}.GetNamesapceString(): []string{
+			"GetChainState",
+			"BroadcastInitializeChainNode",
+			"BroadcastAddChainNode",
+			"ControlNode",
+			"BroadcastResetChainNode",
+			"ReportCommandResult",
+			"InitializationComplete",
+		},
+
+		//status service
+		StatusNamespace{}.GetNamesapceString(): []string{
+			"ReportNodeStatus",
+			"ReportStorageStatus",
+			"ReportLiveTx",
+		},
+
+		//livetx service
+		LiveTxNamespace{}.GetNamesapceString(): []string{
+			"EnableTransmitter",
+		},
+
+		//stream service
+		StreamNamespace{}.GetNamesapceString(): []string{
+			"ReportState",
+		},
+
+		//ticker service
+		TickerNamespace{}.GetNamesapceString(): []string{
+			"Start",
+		},
+
+		//nodelog service
+		NodeLogNamespace{}.GetNamesapceString(): []string{
+			"ReportLog",
+		},
+	}
+
+	for namespace, methods := range methodsMap {
+		slice.ForEach(methods, func(index int, name string) {
+			rpcMethods[name] = MakeMethodName(namespace, name)
+		})
+	}
+}
 
 type Namespace interface {
 	GetNamesapceString() string
@@ -52,11 +110,42 @@ func MakeMethodName(nameSpace, method string) string {
 	return fmt.Sprintf("%s_%s", nameSpace, strutil.LowerFirst(method))
 }
 
+func GetMethodName(method string) string {
+	return rpcMethods[method]
+}
+
 type LiveTxNamespace struct{}
 
 func (s LiveTxNamespace) GetNamesapceString() string {
 	return "liveTx"
 }
 func (s LiveTxNamespace) GetSubscriptionName() string {
+	return ""
+}
+
+type StatusNamespace struct{}
+
+func (s StatusNamespace) GetNamesapceString() string {
+	return "status"
+}
+func (s StatusNamespace) GetSubscriptionName() string {
+	return ""
+}
+
+type TickerNamespace struct{}
+
+func (s TickerNamespace) GetNamesapceString() string {
+	return "ticker"
+}
+func (s TickerNamespace) GetSubscriptionName() string {
+	return ""
+}
+
+type StatusClientNamespace struct{}
+
+func (s StatusClientNamespace) GetNamesapceString() string {
+	return "statusclient"
+}
+func (s StatusClientNamespace) GetSubscriptionName() string {
 	return ""
 }

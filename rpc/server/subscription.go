@@ -4,11 +4,14 @@ import (
 	"chain/lib"
 	log "chain/lib/zlog"
 	"chain/rpc/common"
+	"chain/rpc/common/notification"
 	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
+	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -22,6 +25,11 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 	notifier, ok := rpc.NotifierFromContext(ctx)
 	if !ok {
 		return nil, rpc.ErrNotificationsUnsupported
+	}
+
+	client, ok := rpc.ClientFromContext(ctx)
+	if !ok {
+		log.Info("rpc client from context is not available: ", delegator.StatusNode.NodeName)
 	}
 
 	// use initialization status that stored on master side.
@@ -46,13 +54,19 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 
 	s.AddOrUpdateSubscription(&ClientSub{
 		Notifier:   notifier,
+		Client:     client,
 		NodeID:     nodeInfo.NodeID,
 		StatusNode: delegator.StatusNode,
 		SubID:      sub.ID,
 	})
 
 	go func() {
-		<-sub.Err()
+		err := <-sub.Err()
+		log.Info("rpc client subscription closed,", err)
+
+		//if err := s.PingClient(notifier, sub.ID, nodeInfo.NodeID); err != nil {}
+		s.broadcaseOfflineClient(nodeInfo.NodeID)
+
 		s.mu.Lock()
 		delete(s.subs, nodeInfo.NodeID)
 		s.mu.Unlock()
@@ -62,13 +76,53 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 }
 
 func (s *SetupService) AddOrUpdateSubscription(clientSub *ClientSub) {
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.subs[clientSub.NodeID] = clientSub
 	s.NodeNameCache[clientSub.NodeID] = clientSub.StatusNode.NodeName
+}
 
+func (s *SetupService) buildPingCmd(nodeID string) *common.CommandEnvelope {
+
+	cmdID, err := newCommandID()
+	if err != nil {
+		return nil
+	}
+
+	ping := &common.SetupPing{
+		NodeID:    nodeID,
+		Timestamp: time.Now().UnixNano(),
+	}
+
+	payload, _ := cmtjson.Marshal(ping)
+
+	return &common.CommandEnvelope{
+		CommandID: cmdID,
+		Cmd:       common.CmdPing,
+		NodeID:    nodeID,
+		Payload:   payload,
+		IssuedAt:  time.Now().UnixNano(),
+	}
+}
+
+func (s *SetupService) broadcaseOfflineClient(nodeID string) {
+	s.notifierMgr.Notify(notification.Message{
+		Type:    notification.MsgTypeOffline,
+		Payload: nodeID,
+		Time:    time.Now().UnixNano(),
+	})
+}
+
+func (s *SetupService) PingClient(notifier *rpc.Notifier, subID rpc.ID, nodeID string) error {
+	err := notifier.Notify(subID, s.buildPingCmd(nodeID))
+	if err != nil {
+		log.Info("notifier notify err. ", err)
+		log.Infof("node %v went offline", s.FormatName(nodeID))
+		// client is offline
+		return err
+	}
+	return nil
 }
 
 // Method

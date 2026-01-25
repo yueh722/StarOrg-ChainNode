@@ -4,11 +4,13 @@ import (
 	"chain/lib/cmdlogstore"
 	"chain/lib/queuestore"
 	log "chain/lib/zlog"
+	"chain/rpc/common/notification"
 	"chain/rpc/security"
 	"chain/rpc/server/middleware"
 	"chain/utils"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -25,6 +27,49 @@ type TlsOption struct {
 	TlsKeyFile  string
 }
 
+/*
+type Ticker struct {
+	NotifierMgr *notification.Manager
+}
+
+func NewTicker(rpcServer *rpc.Server, listeners ...notification.Listener) *Ticker {
+
+	t := &Ticker{
+		NotifierMgr: notification.NewManager(listeners...),
+	}
+	if err := rpcServer.RegisterName(common.TickerNamespace{}.GetNamesapceString(), t); err != nil {
+		log.Infof("Failed to register ticker service: %v", err)
+		return nil
+	}
+
+	return t
+}
+
+func (t *Ticker) Start(ctx context.Context) {
+
+	cc, ok := ctx.Value(common.KeyClientID).(*common.ClientContext)
+	if !ok {
+		return
+	}
+
+	log.Info("Ticker incoming: clientID: ", cc.ClientID, " Token: ", cc.Token)
+	client, ok := rpc.ClientFromContext(ctx)
+	if !ok {
+		return
+	}
+
+	err := client.Call(nil, common.GetMethodName(""), &common.KeepUntilDead{
+		ServerID: "master",
+		ClientID: cc.ClientID,
+		SeqNum:   cc.SeqNum + 1,
+	})
+	if err != nil {
+		log.Infof("KeepUntilDead returned from client, connection might closed. err: %v", err)
+	}
+}
+
+*/
+
 type Server struct {
 	SetupService  *SetupService
 	StatusService *StatusService
@@ -32,6 +77,7 @@ type Server struct {
 	addr          string
 	srv           *http.Server
 	tls           TlsOption
+	RpcServer     *rpc.Server
 }
 
 type ServerConfig struct {
@@ -72,36 +118,41 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	//check addr
 	parts := strings.SplitN(cfg.Addr, ":", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid server address: %s", cfg.Addr)
+		return nil, fmt.Errorf("invalid Server address: %s", cfg.Addr)
 	}
 
-	server := rpc.NewServer()
+	rpcServer := rpc.NewServer()
 
 	stream := NewStreamService()
-	if err := stream.RegisterService(server); err != nil {
+	if err := stream.RegisterService(rpcServer); err != nil {
 		return nil, err
 	}
 
-	setuplogStore, _ := NewSetuplogStore(filepath.Join(cfg.AppDataDir, "setuplog.db"))
-	setup := NewSetupService(setuplogStore, stream)
-	if err := setup.RegisterService(server); err != nil {
-		return nil, err
+	liveTx := NewLiveTxService(rpcServer, &cfg)
+	if liveTx == nil {
+		return nil, errors.New("failed to create livetx service")
 	}
 
 	status := NewStatusService(stream)
-	if err := status.RegisterService(server); err != nil {
+	if err := status.RegisterService(rpcServer); err != nil {
 		return nil, err
 	}
 
 	logSrv := NewNodeLogService(queuestore.NewInMemoryStore(), stream)
-	if err := logSrv.RegisterService(server); err != nil {
+	if err := logSrv.RegisterService(rpcServer); err != nil {
+		return nil, err
+	}
+
+	setuplogStore, _ := NewSetuplogStore(filepath.Join(cfg.AppDataDir, "setuplog.db"))
+	setup := NewSetupService(setuplogStore, stream, notification.NewManager(liveTx))
+	if err := setup.RegisterService(rpcServer); err != nil {
 		return nil, err
 	}
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/websocket", server.WebsocketHandler([]string{"*"}))
-	mux.Handle("/rpc", server)
+	mux.Handle("/websocket", rpcServer.WebsocketHandler([]string{"*"}))
+	mux.Handle("/rpc", rpcServer)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "RPC Server is running")
 	})
@@ -123,6 +174,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		addr:          cfg.Addr,
 		srv:           srv,
 		tls:           cfg.Tls,
+		RpcServer:     rpcServer,
 	}, nil
 }
 

@@ -3,6 +3,7 @@ package server
 import (
 	"chain/lib/zlog"
 	"chain/rpc/common"
+	"chain/rpc/common/notification"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -15,7 +16,7 @@ type LiveTxService struct {
 	mux          sync.Mutex
 }
 
-func newLiveTxService(server *rpc.Server, cfg *ServerConfig) *LiveTxService {
+func NewLiveTxService(server *rpc.Server, cfg *ServerConfig) *LiveTxService {
 
 	c := &LiveTxService{
 		server:       server,
@@ -31,14 +32,37 @@ func newLiveTxService(server *rpc.Server, cfg *ServerConfig) *LiveTxService {
 	return c
 }
 
-func (c *LiveTxService) Enabled(nodeID string, rpcOnline bool) bool {
+func (c *LiveTxService) EnableTransmitter(nodeID string, rpcOnline bool) bool {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	if len(c.transmitters) == 0 {
+	if !rpcOnline {
+		return false
+	}
 
+	if len(c.transmitters) == 0 {
+		zlog.Info("enabled tx transmitter for node: ", nodeID)
+		c.transmitters[nodeID] = true
 		return true
 	}
 
-	return true
+	if _, ok := c.transmitters[nodeID]; ok {
+		//zlog.Info("enabled tx transmitter for node already exist: ", nodeID)
+		return true
+	}
+
+	return false
+}
+
+func (c *LiveTxService) OnNotify(msg *notification.Message) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	if msg.Type == notification.MsgTypeOffline {
+		nodeID := msg.Payload.(string)
+		if _, ok := c.transmitters[nodeID]; ok {
+			delete(c.transmitters, nodeID)
+			zlog.Info("removed transmitter: ", nodeID)
+		}
+	}
 }

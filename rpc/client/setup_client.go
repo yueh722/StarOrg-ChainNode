@@ -31,6 +31,7 @@ var router = map[common.CmdType]func(*SetupClient, *common.CommandEnvelope) erro
 	common.CmdControlNode:         (*SetupClient).handleControlNodeCmd,
 	common.CmdResetChain:          (*SetupClient).handleResetChainCmd,
 	common.CmdAddValidator:        (*SetupClient).HandleAddValidator,
+	common.CmdPing:                (*SetupClient).HandlePing,
 }
 
 func newSetupClient(client *rpc.Client, cfg *ClientConfig) *SetupClient {
@@ -172,15 +173,21 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 
 	statusNode, err := BuildStatusNode(c.cfg, nil)
 	if err != nil {
+		log.Info("[handleInitChainNodeCmd] failed to build status node upon initialize node, err:", err)
 		return err
 	}
 
-	method := common.MakeMethodName(common.SetupNamespace{}.GetNamesapceString(), "InitializationComplete")
-	if err = c.client.Call(nil, method, statusNode); err != nil {
-		log.Info("[handleInitChainNodeCmd] failed to call InitializationComplete, err:", err)
-	}
+	// use go-routine sending complete notification to prevent deadlock of master.
+	go c.CompleteInitNodeCmd(statusNode)
 
 	return nil
+}
+
+func (c *SetupClient) CompleteInitNodeCmd(statusNode *common.StatusNode) {
+
+	if err := c.client.Call(nil, common.GetMethodName("InitializationComplete"), c.NodeID(), statusNode); err != nil {
+		log.Info("failed to call InitializationComplete, err:", err)
+	}
 }
 
 // update chain config handler
@@ -316,6 +323,20 @@ func (c *SetupClient) HandleAddValidator(cmd *common.CommandEnvelope) error {
 	return nil
 }
 
+func (c *SetupClient) HandlePing(cmd *common.CommandEnvelope) error {
+	arg := common.SetupPing{}
+	err := cmtjson.Unmarshal(cmd.Payload, &arg)
+	if err != nil {
+		return err
+	}
+
+	if arg.NodeID != c.NodeID() {
+		return fmt.Errorf("invalid ping with node, nodeID: %v", arg.NodeID)
+	}
+
+	return nil
+}
+
 // stop node & app
 func (c *SetupClient) handleStopNode() error {
 	err := lib.StopNode(c.nodeRuntime)
@@ -387,8 +408,7 @@ func (c *SetupClient) initLogStore(logFilePath string) error {
 
 func (c *SetupClient) reportLog(event *queuestore.PersistedEvent) error {
 
-	method := common.MakeMethodName(common.NodeLogNamespace{}.GetNamesapceString(), "ReportLog")
-	err := c.client.Call(nil, method, *event)
+	err := c.client.Call(nil, common.GetMethodName("ReportLog"), *event)
 	if err != nil {
 		return err
 	}
@@ -403,6 +423,11 @@ func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr er
 		status  commandlog.CommandStatus
 	)
 
+	if cmd.Cmd == common.CmdPing {
+		//ignore sending result of ping back
+		return
+	}
+
 	if cmdErr != nil {
 		errText = cmdErr.Error()
 		status = commandlog.CmdFailed
@@ -410,9 +435,7 @@ func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr er
 		status = commandlog.CmdSuccess
 	}
 
-	method := common.MakeMethodName(common.SetupNamespace{}.GetNamesapceString(), "ReportCommandResult")
-
-	err := c.client.Call(nil, method, commandlog.CommandResult{
+	err := c.client.Call(nil, common.GetMethodName("ReportCommandResult"), commandlog.CommandResult{
 		CommandID:  cmd.CommandID,
 		Cmd:        cmd.Cmd,
 		NodeID:     cmd.NodeID,
@@ -424,6 +447,6 @@ func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr er
 		FinishedAt: time.Now().UnixNano(),
 	})
 	if err != nil {
-		log.Println("", err)
+		log.Println("failed to report command result:", err)
 	}
 }

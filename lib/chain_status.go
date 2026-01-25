@@ -36,20 +36,6 @@ func CheckNodeOnline(rpcAddr string) bool {
 	return true
 }
 
-func GetActivatedNode(peers PeerList) *Peer {
-	if peers == nil {
-		return nil
-	}
-
-	for _, peer := range peers {
-		if CheckNodeOnline(peer.RPCAddr()) == true {
-			return &peer
-		}
-	}
-
-	return nil
-}
-
 type StatusTransaction struct {
 	Data   string `json:"data,omitempty"`
 	Hash   string `json:"hash,omitempty"`

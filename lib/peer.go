@@ -114,7 +114,7 @@ func (p *Peer) WebServiceAddr() string {
 }
 
 func (p *Peer) WebServiceListenAddr() string {
-	return fmt.Sprintf("%s:%d", p.NodeAddress, p.WebServicePort)
+	return fmt.Sprintf("%s:%d", "0.0.0.0", p.WebServicePort)
 }
 
 func (p *Peer) Valid() bool {

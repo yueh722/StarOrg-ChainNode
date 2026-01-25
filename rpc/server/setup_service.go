@@ -6,6 +6,7 @@ import (
 	log "chain/lib/zlog"
 	"chain/rpc/commandlog"
 	"chain/rpc/common"
+	"chain/rpc/common/notification"
 	"chain/rpc/server/command_manager"
 	"chain/utils"
 	"context"
@@ -35,6 +36,10 @@ type MultiError struct {
 
 func NewMultiError() *MultiError {
 	return &MultiError{Errors: make(map[string]error)}
+}
+
+func (m *MultiError) Clear() {
+	m.Errors = nil
 }
 
 func (m *MultiError) ErrorOrNil() error {
@@ -72,10 +77,12 @@ type SetupService struct {
 	chainState    *ChainStateInternal
 	cmdManager    *command_manager.CmdManager
 	NodeNameCache map[string]string
+	notifierMgr   *notification.Manager
 }
 
 type ClientSub struct {
 	Notifier   *rpc.Notifier
+	Client     *rpc.Client
 	NodeID     string
 	StatusNode common.StatusNode
 	SubID      rpc.ID
@@ -87,7 +94,7 @@ func init() {
 	utils.TryCreateDir(filepath.Dir(chainStateFile))
 }
 
-func NewSetupService(store cmdlogstore.CommandLogStore, stream *StreamService) *SetupService {
+func NewSetupService(store cmdlogstore.CommandLogStore, stream *StreamService, notifierMgr *notification.Manager) *SetupService {
 
 	cmdEvent, err := commandlog.NewCommandRepo(store)
 	if err != nil {
@@ -106,6 +113,7 @@ func NewSetupService(store cmdlogstore.CommandLogStore, stream *StreamService) *
 		chainState:    chainstate,
 		cmdManager:    command_manager.NewCmdManager(),
 		NodeNameCache: make(map[string]string),
+		notifierMgr:   notifierMgr,
 	}
 }
 
@@ -129,10 +137,10 @@ func (s *SetupService) GetChainState() *ChainState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, clientSub := range s.subs {
+	for nodeID, clientSub := range s.subs {
 		node := &clientSub.StatusNode
 		if node.Initialized {
-			node.Healthy = lib.CheckNodeOnline(node.RPCAddr)
+			node.Healthy = s.IsNodeRpcAlive(nodeID)
 			node.LastCheck = utils.NowString()
 		}
 
@@ -340,12 +348,15 @@ func (s *SetupService) BroadcaseAddValidator(peerInfo lib.Peer) error {
 	for nodeID, clientStub := range s.subs {
 
 		if !s.isOriginalValidator(clientStub.StatusNode.NodeName) {
-			//no need to send this kind of command to a non-validator node.
+			//no need to send the command to a non-validator node.
 			continue
 		}
 
-		if !clientStub.StatusNode.Healthy {
-			//continue
+		if !s.IsNodeRpcAlive(nodeID) {
+			//no need to send the command to an offline node.
+			log.Infof("ignore the node: %v for adding validator:", s.FormatName(peerInfo.NodeId))
+			totalErr.Errors[nodeID] = fmt.Errorf("RPC of the node is not alive.")
+			continue
 		}
 
 		v := peerInfo.BuildValidator()
@@ -369,6 +380,7 @@ func (s *SetupService) BroadcaseAddValidator(peerInfo lib.Peer) error {
 			continue
 		}
 
+		totalErr.Clear()
 		break
 	}
 
@@ -558,12 +570,12 @@ func (s *SetupService) getNotifierByNodeID(nodeID string) *ClientSub {
 
 // RPC Method
 // complete command that sent to node
-func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
+func (s *SetupService) ReportCommandResult(ctx context.Context, res commandlog.CommandResult) error {
 
 	log.Printf("[CommandResult] cmd: %s, node: %v, status: %s, err: %v",
 		res.Cmd, s.FormatName(res.NodeID), res.Status, res.Error)
 
-	if reported := s.stream.ReportState(res); reported {
+	if reported := s.stream.ReportState(ctx, &res); reported {
 		//set reported state for cmdEvent
 	}
 
@@ -578,7 +590,7 @@ func (s *SetupService) ReportCommandResult(res commandlog.CommandResult) error {
 	// complete log status of command event
 	_, err = s.cmdEvent.Complete(res.CommandID, res.Status == commandlog.CmdSuccess, res.Message, res.Error)
 
-	return err
+	return nil
 }
 
 func (s *SetupService) FormatName(nodeID string) string {
@@ -586,6 +598,21 @@ func (s *SetupService) FormatName(nodeID string) string {
 		return fmt.Sprintf("%s | %s", name, nodeID)
 	}
 	return nodeID
+}
+
+func (s *SetupService) IsNodeRpcAlive(nodeID string) bool {
+	clientSub := s.getNotifierByNodeID(nodeID)
+	if clientSub == nil {
+		log.Info("clientSub not found, node: %v", s.FormatName(nodeID))
+		return false
+	}
+
+	var alive bool
+	if err := clientSub.Client.Call(&alive, common.GetMethodName("IsNodeRpcAlive")); err != nil {
+		log.Info("failed to call IsNodeRpcAlive, err:", err)
+	}
+
+	return alive
 }
 
 func (s *SetupService) HasActivatedValidator() bool {
@@ -597,7 +624,7 @@ func (s *SetupService) HasActivatedValidator() bool {
 			continue
 		}
 
-		if lib.CheckNodeOnline(clientStub.StatusNode.RPCAddr) {
+		if s.IsNodeRpcAlive(nodeID) {
 			log.Info("validator node is online, node: ", s.FormatName(nodeID))
 			return true
 		}

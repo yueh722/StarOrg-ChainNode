@@ -48,6 +48,11 @@ type SetupControlNode struct {
 	Action NodeAction
 }
 
+type SetupPing struct {
+	NodeID    string
+	Timestamp int64
+}
+
 type HostInfo struct {
 	HostName string   `json:"host_name"`
 	IpAddrs  []string `json:"ip_addrs"`
@@ -79,6 +84,7 @@ type StatusStorage struct {
 type CmdType string
 
 const (
+	CmdPing                CmdType = "setup_ping"
 	CmdInitializeChainNode CmdType = "setup_initialize_chain_node"
 	CmdUpdateChainCfg      CmdType = "setup_update_chain_cfg"
 	CmdAddValidator        CmdType = "setup_add_validator"

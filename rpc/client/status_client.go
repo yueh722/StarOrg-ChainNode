@@ -1,7 +1,9 @@
 package client
 
 import (
+	"chain/lib"
 	"chain/rpc/common"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/shirou/gopsutil/disk"
@@ -13,10 +15,21 @@ type StatusClient struct {
 }
 
 func newStatusClient(client *rpc.Client, cfg *ClientConfig) *StatusClient {
-	return &StatusClient{
+
+	c := &StatusClient{
 		client: client,
 		cfg:    cfg,
 	}
+
+	if err := client.RegisterName(common.StatusClientNamespace{}.GetNamesapceString(), c); err != nil {
+		panic(fmt.Errorf("failed to register StatusClient, err: %v", err))
+	}
+
+	return c
+}
+
+func (c *StatusClient) IsNodeRpcAlive() bool {
+	return lib.CheckNodeOnline(c.cfg.NodeInfo.RPCAddr)
 }
 
 func (c *StatusClient) Update(client *rpc.Client) {
@@ -31,7 +44,7 @@ func (c *StatusClient) ReportNodeStatus() error {
 		return err
 	}
 
-	err = c.client.Call(nil, "status_reportNodeStatus", statusNode)
+	err = c.client.Call(nil, common.GetMethodName("ReportNodeStatus"), statusNode)
 	return err
 }
 
@@ -39,7 +52,7 @@ func (c *StatusClient) ReportStorageStatus() error {
 
 	info, _ := disk.Usage(c.cfg.NodeBaseDir[:len("c:/")])
 
-	err := c.client.Call(nil, "status_reportStorageStatus", common.StatusStorage{
+	err := c.client.Call(nil, common.GetMethodName("ReportStorageStatus"), common.StatusStorage{
 		Path:        info.Path,
 		TotalSpace:  info.Total,
 		FreeSpace:   info.Free,

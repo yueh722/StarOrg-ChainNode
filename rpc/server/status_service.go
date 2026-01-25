@@ -1,7 +1,9 @@
 package server
 
 import (
+	"chain/lib"
 	"chain/rpc/common"
+	"context"
 	"fmt"
 	"sync"
 
@@ -23,21 +25,17 @@ func NewStatusService(stream *StreamService) *StatusService {
 }
 
 func (s *StatusService) RegisterService(server *rpc.Server) error {
-	if err := server.RegisterName("status", s); err != nil {
+	if err := server.RegisterName(common.StatusNamespace{}.GetNamesapceString(), s); err != nil {
 		return fmt.Errorf("Failed to register status service: %v", err)
 	}
 
 	return nil
 }
 
-func (s *StatusService) GetServiceName() string {
-	return "status"
-}
-
 // Method
-func (s *StatusService) ReportNodeStatus(status *common.StatusNode) error {
+func (s *StatusService) ReportLiveTx(ctx context.Context, status *lib.StatusTransaction) error {
 	if s.stream != nil {
-		s.stream.ReportState(status)
+		s.stream.ReportState(ctx, status)
 	}
 
 	//log.Printf("[NodeStatus] %v\n", status)
@@ -45,10 +43,20 @@ func (s *StatusService) ReportNodeStatus(status *common.StatusNode) error {
 }
 
 // Method
-func (s *StatusService) ReportStorageStatus(status *common.StatusStorage) error {
+func (s *StatusService) ReportNodeStatus(ctx context.Context, status *common.StatusNode) error {
+	if s.stream != nil {
+		s.stream.ReportState(ctx, status)
+	}
+
+	//log.Printf("[NodeStatus] %v\n", status)
+	return nil
+}
+
+// Method
+func (s *StatusService) ReportStorageStatus(ctx context.Context, status *common.StatusStorage) error {
 
 	if s.stream != nil {
-		s.stream.ReportState(status)
+		s.stream.ReportState(ctx, status)
 	}
 
 	//zlog.Printf("[StorageStatus] %v\n", status)

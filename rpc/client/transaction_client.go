@@ -5,6 +5,7 @@ import (
 	"chain/lib/zlog"
 	"chain/rpc/common"
 	"chain/utils"
+	"context"
 	"sync"
 	"time"
 
@@ -29,12 +30,7 @@ func newLiveTxClient(client *rpc.Client, cfg *ClientConfig) *LiveTxClient {
 		cfg:    cfg,
 	}
 
-	if err := client.RegisterName(common.LiveTxNamespace{}.GetNamesapceString(), c); err != nil {
-		zlog.Infof("Failed to register liveTx service: %v", err)
-		return nil
-	}
-
-	//go c.StartLiveTxTransmitter()
+	go c.StartLiveTxTransmitter()
 
 	return c
 }
@@ -51,8 +47,7 @@ func (c *LiveTxClient) Update(client *rpc.Client) {
 
 func (c *LiveTxClient) ReportLiveTx(tx *lib.StatusTransaction) error {
 	//send tx to master
-	method := common.MakeMethodName(common.StreamNamespace{}.GetNamesapceString(), "ReportState")
-	err := c.client.Call(nil, method, tx)
+	err := c.client.Call(nil, common.GetMethodName("ReportLiveTx"), tx)
 	if err != nil {
 		zlog.Info("failed to report live tx to master", "err", err)
 	}
@@ -79,8 +74,8 @@ func mustGetConnection(addresses []string) *websocket.Conn {
 	}
 }
 
-func ListenTransaction(conn *websocket.Conn) <-chan lib.StatusTransaction {
-	txDetailChan := make(chan lib.StatusTransaction)
+func ListenTransaction(ctx context.Context, conn *websocket.Conn) <-chan lib.StatusTransaction {
+	txDetailChan := make(chan lib.StatusTransaction, 100)
 
 	go func() {
 		defer func() {
@@ -94,7 +89,7 @@ func ListenTransaction(conn *websocket.Conn) <-chan lib.StatusTransaction {
 		for {
 			_, message, err := conn.ReadMessage()
 			if err != nil {
-				zlog.Error("[live transaction] failed to read message from tx subscription:", err)
+				zlog.Info("[live transaction] failed to read message from tx subscription:", err)
 				break
 			}
 
@@ -110,15 +105,33 @@ func ListenTransaction(conn *websocket.Conn) <-chan lib.StatusTransaction {
 
 			zlog.Infof("[live transaction] txBase64 bytes: %v, height: %v, hash: %v", txBase64, height, (txHash))
 
-			txDetailChan <- lib.StatusTransaction{
+			select {
+			case <-ctx.Done():
+				return
+			case txDetailChan <- lib.StatusTransaction{
 				Data:   txBase64,
 				Hash:   txHash,
 				Height: height,
+			}:
 			}
+
 		}
 	}()
 
 	return txDetailChan
+}
+
+func (c *LiveTxClient) CheckEnabledTransmitter() bool {
+	nodeInfo := *c.cfg.NodeInfo
+	var enableTransmitter bool
+	err := c.client.Call(&enableTransmitter, common.GetMethodName("EnableTransmitter"),
+		nodeInfo.NodeID,
+		lib.CheckNodeOnline(nodeInfo.RPCAddr))
+	if err != nil {
+		zlog.Info("[live transaction] failed to check node enabled transmitter ", err)
+	}
+
+	return enableTransmitter
 }
 
 func (c *LiveTxClient) startTransmitLiveTransactionFromLocal() {
@@ -135,24 +148,36 @@ func (c *LiveTxClient) startTransmitLiveTransactionFromLocal() {
 			continue
 		}
 
-		//call method to check if we need to continue to transmit txs
-		//enableTransmitter := method(nodeID, online)
-		//if !enableTransmitter sleep 3, contine
+		if !c.CheckEnabledTransmitter() {
+			time.Sleep(3 * time.Second)
+			continue
+		}
 
 		wsconn := mustGetConnection(lib.RPCWebsocketAddrs(&nodeInfo))
+
 		go func(conn *websocket.Conn) {
-			//check if we need to stop transmitter
-			//if true
-			//conn.Close()
+			for {
+				//check if we need to stop transmitter
+				if !c.CheckEnabledTransmitter() {
+					_ = conn.Close()
+					zlog.Info("stop transmitter, close rpc connection.")
+					return
+				}
+
+				time.Sleep(time.Second)
+			}
 		}(wsconn)
 
-		logger.Log("[live transaction] peer is online: ", nodeInfo.NodeName, nodeInfo.RPCAddr)
-		txCh := ListenTransaction(wsconn)
+		zlog.Info("[live transaction] connected to node RPC: ", nodeInfo.NodeName, nodeInfo.RPCAddr)
+		ctx, cancel := context.WithCancel(context.Background())
+		txCh := ListenTransaction(ctx, wsconn)
 		for tx := range txCh {
-
 			//report tx
-			_ = c.ReportLiveTx(&tx)
-			time.Sleep(10 * time.Millisecond)
+			if err := c.ReportLiveTx(&tx); err != nil {
+				zlog.Infof("failed to report live tx to node: %v, cancel reading txs from channel.", err)
+				cancel()
+				break
+			}
 		}
 	}
 

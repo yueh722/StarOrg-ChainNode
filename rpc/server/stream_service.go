@@ -2,6 +2,7 @@ package server
 
 import (
 	log "chain/lib/zlog"
+	"chain/rpc/commandlog"
 	"chain/rpc/common"
 	"context"
 	"fmt"
@@ -76,7 +77,22 @@ func (s *StreamService) SubscribeStream(ctx context.Context, args SubscribeArgs)
 
 type StreamReportCallback func(*StreamService, interface{}) bool
 
-func (s *StreamService) ReportState(state interface{}) bool {
+func (s *StreamService) ReportState(ctx context.Context, state interface{}) bool {
+	// ReportState receives following kind of data and will transmit these data to subscribers.
+
+	switch v := state.(type) {
+	case
+		*common.StatusStorage, *common.StatusNode,
+		*commandlog.CommandResult:
+		//log.Info("ReportState transaction", state)
+	default:
+		log.Info("ReportState unknown state", v)
+	}
+
+	return s.reportStateInternal(state)
+}
+
+func (s *StreamService) reportStateInternal(state interface{}) bool {
 	reported := true
 	var err error
 
@@ -84,9 +100,9 @@ func (s *StreamService) ReportState(state interface{}) bool {
 	// *common.StatusNode
 	// *common.StatusStorage
 	// commandlog.CommandResult
-	// lib.StatusTransaction
+	// *lib.StatusTransaction
 
-	err = s.notify(state)
+	err = s.notifyClient(state)
 	if err != nil {
 		log.Error("notify stream data error", err)
 		reported = false
@@ -95,7 +111,7 @@ func (s *StreamService) ReportState(state interface{}) bool {
 	return reported
 }
 
-func (s *StreamService) notify(data any) error {
+func (s *StreamService) notifyClient(data any) error {
 	var err error
 
 	for _, sub := range s.subs {
