@@ -7,13 +7,13 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-func CallRpcClient(client *rpc.Client, method string, arg interface{}, reply interface{}) error {
-	return client.Call(reply, common.GetMethodName(method), arg)
+func CallRpcClient(reply interface{}, client *rpc.Client, method string, args ...interface{}) error {
+	return client.Call(reply, common.GetMethodName(method), args...)
 }
 
 func IsNodeRpcAlive(client *rpc.Client) bool {
 	var rpcAlive bool
-	err := CallRpcClient(client, "IsNodeRpcAlive", nil, &rpcAlive)
+	err := CallRpcClient(&rpcAlive, client, "IsNodeRpcAlive")
 	if err != nil {
 		zlog.Info("IsNodeRpcAlive err:", err)
 		return false

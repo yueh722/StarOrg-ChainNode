@@ -37,12 +37,12 @@ func init() {
 		StatusNamespace{}.GetNamesapceString(): []string{
 			"ReportNodeStatus",
 			"ReportStorageStatus",
-			"ReportLiveTx",
 		},
 
 		//livetx service
 		LiveTxNamespace{}.GetNamesapceString(): []string{
 			"EnableTransmitter",
+			"ReportLiveTx",
 		},
 
 		//stream service

@@ -4,6 +4,7 @@ import (
 	"chain/lib"
 	"chain/lib/zlog"
 	"chain/rpc/common"
+	"chain/rpc/common/notification"
 	"chain/utils"
 	"context"
 	"sync"
@@ -15,10 +16,11 @@ import (
 )
 
 type LiveTxClient struct {
-	client *rpc.Client
-	cfg    *ClientConfig
-	conn   *websocket.Conn
-	mux    sync.Mutex
+	client        *rpc.Client
+	cfg           *ClientConfig
+	conn          *websocket.Conn
+	mux           sync.Mutex
+	handleOffline func()
 }
 
 type ReportFunc func(*LiveTxClient, *lib.StatusTransaction) error
@@ -30,15 +32,23 @@ func newLiveTxClient(client *rpc.Client, cfg *ClientConfig) *LiveTxClient {
 		cfg:    cfg,
 	}
 
+	ConnNotificationMgr().Register(c)
+
 	go c.StartLiveTxTransmitter()
 
 	return c
 }
 
-func (c *LiveTxClient) StartLiveTxTransmitter() {
-	//check if current peer is online
-	//if true call method of Server to check if need to read live txs
-	c.startTransmitLiveTransactionFromLocal()
+func (c *LiveTxClient) OnNotify(msg *notification.Message) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	if msg.Type == notification.MsgTypeOffline {
+		zlog.Info("got notification of server offline: ", msg.Payload.(string))
+		if c.handleOffline != nil {
+			c.handleOffline()
+		}
+	}
 }
 
 func (c *LiveTxClient) Update(client *rpc.Client) {
@@ -46,10 +56,12 @@ func (c *LiveTxClient) Update(client *rpc.Client) {
 }
 
 func (c *LiveTxClient) ReportLiveTx(tx *lib.StatusTransaction) error {
+	nodeInfo := *c.cfg.NodeInfo
+
 	//send tx to master
-	err := c.client.Call(nil, common.GetMethodName("ReportLiveTx"), tx)
+	err := c.client.Call(nil, common.GetMethodName("ReportLiveTx"), nodeInfo.NodeID, tx)
 	if err != nil {
-		zlog.Info("failed to report live tx to master", "err", err)
+		zlog.Info("failed to report live tx to master, ", err)
 	}
 	return err
 }
@@ -103,7 +115,7 @@ func ListenTransaction(ctx context.Context, conn *websocket.Conn) <-chan lib.Sta
 				continue
 			}
 
-			zlog.Infof("[live transaction] txBase64 bytes: %v, height: %v, hash: %v", txBase64, height, (txHash))
+			//zlog.Infof("[live transaction] txBase64 bytes: %v, height: %v, hash: %v", txBase64, height, (txHash))
 
 			select {
 			case <-ctx.Done():
@@ -134,7 +146,7 @@ func (c *LiveTxClient) CheckEnabledTransmitter() bool {
 	return enableTransmitter
 }
 
-func (c *LiveTxClient) startTransmitLiveTransactionFromLocal() {
+func (c *LiveTxClient) StartLiveTxTransmitter() {
 
 	logger := utils.NewThrottledLogger(zlog.Info)
 
@@ -142,12 +154,14 @@ func (c *LiveTxClient) startTransmitLiveTransactionFromLocal() {
 
 		nodeInfo := *c.cfg.NodeInfo
 
+		//check if current peer is online
 		if lib.CheckNodeOnline(nodeInfo.RPCAddr) == false {
 			logger.Log("[live transaction] node rpc is offline: ", nodeInfo.NodeName, nodeInfo.RPCAddr)
 			time.Sleep(3 * time.Second)
 			continue
 		}
 
+		//let master tell that if we need to read live tx from rpc of node.
 		if !c.CheckEnabledTransmitter() {
 			time.Sleep(3 * time.Second)
 			continue
@@ -155,30 +169,45 @@ func (c *LiveTxClient) startTransmitLiveTransactionFromLocal() {
 
 		wsconn := mustGetConnection(lib.RPCWebsocketAddrs(&nodeInfo))
 
-		go func(conn *websocket.Conn) {
-			for {
-				//check if we need to stop transmitter
-				if !c.CheckEnabledTransmitter() {
-					_ = conn.Close()
-					zlog.Info("stop transmitter, close rpc connection.")
-					return
-				}
+		/*
+			checkAlive := func(conn *websocket.Conn) {
+				for {
+					//check if we need to continue to transmit tx
+					if !c.CheckEnabledTransmitter() {
+						_ = conn.Close()
+						zlog.Info("stop transmitter, close rpc connection.")
+						return
+					}
 
-				time.Sleep(time.Second)
+					time.Sleep(time.Second)
+				}
 			}
-		}(wsconn)
+
+		*/
+
+		//go checkAlive(wsconn)
 
 		zlog.Info("[live transaction] connected to node RPC: ", nodeInfo.NodeName, nodeInfo.RPCAddr)
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancelReadingFn := context.WithCancel(context.Background())
 		txCh := ListenTransaction(ctx, wsconn)
-		for tx := range txCh {
-			//report tx
-			if err := c.ReportLiveTx(&tx); err != nil {
-				zlog.Infof("failed to report live tx to node: %v, cancel reading txs from channel.", err)
-				cancel()
-				break
+
+		c.handleOffline = func() {
+			cancelReadingFn()
+			_ = wsconn.Close()
+			zlog.Infof("[live transaction] handled server offline, cancel reading tx, close node rpc connection.")
+		}
+
+		var continueReading = true
+		for continueReading {
+			select {
+			case tx := <-txCh:
+				//report tx
+				if err := c.ReportLiveTx(&tx); err != nil {
+					continueReading = false
+				}
 			}
 		}
+
 	}
 
 }

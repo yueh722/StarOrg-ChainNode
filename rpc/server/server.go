@@ -128,7 +128,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		return nil, err
 	}
 
-	liveTx := NewLiveTxService(rpcServer, &cfg)
+	liveTx := NewLiveTxService(rpcServer, &cfg, stream)
 	if liveTx == nil {
 		return nil, errors.New("failed to create livetx service")
 	}

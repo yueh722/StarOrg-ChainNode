@@ -83,7 +83,6 @@ func StartClient(cfg *Config) error {
 
 		case err := <-errCh:
 			if err != nil {
-				log.Println("Error in SubscribeCommand:", err)
 				needsReconnect = true
 			}
 

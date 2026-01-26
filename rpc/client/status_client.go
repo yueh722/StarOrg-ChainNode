@@ -21,19 +21,27 @@ func newStatusClient(client *rpc.Client, cfg *ClientConfig) *StatusClient {
 		cfg:    cfg,
 	}
 
-	if err := client.RegisterName(common.StatusClientNamespace{}.GetNamesapceString(), c); err != nil {
-		panic(fmt.Errorf("failed to register StatusClient, err: %v", err))
-	}
+	c.registerService()
 
 	return c
 }
 
-func (c *StatusClient) IsNodeRpcAlive() bool {
-	return lib.CheckNodeOnline(c.cfg.NodeInfo.RPCAddr)
+func (c *StatusClient) registerService() {
+	if err := c.client.RegisterName(common.StatusClientNamespace{}.GetNamesapceString(), c); err != nil {
+		panic(fmt.Errorf("failed to register StatusClient, err: %v", err))
+	}
 }
 
 func (c *StatusClient) Update(client *rpc.Client) {
 	c.client = client
+
+	//It has to re-register service upon the connection established.
+	//Because rpc methods are bind with each client. If u don't do this, the map of rpc methods will lose, which means u cannot call rpc method of client via client pointer.
+	c.registerService()
+}
+
+func (c *StatusClient) IsNodeRpcAlive() bool {
+	return lib.CheckNodeOnline(c.cfg.NodeInfo.RPCAddr)
 }
 
 func (c *StatusClient) ReportNodeStatus() error {

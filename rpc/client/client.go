@@ -4,6 +4,7 @@ import (
 	"chain/lib"
 	log "chain/lib/zlog"
 	"chain/rpc/common"
+	"chain/rpc/common/notification"
 	"chain/rpc/security"
 	"chain/utils"
 	"context"
@@ -21,12 +22,13 @@ import (
 )
 
 type Client struct {
-	Conn         *rpc.Client
-	Cfg          *ClientConfig
-	SetupClient  *SetupClient
-	StatusClient *StatusClient
-	TxClient     *LiveTxClient
-	mux          sync.Mutex
+	Conn          *rpc.Client
+	Cfg           *ClientConfig
+	SetupClient   *SetupClient
+	StatusClient  *StatusClient
+	TxClient      *LiveTxClient
+	mux           sync.Mutex
+	OnReconnected func(*Client)
 }
 
 type ClientConfig struct {
@@ -59,6 +61,12 @@ func (c ClientConfig) getAppBinFile() string {
 
 func (c ClientConfig) getNodeBinFile() string {
 	return filepath.Join(c.getBinPath(), lib.NodeFileName)
+}
+
+var connectionNotifier = notification.NewManager()
+
+func ConnNotificationMgr() *notification.Manager {
+	return connectionNotifier
 }
 
 func MakeRpcHeader(clientID string) http.Header {
@@ -173,13 +181,6 @@ func Connect(rawurl *string, header http.Header) (*rpc.Client, error) {
 	}
 
 	return nil, err
-}
-
-func (c *Client) Register() error {
-
-	//submit node info status
-
-	return nil
 }
 
 func BuildStatusNode(cfg *ClientConfig, nr lib.NodeRuntime) (*common.StatusNode, error) {

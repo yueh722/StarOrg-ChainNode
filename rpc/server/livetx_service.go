@@ -1,9 +1,12 @@
 package server
 
 import (
+	"chain/lib"
 	"chain/lib/zlog"
 	"chain/rpc/common"
 	"chain/rpc/common/notification"
+	"context"
+	"errors"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -14,39 +17,41 @@ type LiveTxService struct {
 	cfg          *ServerConfig
 	transmitters map[string]bool
 	mux          sync.Mutex
+	stream       *StreamService
 }
 
-func NewLiveTxService(server *rpc.Server, cfg *ServerConfig) *LiveTxService {
+func NewLiveTxService(server *rpc.Server, cfg *ServerConfig, stream *StreamService) *LiveTxService {
 
-	c := &LiveTxService{
+	s := &LiveTxService{
 		server:       server,
 		cfg:          cfg,
 		transmitters: make(map[string]bool),
+		stream:       stream,
 	}
 
-	if err := server.RegisterName(common.LiveTxNamespace{}.GetNamesapceString(), c); err != nil {
+	if err := server.RegisterName(common.LiveTxNamespace{}.GetNamesapceString(), s); err != nil {
 		zlog.Infof("Failed to register liveTx service: %v", err)
 		return nil
 	}
 
-	return c
+	return s
 }
 
-func (c *LiveTxService) EnableTransmitter(nodeID string, rpcOnline bool) bool {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+func (s *LiveTxService) EnableTransmitter(nodeID string, rpcOnline bool) bool {
+	s.mux.Lock()
+	defer s.mux.Unlock()
 
 	if !rpcOnline {
 		return false
 	}
 
-	if len(c.transmitters) == 0 {
+	if len(s.transmitters) == 0 {
 		zlog.Info("enabled tx transmitter for node: ", nodeID)
-		c.transmitters[nodeID] = true
+		s.transmitters[nodeID] = true
 		return true
 	}
 
-	if _, ok := c.transmitters[nodeID]; ok {
+	if _, ok := s.transmitters[nodeID]; ok {
 		//zlog.Info("enabled tx transmitter for node already exist: ", nodeID)
 		return true
 	}
@@ -54,15 +59,34 @@ func (c *LiveTxService) EnableTransmitter(nodeID string, rpcOnline bool) bool {
 	return false
 }
 
-func (c *LiveTxService) OnNotify(msg *notification.Message) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+func (s *LiveTxService) OnNotify(msg *notification.Message) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
 
 	if msg.Type == notification.MsgTypeOffline {
 		nodeID := msg.Payload.(string)
-		if _, ok := c.transmitters[nodeID]; ok {
-			delete(c.transmitters, nodeID)
+		if _, ok := s.transmitters[nodeID]; ok {
+			delete(s.transmitters, nodeID)
 			zlog.Info("removed transmitter: ", nodeID)
 		}
 	}
+}
+
+// Method
+func (s *LiveTxService) ReportLiveTx(ctx context.Context, nodeID string, status *lib.StatusTransaction) error {
+	s.mux.Lock()
+	if _, ok := s.transmitters[nodeID]; !ok {
+		s.mux.Unlock()
+		return errors.New("received live transaction from illegal transmitter")
+	}
+	s.mux.Unlock()
+
+	zlog.Infof("received live transaction:\n nodeID: %v, tx: %v", nodeID, status)
+
+	if s.stream != nil {
+		s.stream.ReportState(ctx, status)
+	}
+
+	//log.Printf("[NodeTransaction] %v\n", status)
+	return nil
 }

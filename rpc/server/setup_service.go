@@ -6,6 +6,7 @@ import (
 	log "chain/lib/zlog"
 	"chain/rpc/commandlog"
 	"chain/rpc/common"
+	"chain/rpc/common/callclient"
 	"chain/rpc/common/notification"
 	"chain/rpc/server/command_manager"
 	"chain/utils"
@@ -256,7 +257,7 @@ func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) error {
 
 	log.Info("prepare add node:", s.FormatName(peerInfo.NodeId))
 	log.Info("peers already initialized: ", slice.Map(s.chainState.Peers, func(_ int, peer lib.Peer) string {
-		return fmt.Sprintf("%v : %v : %v",
+		return fmt.Sprintf("%v : %v\n",
 			s.FormatName(peer.NodeId),
 			s.chainState.IsNodeInitialized(peer.NodeId))
 	}))
@@ -607,12 +608,7 @@ func (s *SetupService) IsNodeRpcAlive(nodeID string) bool {
 		return false
 	}
 
-	var alive bool
-	if err := clientSub.Client.Call(&alive, common.GetMethodName("IsNodeRpcAlive")); err != nil {
-		log.Info("failed to call IsNodeRpcAlive, err:", err)
-	}
-
-	return alive
+	return callclient.IsNodeRpcAlive(clientSub.Client)
 }
 
 func (s *SetupService) HasActivatedValidator() bool {

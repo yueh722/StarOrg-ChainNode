@@ -6,6 +6,7 @@ import (
 	log "chain/lib/zlog"
 	"chain/rpc/commandlog"
 	"chain/rpc/common"
+	"chain/rpc/common/notification"
 	"chain/utils"
 	"context"
 	"errors"
@@ -63,7 +64,7 @@ func (c *SetupClient) GetCurrentPeer() *lib.Peer {
 
 func (c *SetupClient) SubscribeCommand() <-chan error {
 
-	var errChan = make(chan error, 1)
+	var errChan = make(chan error, 5)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	//ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -73,7 +74,8 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 
 	statusNode, err := BuildStatusNode(c.cfg, c.nodeRuntime)
 	if err != nil {
-		errChan <- fmt.Errorf("build status node error: %v", err.Error())
+		log.Infof("build status node error: %v", err)
+		errChan <- err
 		close(cmdChan)
 		return errChan
 	}
@@ -90,7 +92,8 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 	)
 
 	if err != nil {
-		errChan <- fmt.Errorf("%v", err.Error())
+		log.Infof("subscribe command error: %v", err)
+		errChan <- err
 		close(cmdChan)
 		return errChan
 	}
@@ -112,7 +115,14 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 					log.Println("failed to handle cmd: ", err)
 				}
 			case errChan := <-sub.Err():
-				log.Println("subscription Err: ", errChan)
+				log.Infof("subscription error, server might closed connection. err: %v", errChan)
+
+				ConnNotificationMgr().Notify(notification.Message{
+					Type:    notification.MsgTypeOffline,
+					Payload: c.cfg.ServerAddr,
+					Time:    time.Now().UnixNano(),
+				})
+
 				exitSub = true
 				break
 			}

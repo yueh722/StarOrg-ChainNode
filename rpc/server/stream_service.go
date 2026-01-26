@@ -2,7 +2,6 @@ package server
 
 import (
 	log "chain/lib/zlog"
-	"chain/rpc/commandlog"
 	"chain/rpc/common"
 	"context"
 	"fmt"
@@ -80,14 +79,17 @@ type StreamReportCallback func(*StreamService, interface{}) bool
 func (s *StreamService) ReportState(ctx context.Context, state interface{}) bool {
 	// ReportState receives following kind of data and will transmit these data to subscribers.
 
-	switch v := state.(type) {
-	case
-		*common.StatusStorage, *common.StatusNode,
-		*commandlog.CommandResult:
-		//log.Info("ReportState transaction", state)
-	default:
-		log.Info("ReportState unknown state", v)
-	}
+	/*
+		switch v := state.(type) {
+		case
+			*common.StatusStorage, *common.StatusNode,
+			*commandlog.CommandResult:
+			//log.Info("ReportState transaction", state)
+		default:
+			//log.Info("ReportState unknown state", v)
+		}
+
+	*/
 
 	return s.reportStateInternal(state)
 }

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"chain/lib"
 	"chain/rpc/common"
 	"context"
 	"fmt"
@@ -29,16 +28,6 @@ func (s *StatusService) RegisterService(server *rpc.Server) error {
 		return fmt.Errorf("Failed to register status service: %v", err)
 	}
 
-	return nil
-}
-
-// Method
-func (s *StatusService) ReportLiveTx(ctx context.Context, status *lib.StatusTransaction) error {
-	if s.stream != nil {
-		s.stream.ReportState(ctx, status)
-	}
-
-	//log.Printf("[NodeStatus] %v\n", status)
 	return nil
 }
 

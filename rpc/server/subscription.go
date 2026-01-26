@@ -4,9 +4,10 @@ import (
 	"chain/lib"
 	log "chain/lib/zlog"
 	"chain/rpc/common"
+	"chain/rpc/common/callclient"
 	"chain/rpc/common/notification"
+	"chain/utils"
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -30,19 +31,25 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 	client, ok := rpc.ClientFromContext(ctx)
 	if !ok {
 		log.Info("rpc client from context is not available: ", delegator.StatusNode.NodeName)
+	} else {
+		log.Infof("RpcAlive: %v, NodeName: %s", callclient.IsNodeRpcAlive(client), delegator.StatusNode.NodeName)
 	}
 
 	// use initialization status that stored on master side.
 	delegator.StatusNode.Initialized = s.chainState.IsNodeInitialized(delegator.StatusNode.NodeID)
 
-	nodeHostInfoBytes, _ := json.MarshalIndent(delegator.StatusNode.HostInfo, "", "  ")
+	HostIP, err := utils.FindIPByPrefix(delegator.StatusNode.HostInfo.IpAddrs, "192.168.1")
+	if err != nil {
+		HostIP = strings.Join(delegator.StatusNode.HostInfo.IpAddrs, ",")
+	}
+	//nodeHostInfoBytes, _ := json.MarshalIndent(delegator.StatusNode.HostInfo, "", "  ")
 
-	log.Printf("Received SubscribeCommand that requests from node, \n app: %s, name: %s, id: %s, initialized: %v, host: %v",
+	log.Printf("Received SubscribeCommand requested from node, app: %s, name: %s, id: %s, initialized: %v, host: %v",
 		delegator.App,
 		delegator.StatusNode.NodeName,
 		delegator.StatusNode.NodeID,
 		delegator.StatusNode.Initialized,
-		string(nodeHostInfoBytes),
+		string(HostIP),
 	)
 
 	nodeInfo := delegator.StatusNode.NodeInfo
