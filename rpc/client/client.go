@@ -9,6 +9,7 @@ import (
 	"chain/utils"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -61,6 +62,10 @@ func (c ClientConfig) getAppBinFile() string {
 
 func (c ClientConfig) getNodeBinFile() string {
 	return filepath.Join(c.getBinPath(), lib.NodeFileName)
+}
+
+func (c ClientConfig) getNodeRuntimeFilePath() string {
+	return filepath.Join(c.HomeDir, "runtime.json")
 }
 
 var connectionNotifier = notification.NewManager()
@@ -215,4 +220,92 @@ func BuildStatusNode(cfg *ClientConfig, nr lib.NodeRuntime) (*common.StatusNode,
 		StartedTime: nodeStartTime,
 		Initialized: cfg.Initialized,
 	}, nil
+}
+
+type RuntimeProcInfo struct {
+	App  lib.ProcInfo
+	Node lib.ProcInfo
+	Hash string
+}
+
+func (r *RuntimeProcInfo) computeHash() (string, error) {
+	originalHash := r.Hash // Save original hash
+	defer func() {
+		r.Hash = originalHash
+	}()
+
+	r.Hash = ""               // Clear the hash field for computing
+	b, err := json.Marshal(r) // Marshal entire struct with empty Hash
+	if err != nil {
+		return "", err
+	}
+
+	return utils.Sum256(b), nil
+}
+
+func (r *RuntimeProcInfo) Unmarshal(data interface{}) (*RuntimeProcInfo, error) {
+	procInfo, ok := data.(*RuntimeProcInfo)
+	if !ok {
+		return nil, fmt.Errorf("cannot convert data to Cpoei")
+	}
+
+	expectedHash, err := procInfo.computeHash()
+	if err != nil {
+		return nil, err
+	}
+
+	if procInfo.Hash != expectedHash {
+		return nil, fmt.Errorf("hash validation failed")
+	}
+
+	return procInfo, nil
+}
+
+func (r *RuntimeProcInfo) Marshal() ([]byte, error) {
+	hash, err := r.computeHash()
+	if err != nil {
+		return nil, err
+	}
+
+	r.Hash = hash
+	return json.MarshalIndent(r, "", "  ")
+}
+
+func WriteRuntimeData(dataFile string, nr lib.NodeRuntime) error {
+
+	if nr == nil {
+		// delete runtime data
+		if err := os.Remove(dataFile); err != nil {
+			return fmt.Errorf("couldn't remove file that incldes runtime data: %w", err)
+		}
+		return nil
+	}
+
+	procInfo := &RuntimeProcInfo{
+		App:  nr.GetAppInfo(),
+		Node: nr.GetNodeInfo(),
+		Hash: "",
+	}
+
+	data, err := procInfo.Marshal()
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(dataFile, data, os.ModePerm); err != nil {
+		return fmt.Errorf("write proc info of runtime to file failed: %v", err)
+	}
+
+	return nil
+}
+
+func LoadLastNodeInfo(dataFile string) (*RuntimeProcInfo, error) {
+
+	procInfo := RuntimeProcInfo{}
+	err := utils.AnyFromFile(dataFile, &procInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	return (&RuntimeProcInfo{}).Unmarshal(&procInfo)
 }

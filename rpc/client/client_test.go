@@ -4,7 +4,6 @@ import (
 	"chain/lib"
 	"chain/rpc/common"
 	"chain/rpc/server"
-	"chain/utils"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -196,16 +195,19 @@ func initializeNodes(t *testing.T, argNodes ArgNodeList) {
 			break
 		}
 
-		nodeAddr, err := utils.FindIPByPrefix(status.IpAddrs, "192.168.1")
-		if err != nil {
-			t.Fatal("don't find available IP address for node", status.NodeName, err)
-		}
+		/*
+			nodeAddr, err := utils.FindIPByPrefix(status.IpAddrs, "192.168.1")
+			if err != nil {
+				t.Fatal("don't find available IP address for node", status.NodeName, err)
+			}
+
+		*/
 
 		argNodes[i].NodeId = status.NodeID
 		argNodes[i].NodeName = status.NodeName
-		argNodes[i].NodeDomainOrIP = nodeAddr
+		argNodes[i].NodeDomainOrIP = status.NodeName
 
-		t.Log("node info: ", status.NodeName, nodeAddr, status.IpAddrs)
+		t.Log("node info: ", status.NodeName, status.IpAddrs)
 	}
 
 	var errResult error
@@ -264,14 +266,17 @@ func addNodes(t *testing.T, argNodes ArgNodeList) {
 			break
 		}
 
-		nodeAddr, err := utils.FindIPByPrefix(status.IpAddrs, "192.168.1")
-		if err != nil {
-			t.Fatal("don't find available IP address for node", status.NodeName, err)
-		}
+		/*
+			nodeAddr, err := utils.FindIPByPrefix(status.IpAddrs, "192.168.1")
+			if err != nil {
+				t.Fatal("don't find available IP address for node", status.NodeName, err)
+			}
+
+		*/
 
 		argNodes[assignedIndex].NodeId = status.NodeID
 		argNodes[assignedIndex].NodeName = status.NodeName
-		argNodes[assignedIndex].NodeDomainOrIP = nodeAddr
+		argNodes[assignedIndex].NodeDomainOrIP = status.NodeName
 
 		t.Logf("assigned node for node %v : %v, total: %v\n", argNodes[assignedIndex].NodeId, argNodes[assignedIndex].NodeName, assignedIndex)
 		assignedIndex++

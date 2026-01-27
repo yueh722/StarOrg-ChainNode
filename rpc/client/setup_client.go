@@ -277,6 +277,7 @@ func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
 		}
 	}
 
+	//wait process exit after it received signal
 	time.Sleep(2 * time.Second)
 
 	//remove node base directory
@@ -309,6 +310,11 @@ func (c *SetupClient) handleStartNode() error {
 	}
 
 	c.nodeRuntime = runtime
+
+	//write process details into file
+	if err := WriteRuntimeData(c.cfg.getNodeRuntimeFilePath(), runtime); err != nil {
+		log.Infof("[handleStartNode] failed to write process information of runtime , err: %v", err)
+	}
 
 	return nil
 }
@@ -350,12 +356,14 @@ func (c *SetupClient) HandlePing(cmd *common.CommandEnvelope) error {
 // stop node & app
 func (c *SetupClient) handleStopNode() error {
 	err := lib.StopNode(c.nodeRuntime)
-	if err == nil {
-		c.nodeRuntime = nil
-		return nil
+	if err != nil {
+		return err
 	}
 
-	return err
+	_ = WriteRuntimeData(c.cfg.getNodeRuntimeFilePath(), nil)
+
+	c.nodeRuntime = nil
+	return nil
 }
 
 // restart node & app

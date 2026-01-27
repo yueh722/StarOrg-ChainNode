@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -128,4 +129,18 @@ func FindIPByPrefix(addresses []string, prefix string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no IP address found with prefix %q", prefix)
+}
+
+func AnyFromFile(dataFile string, data interface{}) error {
+	jsonBlob, err := os.ReadFile(dataFile)
+	if err != nil {
+		return fmt.Errorf("couldn't read file: %w", err)
+	}
+
+	err = json.Unmarshal(jsonBlob, data)
+	if err != nil {
+		return fmt.Errorf("invalid json: %s", err)
+	}
+
+	return nil
 }
