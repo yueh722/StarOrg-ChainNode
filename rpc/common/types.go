@@ -29,8 +29,7 @@ type SetupAddValidator struct {
 	lib.AddValidatorReq
 }
 
-type SetupResetChain struct {
-}
+type SetupResetChain struct{}
 
 type NodeAction string
 

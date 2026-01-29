@@ -3,6 +3,7 @@ package lib
 import (
 	"chain/lib/queuestore"
 	log "chain/lib/zlog"
+	"chain/utils"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"github.com/cometbft/cometbft/v2/config"
 	"github.com/cometbft/cometbft/v2/types"
 	cmttime "github.com/cometbft/cometbft/v2/types/time"
+	"github.com/duke-git/lancet/v2/fileutil"
 	"github.com/duke-git/lancet/v2/slice"
 	"github.com/spf13/viper"
 )
@@ -355,4 +357,28 @@ func RPCWebsocketAddrs(nodeInfo *NodeInfo) []string {
 		fmt.Sprintf("ws://%s/websocket", rpcAddr),
 		fmt.Sprintf("wss://%s/websocket", rpcAddr),
 	}
+}
+
+// ResetState removes address book files plus all databases.
+func ResetState(dbDir string) error {
+	blockdb := filepath.Join(dbDir, "blockstore.db")
+	state := filepath.Join(dbDir, "state.db")
+	wal := filepath.Join(dbDir, "cs.wal")
+	evidence := filepath.Join(dbDir, "evidence.db")
+	txIndex := filepath.Join(dbDir, "tx_index.db")
+
+	dbFiles := []string{blockdb, state, wal, evidence, txIndex}
+	for _, dbFile := range dbFiles {
+		if fileutil.IsExist(dbFile) {
+			if err := os.RemoveAll(dbFile); err == nil {
+				log.Infof("Removed all %v dir", filepath.Base(dbFile))
+			} else {
+				return fmt.Errorf("error removing all %v dir, err: %v", filepath.Base(dbFile), err)
+			}
+		}
+	}
+
+	utils.TryCreateDir(dbDir)
+
+	return nil
 }

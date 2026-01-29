@@ -246,6 +246,8 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 		err = c.handleStopNode()
 	case common.NodeRestart:
 		err = c.handleRestartNode()
+	case common.NodeReset:
+		err = c.handleResetNode()
 	default:
 		err = fmt.Errorf("invalid action")
 	}
@@ -261,6 +263,9 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 
 // reset chain handler
 func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
+
+	log.Info("[handleResetChainCmd] prepare to reset chain")
+	defer log.Info("[handleResetChainCmd] reset chain complete")
 
 	if c.nodeRuntime != nil {
 		if err := c.nodeRuntime.KillNode(); err != nil {
@@ -375,6 +380,26 @@ func (c *SetupClient) handleRestartNode() error {
 	return c.handleStartNode()
 }
 
+// reset state of one node to uninitialized
+func (c *SetupClient) handleResetNode() error {
+
+	log.Info("[handleResetNode] prepare to reset node")
+	defer log.Info("[handleResetNode] reset node complete")
+
+	if err := lib.StopNode(c.nodeRuntime); err != nil {
+		return fmt.Errorf("[handleResetNode] fail to stop node before reset node, err: %v", err)
+	}
+
+	if err := lib.ResetState(c.cfg.getNodeDBPath()); err != nil {
+		return fmt.Errorf("[handleResetNode] failed to reset state, err: %v", err)
+	}
+
+	if err := c.handleStartNode(); err != nil {
+		return fmt.Errorf("[handleResetNode] fail to start node after reset node, err: %v", err)
+	}
+
+	return nil
+}
 func (c *SetupClient) buildNodeArg() lib.NodeArg {
 	return lib.NodeArg{
 		LogFilePath: c.cfg.getLogPath(),

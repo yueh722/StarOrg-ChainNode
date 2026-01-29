@@ -7,11 +7,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/duke-git/lancet/v2/slice"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/samber/lo"
 )
 
 type ArgNodeList []lib.ArgNodeInfo
@@ -369,6 +371,26 @@ func Test_RestartAllNodes(t *testing.T) {
 
 func Test_StopAllNodes(t *testing.T) {
 	SetupService_ControlNode(t, common.NodeStop)
+}
+
+func Test_ResetNode01(t *testing.T) {
+
+	peers := MakeLocalNet_Peer_01_02()
+	peers = lo.Filter(peers, func(node lib.ArgNodeInfo, _ int) bool {
+		return strings.Contains(node.NodeId, "01")
+	})
+
+	controlNodes(t, peers, common.NodeReset)
+}
+
+func Test_ResetNode02(t *testing.T) {
+
+	peers := MakeLocalNet_Peer_01_02()
+	peers = lo.Filter(peers, func(node lib.ArgNodeInfo, _ int) bool {
+		return strings.Contains(node.NodeId, "02")
+	})
+
+	controlNodes(t, peers, common.NodeReset)
 }
 
 func Test_ResetChainNode(t *testing.T) {

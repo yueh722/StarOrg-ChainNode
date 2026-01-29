@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // NewDefaultAppLog return default zlog of current process which logpath depends on the process name.
@@ -30,11 +31,11 @@ func NewDefaultAppLog() *Logger {
 		}
 	}
 
-	return NewLogger(appName, nil)
+	return NewLogger(appName)
 }
 
 // NewLogger creates a zlog that delegates to the zap.SugaredLogger.
-func NewLogger(appName string, store queuestore.QueueStore) *Logger {
+func NewLogger(appName string) *Logger {
 	return &Logger{
 		s: NewZapSugaredLogger(
 			[]OutputSpec{
@@ -64,7 +65,9 @@ func NewCometbftNodeLogger(nodeID, logPath string, store queuestore.QueueStore) 
 // zap.SugaredLogger is that methods without a formatting suffix (f or w) build
 // the zlog entry message with fmt.Sprintln instead of fmt.Sprint. Without this
 // change, arguments are not separated by spaces.
-type Logger struct{ s *zap.SugaredLogger }
+type Logger struct {
+	s *zap.SugaredLogger
+}
 
 func (f *Logger) Write(p []byte) (n int, err error) {
 	f.s.Info(string(p))
@@ -72,6 +75,47 @@ func (f *Logger) Write(p []byte) (n int, err error) {
 }
 
 var l = NewDefaultAppLog()
+
+func (f *Logger) AddWriter(core zapcore.Core) error {
+
+	if core == nil {
+		return nil
+	}
+
+	combinedCore := zapcore.NewTee(f.s.Desugar().Core(), core)
+
+	zapLogger := zap.New(
+		combinedCore,
+		zap.AddCaller(),
+		zap.AddCallerSkip(1),
+	)
+
+	f.s = zapLogger.Sugar()
+
+	return nil
+}
+
+func (f *Logger) AddOutput(appName string, logBroker *queuestore.Broker, format string, level zapcore.Level) error {
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.TimeKey = "time"
+	encoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")
+
+	var encoder zapcore.Encoder
+	if format == "console" {
+		encoder = zapcore.NewConsoleEncoder(encoderConfig)
+	} else {
+		encoder = zapcore.NewJSONEncoder(encoderConfig)
+	}
+
+	brokerCore := &brokerCore{
+		broker: logBroker,
+		name:   appName,
+		enc:    encoder,
+		level:  level,
+	}
+
+	return f.AddWriter(brokerCore)
+}
 
 func Info(v ...interface{})                  { l.Info(v...) }
 func Infof(format string, v ...interface{})  { l.Infof(format, v...) }

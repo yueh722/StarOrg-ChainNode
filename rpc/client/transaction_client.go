@@ -169,24 +169,6 @@ func (c *LiveTxClient) StartLiveTxTransmitter() {
 
 		wsconn := mustGetConnection(lib.RPCWebsocketAddrs(&nodeInfo))
 
-		/*
-			checkAlive := func(conn *websocket.Conn) {
-				for {
-					//check if we need to continue to transmit tx
-					if !c.CheckEnabledTransmitter() {
-						_ = conn.Close()
-						zlog.Info("stop transmitter, close rpc connection.")
-						return
-					}
-
-					time.Sleep(time.Second)
-				}
-			}
-
-		*/
-
-		//go checkAlive(wsconn)
-
 		zlog.Info("[live transaction] connected to node RPC: ", nodeInfo.NodeName, nodeInfo.RPCAddr)
 		ctx, cancelReadingFn := context.WithCancel(context.Background())
 		txCh := ListenTransaction(ctx, wsconn)
@@ -197,14 +179,10 @@ func (c *LiveTxClient) StartLiveTxTransmitter() {
 			zlog.Infof("[live transaction] handled server offline, cancel reading tx, close node rpc connection.")
 		}
 
-		var continueReading = true
-		for continueReading {
-			select {
-			case tx := <-txCh:
-				//report tx
-				if err := c.ReportLiveTx(&tx); err != nil {
-					continueReading = false
-				}
+		for tx := range txCh {
+			//report tx
+			if err := c.ReportLiveTx(&tx); err != nil {
+				break
 			}
 		}
 

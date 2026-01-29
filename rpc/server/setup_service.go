@@ -439,7 +439,7 @@ func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) error {
 }
 
 // RPC Method
-// reset chain state to first initialized state
+// reset chain state to uninitialized state
 func (s *SetupService) BroadcastResetChainNode(resetChain common.SetupResetChain) error {
 
 	s.mu.Lock()

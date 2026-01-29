@@ -6,6 +6,7 @@ import (
 	"chain/rpc/security"
 	"chain/rpc/server"
 	"fmt"
+	"strings"
 
 	"github.com/duke-git/lancet/v2/fileutil"
 	"github.com/spf13/viper"
@@ -59,6 +60,17 @@ func GetDefaultConfig() Config {
 	return cfg
 }
 
+func (cfg *Config) Valid() error {
+
+	//check addr
+	parts := strings.SplitN(cfg.Addr, ":", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid Server address: %s", cfg.Addr)
+	}
+
+	return nil
+}
+
 func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, error) {
 
 	if len(cfgFiles) == 0 {
@@ -79,6 +91,10 @@ func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, error) {
 		cfg := &Config{}
 		if err := viper.Unmarshal(cfg); err != nil {
 			return nil, fmt.Errorf("data in config file error: ", err)
+		}
+
+		if err := cfg.Valid(); err != nil {
+			return nil, fmt.Errorf("config data is invalidate, err: %v", err)
 		}
 
 		zlog.Infof("config file %s applied", cfgFile)

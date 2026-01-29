@@ -42,8 +42,10 @@ func StartClient(cfg *Config) error {
 		if nodeInfo, err = lib.InitializeNewNodeID(cfg.HomeDir, cfg.AppName); err != nil {
 			return fmt.Errorf("failed to initialize new nodeID: %v", err)
 		}
+		log.Infof("initialize new node, nodeName: %s, nodeID: %v", nodeInfo.NodeName, nodeInfo.NodeID)
 	} else {
 		initialized = lib.IsNodeInitialized(cfg.HomeDir, nodeInfo)
+		log.Infof("loading node, nodeName: %s, nodeID: %v", nodeInfo.NodeName, nodeInfo.NodeID)
 	}
 
 	nodeClient, err := client.New(&client.ClientConfig{
@@ -71,6 +73,7 @@ func StartClient(cfg *Config) error {
 	for {
 		select {
 		case <-ticker.C:
+			//report node status every 5 seconds
 			if err := nodeClient.StatusClient.ReportNodeStatus(); isConnectionDead(err) {
 				log.Println("Error in ReportNodeStatus:", err)
 				needsReconnect = true
@@ -82,6 +85,7 @@ func StartClient(cfg *Config) error {
 			}
 
 		case err := <-errCh:
+			//subscription error happened
 			if err != nil {
 				needsReconnect = true
 			}

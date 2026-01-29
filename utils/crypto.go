@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	cryptoencoding "github.com/cometbft/cometbft/v2/crypto/encoding"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -28,4 +29,8 @@ func IsPubkeyCorrect(pkType string, pubKey string) bool {
 	}
 
 	return true
+}
+
+func UUID() string {
+	return uuid.New().String()
 }

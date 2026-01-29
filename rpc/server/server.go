@@ -115,11 +115,6 @@ func NewSetuplogStore(dataFile string) (cmdlogstore.CommandLogStore, error) {
 }
 
 func NewServer(cfg ServerConfig) (*Server, error) {
-	//check addr
-	parts := strings.SplitN(cfg.Addr, ":", 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid Server address: %s", cfg.Addr)
-	}
 
 	rpcServer := rpc.NewServer()
 

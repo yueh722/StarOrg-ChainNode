@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/websocket"
 )
@@ -64,6 +65,10 @@ func (c ClientConfig) getNodeBinFile() string {
 	return filepath.Join(c.getBinPath(), lib.NodeFileName)
 }
 
+func (c ClientConfig) getNodeDBPath() string {
+	return filepath.Join(c.NodeBaseDir, "data")
+}
+
 func (c ClientConfig) getNodeRuntimeFilePath() string {
 	return filepath.Join(c.HomeDir, "runtime.json")
 }
@@ -82,6 +87,23 @@ func MakeRpcHeader(clientID string) http.Header {
 	header.Set("X-Client-ID", clientID)
 
 	return header
+}
+
+func BuildStartCmd(nodeID string) *common.CommandEnvelope {
+
+	payloadStruct := common.SetupControlNode{
+		NodeID: nodeID,
+		Action: common.NodeStart,
+	}
+	payload, _ := cmtjson.Marshal(payloadStruct)
+
+	return &common.CommandEnvelope{
+		CommandID: utils.UUID(),
+		Cmd:       common.CmdControlNode,
+		NodeID:    nodeID,
+		Payload:   payload,
+		IssuedAt:  time.Now().Unix(),
+	}
 }
 
 func New(cfg *ClientConfig) (*Client, error) {
@@ -108,6 +130,15 @@ func New(cfg *ClientConfig) (*Client, error) {
 	setupClient := newSetupClient(client, cfg)
 	statusClient := newStatusClient(client, cfg)
 	liveTxClient := newLiveTxClient(client, cfg)
+
+	//check last process info of node runtime
+	if lastRuntime, _ := LoadLastNodeInfo(cfg.getNodeRuntimeFilePath()); lastRuntime != nil {
+		if lastRuntime.Node.Pid != 0 && lastRuntime.App.Pid != 0 {
+			// node and app might exit unexpect, so start node automatically.
+			time.Sleep(2 * time.Second)
+			_ = setupClient.handleControlNodeCmd(BuildStartCmd(cfg.NodeInfo.NodeID))
+		}
+	}
 
 	return &Client{
 		Conn:         client,
@@ -243,22 +274,18 @@ func (r *RuntimeProcInfo) computeHash() (string, error) {
 	return utils.Sum256(b), nil
 }
 
-func (r *RuntimeProcInfo) Unmarshal(data interface{}) (*RuntimeProcInfo, error) {
-	procInfo, ok := data.(*RuntimeProcInfo)
-	if !ok {
-		return nil, fmt.Errorf("cannot convert data to Cpoei")
-	}
+func (r *RuntimeProcInfo) Valid() error {
 
-	expectedHash, err := procInfo.computeHash()
+	expectedHash, err := r.computeHash()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if procInfo.Hash != expectedHash {
-		return nil, fmt.Errorf("hash validation failed")
+	if r.Hash != expectedHash {
+		return fmt.Errorf("hash validation failed")
 	}
 
-	return procInfo, nil
+	return nil
 }
 
 func (r *RuntimeProcInfo) Marshal() ([]byte, error) {
@@ -307,5 +334,11 @@ func LoadLastNodeInfo(dataFile string) (*RuntimeProcInfo, error) {
 		return nil, err
 	}
 
-	return (&RuntimeProcInfo{}).Unmarshal(&procInfo)
+	err = procInfo.Valid()
+	if err != nil {
+		_ = os.Remove(dataFile)
+		return nil, err
+	}
+
+	return &procInfo, nil
 }
