@@ -1,13 +1,5 @@
 package nodecli
 
-import (
-	"chain/lib"
-	"fmt"
-
-	"github.com/cometbft/cometbft/v2/types"
-	"github.com/spf13/cobra"
-)
-
 // when you want to add a new node into an exist chain that already running for a while. you need to use
 // command 'add-node' for the new node.
 
@@ -29,6 +21,7 @@ Copy the genesis file and the new priv_validator_key.json to the ~/.cometbft/con
 Now run cometbft node on both machines, and use either --p2p.persistent_peers or the /dial_peers to get them to peer up.
 */
 
+/*
 type NodeAddArguments struct {
 	NodeId string
 	//json string that includes private key, p2p address of all nodes
@@ -90,3 +83,5 @@ func addnodeFiles(*cobra.Command, []string) error {
 
 	return err
 }
+
+*/

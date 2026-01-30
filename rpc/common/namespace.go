@@ -28,7 +28,7 @@ func init() {
 			"BroadcastInitializeChainNode",
 			"BroadcastAddChainNode",
 			"ControlNode",
-			"BroadcastResetChainNode",
+			"BroadcastPurgeChainNode",
 			"ReportCommandResult",
 			"InitializationComplete",
 		},

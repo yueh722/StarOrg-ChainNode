@@ -29,16 +29,16 @@ type SetupAddValidator struct {
 	lib.AddValidatorReq
 }
 
-type SetupResetChain struct{}
+type SetupPurgeChain struct{}
 
 type NodeAction string
 
 const (
-	NodeStart   NodeAction = "!start"
-	NodeStop    NodeAction = "!stop"
-	NodeRestart NodeAction = "!restart"
-	NodeReset   NodeAction = "!reset"
-	NodePurge   NodeAction = "!purge"
+	NodeStart   NodeAction = "@start"
+	NodeStop    NodeAction = "@stop"
+	NodeRestart NodeAction = "@restart"
+	NodeReset   NodeAction = "@reset"
+	NodePurge   NodeAction = "@purge"
 )
 
 // method: Subscription
@@ -73,11 +73,11 @@ type StatusNode struct {
 // each client will report storage information of host to server freqently
 // method: RPC
 type StatusStorage struct {
-	Path        string  `json:"path,omitempty"`
-	TotalSpace  uint64  `json:"total_space,omitempty"`
-	FreeSpace   uint64  `json:"free_space,omitempty"`
-	UsedSpace   uint64  `json:"used_space,omitempty"`
-	UsedPercent float64 `json:"used_percent,omitempty"`
+	Path        string `json:"path,omitempty"`
+	TotalSpace  string `json:"total_space,omitempty"`
+	FreeSpace   string `json:"free_space,omitempty"`
+	UsedSpace   string `json:"used_space,omitempty"`
+	UsedPercent string `json:"used_percent,omitempty"`
 }
 
 type CmdType string
@@ -88,8 +88,7 @@ const (
 	CmdUpdateChainCfg      CmdType = "setup_update_chain_cfg"
 	CmdAddValidator        CmdType = "setup_add_validator"
 	CmdControlNode         CmdType = "setup_control_node"
-	CmdResetChain          CmdType = "setup_reset_chain"
-	CmdPurgeData           CmdType = "setup_purge_data"
+	CmdPurgeChain          CmdType = "setup_purge_chain"
 )
 
 type CommandEnvelope struct {

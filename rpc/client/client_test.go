@@ -4,6 +4,7 @@ import (
 	"chain/lib"
 	"chain/rpc/common"
 	"chain/rpc/server"
+	"chain/utils"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -74,7 +75,7 @@ func init() {
 		"BroadcastInitializeChainNode",
 		"BroadcastAddChainNode",
 		"ControlNode",
-		"BroadcastResetChainNode",
+		"BroadcastPurgeChainNode",
 	}
 
 	slice.ForEach(functions, func(index int, name string) {
@@ -153,6 +154,12 @@ func MakeLocalNet_Peer_05_06() ArgNodeList {
 	return peers
 }
 
+func getNodeIDsFromArgNodeListByName(args ArgNodeList) []string {
+	return lo.Map(args, func(info lib.ArgNodeInfo, _ int) string {
+		return info.NodeId
+	})
+}
+
 var myclient *rpc.Client
 
 func getConnection(t *testing.T) (*rpc.Client, error) {
@@ -197,19 +204,15 @@ func initializeNodes(t *testing.T, argNodes ArgNodeList) {
 			break
 		}
 
-		/*
-			nodeAddr, err := utils.FindIPByPrefix(status.IpAddrs, "192.168.1")
-			if err != nil {
-				t.Fatal("don't find available IP address for node", status.NodeName, err)
-			}
-
-		*/
-
 		argNodes[i].NodeId = status.NodeID
 		argNodes[i].NodeName = status.NodeName
 		argNodes[i].NodeDomainOrIP = status.NodeName
 
-		t.Log("node info: ", status.NodeName, status.IpAddrs)
+		localIp, err := utils.FindIPByPrefix(status.IpAddrs, "192.168.1")
+		if err != nil {
+			localIp = strings.Join(status.IpAddrs, ",")
+		}
+		t.Log("node info: ", status.NodeName, localIp)
 	}
 
 	var errResult error
@@ -267,14 +270,6 @@ func addNodes(t *testing.T, argNodes ArgNodeList) {
 		if assignedIndex >= len(argNodes) {
 			break
 		}
-
-		/*
-			nodeAddr, err := utils.FindIPByPrefix(status.IpAddrs, "192.168.1")
-			if err != nil {
-				t.Fatal("don't find available IP address for node", status.NodeName, err)
-			}
-
-		*/
 
 		argNodes[assignedIndex].NodeId = status.NodeID
 		argNodes[assignedIndex].NodeName = status.NodeName
@@ -340,7 +335,25 @@ func SetupService_ControlNode(t *testing.T, action common.NodeAction) {
 
 }
 
-func controlNodes(t *testing.T, argNodes ArgNodeList, action common.NodeAction) {
+func getActivatedStatusNodesByName(t *testing.T, nodeName string) []common.StatusNode {
+	myclient, err := getConnection(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	state, err := getChainState(myclient)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ss := lo.Filter(state.Nodes, func(status common.StatusNode, _ int) bool {
+		return strings.Contains(status.NodeName, nodeName)
+	})
+
+	return ss
+}
+
+func controlNodes(t *testing.T, nodeIDs []string, action common.NodeAction) {
 
 	myclient, err := getConnection(t)
 	if err != nil {
@@ -349,9 +362,9 @@ func controlNodes(t *testing.T, argNodes ArgNodeList, action common.NodeAction) 
 
 	ctlNodes := []common.SetupControlNode{}
 
-	for _, nodeInfo := range argNodes {
+	for _, nodeID := range nodeIDs {
 		ctlNodes = append(ctlNodes, common.SetupControlNode{
-			NodeID: nodeInfo.NodeId,
+			NodeID: nodeID,
 			Action: action,
 		})
 	}
@@ -375,25 +388,22 @@ func Test_StopAllNodes(t *testing.T) {
 
 func Test_ResetNode01(t *testing.T) {
 
-	peers := MakeLocalNet_Peer_01_02()
-	peers = lo.Filter(peers, func(node lib.ArgNodeInfo, _ int) bool {
-		return strings.Contains(node.NodeId, "01")
+	nodeIDs := lo.Map(getActivatedStatusNodesByName(t, "1"), func(status common.StatusNode, _ int) string {
+		return status.NodeID
 	})
 
-	controlNodes(t, peers, common.NodeReset)
+	controlNodes(t, nodeIDs, common.NodeReset)
 }
 
 func Test_ResetNode02(t *testing.T) {
-
-	peers := MakeLocalNet_Peer_01_02()
-	peers = lo.Filter(peers, func(node lib.ArgNodeInfo, _ int) bool {
-		return strings.Contains(node.NodeId, "02")
+	nodeIDs := lo.Map(getActivatedStatusNodesByName(t, "2"), func(status common.StatusNode, _ int) string {
+		return status.NodeID
 	})
 
-	controlNodes(t, peers, common.NodeReset)
+	controlNodes(t, nodeIDs, common.NodeReset)
 }
 
-func Test_ResetChainNode(t *testing.T) {
+func Test_PurgeChainNode(t *testing.T) {
 	myclient, err := getConnection(t)
 	if err != nil {
 		return
@@ -412,7 +422,7 @@ func Test_ResetChainNode(t *testing.T) {
 
 	var errResult error
 
-	err = myclient.Call(&errResult, methods["BroadcastResetChainNode"], common.SetupResetChain{})
+	err = myclient.Call(&errResult, methods["BroadcastPurgeChainNode"], common.SetupPurgeChain{})
 	if err != nil {
 		t.Fatal("Failed to broadcast reset chain node:", err)
 	}
@@ -425,7 +435,7 @@ func sleepSec(s int32) {
 func TestAutoDeployFromScratch(t *testing.T) {
 
 	t.Log("start reseting chain...")
-	Test_ResetChainNode(t)
+	Test_PurgeChainNode(t)
 
 	sleepSec(10)
 
@@ -436,7 +446,7 @@ func TestAutoDeployFromScratch(t *testing.T) {
 	sleepSec(10)
 
 	t.Log("start running nodes 01, 02...")
-	controlNodes(t, peers1, common.NodeStart)
+	controlNodes(t, getNodeIDsFromArgNodeListByName(peers1), common.NodeStart)
 	sleepSec(30)
 
 	t.Log("start adding nodes 03, 04...")
@@ -445,7 +455,7 @@ func TestAutoDeployFromScratch(t *testing.T) {
 	sleepSec(10)
 
 	t.Log("start running nodes 03, 04...")
-	controlNodes(t, peers2, common.NodeStart)
+	controlNodes(t, getNodeIDsFromArgNodeListByName(peers2), common.NodeStart)
 }
 
 func TestAddValidator(t *testing.T) {

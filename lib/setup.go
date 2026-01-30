@@ -163,7 +163,7 @@ func CheckChainNode(nodeId, nodeDir string) bool {
 	return false
 }
 
-func ResetChainNode(homeDir, nodeID, nodeName string) (*NodeInfo, error) {
+func PurgeChainNode(homeDir, nodeID, nodeName string) (*NodeInfo, error) {
 	nodeDir := filepath.Join(homeDir, nodeID)
 	err := os.RemoveAll(nodeDir)
 	if err != nil {
@@ -359,15 +359,18 @@ func RPCWebsocketAddrs(nodeInfo *NodeInfo) []string {
 	}
 }
 
-// ResetState removes address book files plus all databases.
-func ResetState(dbDir string) error {
+// ResetState removes address book files plus all databases and app data files.
+func ResetState(nodeDir string) error {
+	dbDir := filepath.Join(nodeDir, "data")
+	appDir := filepath.Join(nodeDir, "app")
+
 	blockdb := filepath.Join(dbDir, "blockstore.db")
 	state := filepath.Join(dbDir, "state.db")
 	wal := filepath.Join(dbDir, "cs.wal")
 	evidence := filepath.Join(dbDir, "evidence.db")
 	txIndex := filepath.Join(dbDir, "tx_index.db")
 
-	dbFiles := []string{blockdb, state, wal, evidence, txIndex}
+	dbFiles := []string{blockdb, state, wal, evidence, txIndex, appDir}
 	for _, dbFile := range dbFiles {
 		if fileutil.IsExist(dbFile) {
 			if err := os.RemoveAll(dbFile); err == nil {

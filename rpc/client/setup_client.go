@@ -30,7 +30,7 @@ var router = map[common.CmdType]func(*SetupClient, *common.CommandEnvelope) erro
 	common.CmdInitializeChainNode: (*SetupClient).handleInitChainNodeCmd,
 	common.CmdUpdateChainCfg:      (*SetupClient).handleUpdateChainCfgCmd,
 	common.CmdControlNode:         (*SetupClient).handleControlNodeCmd,
-	common.CmdResetChain:          (*SetupClient).handleResetChainCmd,
+	common.CmdPurgeChain:          (*SetupClient).handlePurgeChainCmd,
 	common.CmdAddValidator:        (*SetupClient).HandleAddValidator,
 	common.CmdPing:                (*SetupClient).HandlePing,
 }
@@ -262,23 +262,23 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 }
 
 // reset chain handler
-func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
+func (c *SetupClient) handlePurgeChainCmd(cmd *common.CommandEnvelope) error {
 
-	log.Info("[handleResetChainCmd] prepare to reset chain")
-	defer log.Info("[handleResetChainCmd] reset chain complete")
+	log.Info("[handlePurgeChainCmd] prepare to reset chain")
+	defer log.Info("[handlePurgeChainCmd] reset chain complete")
 
 	if c.nodeRuntime != nil {
 		if err := c.nodeRuntime.KillNode(); err != nil {
-			log.Error("[handleResetChainCmd] failed to kill node, err:", err)
+			log.Error("[handlePurgeChainCmd] failed to kill node, err:", err)
 		}
 	} else {
 		//kill all node and app processes
 		if err := utils.KillProcessByProcNameAndCmdline(lib.AppFileName, c.cfg.NodeInfo.NodeID); err != nil {
-			log.Info("[handleResetChainCmd] failed to kill app process, err: ", err)
+			log.Info("[handlePurgeChainCmd] failed to kill app process, err: ", err)
 		}
 
 		if err := utils.KillProcessByProcNameAndCmdline(lib.NodeFileName, c.cfg.NodeInfo.NodeID); err != nil {
-			log.Info("[handleResetChainCmd] failed to kill node process, err: ", err)
+			log.Info("[handlePurgeChainCmd] failed to kill node process, err: ", err)
 		}
 	}
 
@@ -286,7 +286,7 @@ func (c *SetupClient) handleResetChainCmd(cmd *common.CommandEnvelope) error {
 	time.Sleep(2 * time.Second)
 
 	//remove node base directory
-	nodeInfo, err := lib.ResetChainNode(c.cfg.HomeDir, c.cfg.NodeInfo.NodeID, c.cfg.NodeInfo.NodeName)
+	nodeInfo, err := lib.PurgeChainNode(c.cfg.HomeDir, c.cfg.NodeInfo.NodeID, c.cfg.NodeInfo.NodeName)
 	if err != nil {
 		return fmt.Errorf("failed to remove node base directory, err: %v", err)
 	}
@@ -390,7 +390,7 @@ func (c *SetupClient) handleResetNode() error {
 		return fmt.Errorf("[handleResetNode] fail to stop node before reset node, err: %v", err)
 	}
 
-	if err := lib.ResetState(c.cfg.getNodeDBPath()); err != nil {
+	if err := lib.ResetState(c.cfg.NodeBaseDir); err != nil {
 		return fmt.Errorf("[handleResetNode] failed to reset state, err: %v", err)
 	}
 

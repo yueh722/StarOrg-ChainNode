@@ -228,6 +228,8 @@ func (s *SetupService) BroadcastInitializeChainNode(
 		s.chainState = newChainState
 	}
 
+	log.Info("initializeChainNode complete", chainID)
+
 	return nil
 }
 
@@ -440,7 +442,7 @@ func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) error {
 
 // RPC Method
 // reset chain state to uninitialized state
-func (s *SetupService) BroadcastResetChainNode(resetChain common.SetupResetChain) error {
+func (s *SetupService) BroadcastPurgeChainNode(purgeChain common.SetupPurgeChain) error {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -453,8 +455,8 @@ func (s *SetupService) BroadcastResetChainNode(resetChain common.SetupResetChain
 
 	for nodeID, _ := range s.subs {
 		nodecmds[nodeID] = &nodeCommand{
-			cmd:     common.CmdResetChain,
-			payload: resetChain,
+			cmd:     common.CmdPurgeChain,
+			payload: purgeChain,
 		}
 	}
 
@@ -523,7 +525,7 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 				return ReturnError(errors.New("client not initialized"))
 			}
 
-			log.Infof("sending command [%v] to node %v", env.Cmd, s.FormatName(nodeID))
+			log.Infof("sending command @%v to node %v", env.Cmd, s.FormatName(nodeID))
 
 			//notify all client to initialize node
 			if err := clientSub.Notifier.Notify(clientSub.SubID, env); err != nil {

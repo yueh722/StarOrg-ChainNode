@@ -6,12 +6,7 @@ import (
 	"chain/lib"
 	"fmt"
 
-	cfg "github.com/cometbft/cometbft/v2/config"
-	"github.com/cometbft/cometbft/v2/crypto/ed25519"
-	"github.com/cometbft/cometbft/v2/p2p"
-	"github.com/cometbft/cometbft/v2/privval"
 	"github.com/cometbft/cometbft/v2/types"
-	"github.com/duke-git/lancet/v2/fileutil"
 	"github.com/spf13/cobra"
 )
 
@@ -101,40 +96,4 @@ func initnodeFiles(*cobra.Command, []string) error {
 	}
 
 	return err
-}
-
-func initFilesWithConfig(config *cfg.Config, prvkey, nodeId string) error {
-	// private validator
-	privValKeyFile := config.PrivValidatorKeyFile()
-	privValStateFile := config.PrivValidatorStateFile()
-	var pv *privval.FilePV
-	if fileutil.IsExist(privValKeyFile) {
-		pv = privval.LoadFilePV(privValKeyFile, privValStateFile)
-		//zlog.Info("Found private validator", "keyFile", privValKeyFile, "stateFile", privValStateFile)
-	} else {
-		var err error
-		//pv, err = privval.GenFilePV(privValKeyFile, privValStateFile, genPrivKeyFromString(prvkey))
-		if err != nil {
-			return fmt.Errorf("can't generate file pv: %v", err)
-		}
-		pv.Save()
-		//log.Info("Generated private validator", "keyFile", privValKeyFile, "stateFile", privValStateFile)
-	}
-
-	nodeKeyFile := config.NodeKeyFile()
-	if fileutil.IsExist(nodeKeyFile) {
-		//log.Info("Found node key", "path", nodeKeyFile)
-	} else {
-
-		nodeKey := &p2p.NodeKey{
-			PrivKey: ed25519.PrivKey(nodeId),
-		}
-
-		if err := nodeKey.SaveAs(nodeKeyFile); err != nil {
-			return err
-		}
-		//log.Info("Generated node key", "path", nodeKeyFile)
-	}
-
-	return nil
 }

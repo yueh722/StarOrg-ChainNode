@@ -3,6 +3,7 @@ package client
 import (
 	"chain/lib"
 	"chain/rpc/common"
+	"chain/utils"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -58,14 +59,14 @@ func (c *StatusClient) ReportNodeStatus() error {
 
 func (c *StatusClient) ReportStorageStatus() error {
 
-	info, _ := disk.Usage(c.cfg.NodeBaseDir[:len("c:/")])
+	info, _ := disk.Usage(c.cfg.NodeBaseDir[:len("A:/")])
 
 	err := c.client.Call(nil, common.GetMethodName("ReportStorageStatus"), common.StatusStorage{
 		Path:        info.Path,
-		TotalSpace:  info.Total,
-		FreeSpace:   info.Free,
-		UsedSpace:   info.Used,
-		UsedPercent: info.UsedPercent,
+		TotalSpace:  utils.ConvertBytesToReadable(info.Total),
+		FreeSpace:   utils.ConvertBytesToReadable(info.Free),
+		UsedSpace:   utils.ConvertBytesToReadable(info.Used),
+		UsedPercent: fmt.Sprintf("%.1f%%", info.UsedPercent),
 	})
 
 	return err

@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
-	"github.com/cometbft/cometbft/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -81,6 +79,7 @@ func TestInitNodeFiles(t *testing.T) {
 	}
 }
 
+/*
 func TestAddNodeFiles(t *testing.T) {
 
 	peers := lib.PeerList{
@@ -180,6 +179,8 @@ func TestAddNodeFiles(t *testing.T) {
 	fmt.Printf("addnodeFile for peer %v, %v\n", "node05", err)
 
 }
+
+*/
 
 // 测试ConvertJsonToPeer函数
 func TestConvertJsonToPeer(t *testing.T) {

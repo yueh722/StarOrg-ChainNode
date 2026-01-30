@@ -15,7 +15,7 @@ import (
 type Config struct {
 	Addr    string
 	AppName string
-	TlsPort string
+	//TlsPort string
 
 	FWMode         security.FirewallMode
 	AllowOnlyHosts []string
