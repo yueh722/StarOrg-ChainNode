@@ -143,7 +143,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	if err := setup.RegisterService(rpcServer); err != nil {
 		return nil, err
 	}
-
+	
 	mux := http.NewServeMux()
 
 	mux.Handle("/websocket", rpcServer.WebsocketHandler([]string{"*"}))

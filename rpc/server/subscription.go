@@ -38,6 +38,7 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 	// use initialization status that stored on master side.
 	delegator.StatusNode.Initialized = s.chainState.IsNodeInitialized(delegator.StatusNode.NodeID)
 
+	// filter private ip address for debugging purpose
 	HostIP, err := utils.FindIPByPrefix(delegator.StatusNode.HostInfo.IpAddrs, "192.168.1")
 	if err != nil {
 		HostIP = strings.Join(delegator.StatusNode.HostInfo.IpAddrs, ",")

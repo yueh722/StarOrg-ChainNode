@@ -84,7 +84,7 @@ func (s *LiveTxService) ReportLiveTx(ctx context.Context, nodeID string, status 
 	zlog.Infof("received live transaction:\n nodeID: %v, tx: %v", nodeID, status)
 
 	if s.stream != nil {
-		s.stream.ReportState(ctx, status)
+		s.stream.ReportState(status)
 	}
 
 	//log.Printf("[NodeTransaction] %v\n", status)

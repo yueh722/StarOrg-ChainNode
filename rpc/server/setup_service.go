@@ -33,10 +33,15 @@ type SetupResult struct {
 
 type MultiError struct {
 	Errors map[string]error
+	Code   int
 }
 
 func NewMultiError() *MultiError {
-	return &MultiError{Errors: make(map[string]error)}
+	return &MultiError{Errors: make(map[string]error), Code: 1000}
+}
+
+func (m *MultiError) ErrorCode() int {
+	return m.Code
 }
 
 func (m *MultiError) Clear() {
@@ -126,10 +131,6 @@ func (s *SetupService) RegisterService(server *rpc.Server) error {
 	return nil
 }
 
-func ReturnError(err error) error {
-	return err
-}
-
 // RPC Method
 // Fetch: "retrive chain state and node state"
 func (s *SetupService) GetChainState() *ChainState {
@@ -172,19 +173,19 @@ func (s *SetupService) GetChainState() *ChainState {
 func (s *SetupService) BroadcastInitializeChainNode(
 	chainID string,
 	nodeArray []lib.ArgNodeInfo,
-) error {
+) (*RpcResponse, error) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.chainState.Initialized() {
-		return (errors.New("chain already initialized"))
+		return MakeRpcErrorf("chain already initialized")
 	}
 
 	peers := lib.ArgNodeArrayToPeers(nodeArray)
 
 	if err := lib.ValidNodeArray(peers); err != nil {
-		return err
+		return MakeRpcError(err)
 	}
 
 	newChainState := NewChainState(chainID, peers)
@@ -214,7 +215,7 @@ func (s *SetupService) BroadcastInitializeChainNode(
 	}
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
-		return err
+		return MakeRpcError(err)
 	}
 
 	// update initialization status of nodes that had finished.
@@ -223,33 +224,33 @@ func (s *SetupService) BroadcastInitializeChainNode(
 	//succeed
 	//save chain node information, genesisDoc
 	if err := newChainState.Save(chainStateFile); err != nil {
-		return fmt.Errorf("save chain state file: %v, err: %v", chainStateFile, err)
+		return MakeRpcErrorf("failed to save chain state file: %v, err: %v", chainStateFile, err)
 	} else {
 		s.chainState = newChainState
 	}
 
 	log.Info("initializeChainNode complete", chainID)
 
-	return nil
+	return MakeRpcSucceed()
 }
 
 // RPC Method
 // Broadcase: add one node and update others nodes.
-func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) error {
+func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) (*RpcResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if !s.chainState.Initialized() {
-		return ReturnError(errors.New("please initialize chain node first"))
+		return MakeRpcErrorf("please initialize chain first")
 	}
 
 	if s.chainState.IsNodeInitialized(node.NodeId) {
-		return ReturnError(errors.New("node already initialized"))
+		return MakeRpcErrorf("this node had already initialized")
 	}
 
-	//if !s.HasActivatedValidator() {
-	//	return ReturnError(errors.New("activated validator node not found, please run all nodes first before prepare to add a new node"))
-	//}
+	if !s.HasActivatedValidator() {
+		return MakeRpcErrorf("activated validator nodes not found, please run all nodes first before add a new node")
+	}
 
 	peerInfo := node.ToPeer()
 
@@ -308,7 +309,7 @@ func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) error {
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
 		log.Info("send node command failure:", err)
-		return err
+		return MakeRpcError(err)
 	}
 
 	s.NodeNameCache[peerInfo.NodeId] = peerInfo.NodeName
@@ -318,7 +319,7 @@ func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) error {
 
 	//save chain node information, genesisDoc
 	if err := newChainState.Save(chainStateFile); err != nil {
-		return fmt.Errorf("save chain state file: %v, err: %v", chainStateFile, err)
+		return MakeRpcErrorf("failed to save chain state file: %v, err: %v", chainStateFile, err)
 	} else {
 		s.chainState = newChainState
 	}
@@ -327,11 +328,11 @@ func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) error {
 	if peerInfo.IsValidator {
 		if err := s.BroadcaseAddValidator(peerInfo); err != nil {
 			log.Info("broadcast add validator failure:", err)
-			return err
+			return MakeRpcError(err)
 		}
 	}
 
-	return nil
+	return MakeRpcSucceed()
 }
 
 func (s *SetupService) isOriginalValidator(nodeName string) bool {
@@ -407,20 +408,20 @@ func (s *SetupService) ResetNodeStatus() {
 
 // RPC Method
 // send start,stop,restart command to specified node
-func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) error {
+func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) (*RpcResponse, error) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if !s.chainState.Initialized() {
-		return ReturnError(errors.New("please initialize chain node first"))
+		return MakeRpcErrorf("please initialize chain node first")
 	}
 
 	nodecmds := make(map[string]*nodeCommand)
 
 	for _, ctlNode := range ctlNodes {
 		if !s.chainState.IsNodeInitialized(ctlNode.NodeID) {
-			log.Warnf("the node %v has not initialized, Ignore sending control command to it",
+			log.Infof("the node %v has not initialized, Ignore sending control command to it",
 				s.FormatName(ctlNode.NodeID))
 			continue
 		}
@@ -430,25 +431,25 @@ func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) error {
 			payload: ctlNode,
 		}
 
-		log.Printf("[ControlNode] node: %v, action: %v", s.FormatName(ctlNode.NodeID), ctlNode.Action)
+		log.Infof("[ControlNode] node: %v, action: %v", s.FormatName(ctlNode.NodeID), ctlNode.Action)
 	}
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
-		return err
+		return MakeRpcError(err)
 	}
 
-	return nil
+	return MakeRpcSucceed()
 }
 
 // RPC Method
-// reset chain state to uninitialized state
-func (s *SetupService) BroadcastPurgeChainNode(purgeChain common.SetupPurgeChain) error {
+// reset chain state to uninitialized state, remove all data of node and app
+func (s *SetupService) BroadcastPurgeChainNode(purgeChain common.SetupPurgeChain) (*RpcResponse, error) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if !s.chainState.Initialized() {
-		return ReturnError(errors.New("chain has not initialized"))
+		return MakeRpcErrorf("chain has not been initialized")
 	}
 
 	nodecmds := make(map[string]*nodeCommand, len(s.subs))
@@ -461,27 +462,21 @@ func (s *SetupService) BroadcastPurgeChainNode(purgeChain common.SetupPurgeChain
 	}
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
-		return err
+		return MakeRpcError(err)
 	}
 
 	//clean event log up
 	if err := s.cmdEvent.Reset(); err != nil {
-		return fmt.Errorf("failed to reset cmd event: %v", err)
+		return MakeRpcErrorf("failed to reset cmd event: %v", err)
 	}
 
 	if err := s.chainState.Reset(chainStateFile); err != nil {
-		return fmt.Errorf("failed to reset chain state: %v", err)
+		return MakeRpcErrorf("failed to reset chain state file: %v, err: %v", chainStateFile, err)
 	}
 
 	s.ResetNodeStatus()
 
-	return nil
-}
-
-// Method
-// clean all block data and height. might experiment.
-func (s *SetupService) BroadcastPurgeData() error {
-	panic("implement me")
+	return MakeRpcSucceed()
 }
 
 // arg
@@ -494,7 +489,7 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 
 		cmdID, err := newCommandID()
 		if err != nil {
-			return ReturnError(err)
+			return err
 		}
 
 		syncCmds = append(syncCmds, cmdID)
@@ -522,7 +517,7 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 		requestNodeFn := func() error {
 			clientSub := s.getNotifierByNodeID(nodeID)
 			if clientSub == nil {
-				return ReturnError(errors.New("client not initialized"))
+				return (errors.New("client not found in subscription list"))
 			}
 
 			log.Infof("sending command @%v to node %v", env.Cmd, s.FormatName(nodeID))
@@ -578,7 +573,7 @@ func (s *SetupService) ReportCommandResult(ctx context.Context, res commandlog.C
 	log.Printf("[CommandResult] cmd: %s, node: %v, status: %s, err: %v",
 		res.Cmd, s.FormatName(res.NodeID), res.Status, res.Error)
 
-	if reported := s.stream.ReportState(ctx, &res); reported {
+	if reported := s.stream.ReportState(&res); reported {
 		//set reported state for cmdEvent
 	}
 

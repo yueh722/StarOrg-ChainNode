@@ -44,7 +44,7 @@ func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, error) {
 			continue
 		}
 
-		iniFile, err := ini.Load(cfgFile)
+		iniFile, err := ini.LoadSources(ini.LoadOptions{Insensitive: true}, cfgFile)
 		if err != nil {
 			return nil, fmt.Errorf("read config file error: %v", err)
 		}
@@ -53,7 +53,7 @@ func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, error) {
 
 		cfg := &Config{}
 		if err := defaultSection.MapTo(cfg); err != nil {
-			return nil, fmt.Errorf("data in config file error: ", err)
+			return nil, fmt.Errorf("data in config file error: %v", err)
 		}
 
 		zlog.Infof("config file %s applied", cfgFile)

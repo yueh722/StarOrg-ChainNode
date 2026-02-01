@@ -15,18 +15,18 @@ type DelegatorInfo struct {
 // Management
 // method: Subscription
 type SetupInitializeChainNode struct {
-	NodeID     string
-	NodeArray  lib.PeerList
-	GenesisDoc types.GenesisDoc
+	NodeID     string           `json:"node_id,omitempty"`
+	NodeArray  lib.PeerList     `json:"node_array,omitempty"`
+	GenesisDoc types.GenesisDoc `json:"genesis_doc"`
 }
 
 // method: Subscription
 type SetupUpdateChainCfg struct {
-	NodeArray lib.PeerList
+	NodeArray lib.PeerList `json:"node_array,omitempty"`
 }
 
 type SetupAddValidator struct {
-	lib.AddValidatorReq
+	lib.AddValidatorReq `json:"add_validator_req"`
 }
 
 type SetupPurgeChain struct{}
@@ -43,26 +43,26 @@ const (
 
 // method: Subscription
 type SetupControlNode struct {
-	NodeID string
-	Action NodeAction
+	NodeID string     `json:"node_id,omitempty"`
+	Action NodeAction `json:"action,omitempty"`
 }
 
 type SetupPing struct {
-	NodeID    string
-	Timestamp int64
+	NodeID    string `json:"node_id,omitempty"`
+	Timestamp int64  `json:"timestamp,omitempty"`
 }
 
 type HostInfo struct {
 	HostName string   `json:"host_name"`
-	IpAddrs  []string `json:"ip_addrs"`
+	IpAddrs  []string `json:"ip_addresses"`
 }
 
 // Status report
 // each client will report node information to server freqently
 // method: RPC
 type StatusNode struct {
-	lib.NodeInfo `json:"lib_._node_info"`
-	HostInfo     `json:"lib_._host_info"`
+	lib.NodeInfo `json:"node_info"`
+	HostInfo     `json:"host_info"`
 	Healthy      bool   `json:"healthy,omitempty"`
 	LastCheck    string `json:"last_check,omitempty"`
 	StartedTime  string `json:"started_time,omitempty"`

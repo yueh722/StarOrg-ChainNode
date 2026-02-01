@@ -58,7 +58,7 @@ func (s *NodeLogService) PublishLog() {
 
 		for eventID, unsendLog := range sendingLogs {
 			log.Println("Sending log", eventID, unsendLog)
-			ok := s.stream.reportStateInternal(unsendLog)
+			ok := s.stream.ReportState(&unsendLog)
 			if ok {
 				s.mut.Lock()
 				delete(s.unsendLogs, eventID)
@@ -76,13 +76,14 @@ func (s *NodeLogService) RegisterService(server *rpc.Server) error {
 	return nil
 }
 
-type SubscribeArgs struct {
+type StreamSubscribeArg struct {
+	App   string `json:"app,omitempty"`
 	Since string `json:"since,omitempty"`
 }
 
 // SubscribeErrors：JSON-RPC subscription
 // Subscriber call method: "nodelog_subscribeErrors"
-func (s *NodeLogService) _SubscribeErrors(ctx context.Context, args SubscribeArgs) (*rpc.Subscription, error) {
+func (s *NodeLogService) _SubscribeErrors(ctx context.Context, arg StreamSubscribeArg) (*rpc.Subscription, error) {
 	notifier, ok := rpc.NotifierFromContext(ctx)
 	if !ok {
 		return nil, rpc.ErrNotificationsUnsupported
@@ -92,7 +93,7 @@ func (s *NodeLogService) _SubscribeErrors(ctx context.Context, args SubscribeArg
 	ch := s.nodeLogStore.GetBroker().Subscribe(256)
 
 	// notify all events that had not sent.
-	if args.Since == "" || args.Since == "unsent" {
+	if arg.Since == "" || arg.Since == "unsent" {
 		_ = s.nodeLogStore.ScanUnsent(0, func(e queuestore.PersistedEvent) error {
 			notifier.Notify(sub.ID, e)
 			return nil

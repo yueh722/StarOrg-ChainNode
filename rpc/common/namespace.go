@@ -50,11 +50,6 @@ func init() {
 			"ReportState",
 		},
 
-		//ticker service
-		TickerNamespace{}.GetNamesapceString(): []string{
-			"Start",
-		},
-
 		//nodelog service
 		NodeLogNamespace{}.GetNamesapceString(): []string{
 			"ReportLog",

@@ -1,7 +1,10 @@
 package server
 
 import (
+	"chain/lib"
+	"chain/lib/queuestore"
 	log "chain/lib/zlog"
+	"chain/rpc/commandlog"
 	"chain/rpc/common"
 	"context"
 	"fmt"
@@ -17,21 +20,19 @@ type customerSub struct {
 
 // StreamService is used to provide live stream data about chain network for webserver.
 type StreamService struct {
-	subs      map[rpc.ID]customerSub
-	mut       sync.Mutex
-	namespace common.Namespace
+	subs map[rpc.ID]customerSub
+	mut  sync.Mutex
 }
 
 func NewStreamService() *StreamService {
 	return &StreamService{
-		subs:      make(map[rpc.ID]customerSub),
-		mut:       sync.Mutex{},
-		namespace: common.StreamNamespace{},
+		subs: make(map[rpc.ID]customerSub),
+		mut:  sync.Mutex{},
 	}
 }
 
 func (s *StreamService) RegisterService(server *rpc.Server) error {
-	if err := server.RegisterName(s.namespace.GetNamesapceString(), s); err != nil {
+	if err := server.RegisterName(common.StreamNamespace{}.GetNamesapceString(), s); err != nil {
 		return fmt.Errorf("Failed to register stream service: %v", err)
 	}
 
@@ -49,7 +50,7 @@ func (s *StreamService) GetCustomerCount() int {
 // SubscribeErrors：JSON-RPC subscription
 // Subscriber call method: "stream_subscribeStream"
 // subscirbe stream to receive live status about node
-func (s *StreamService) SubscribeStream(ctx context.Context, args SubscribeArgs) (*rpc.Subscription, error) {
+func (s *StreamService) SubscribeStream(ctx context.Context, arg StreamSubscribeArg) (*rpc.Subscription, error) {
 	notifier, ok := rpc.NotifierFromContext(ctx)
 	if !ok {
 		return nil, rpc.ErrNotificationsUnsupported
@@ -74,35 +75,44 @@ func (s *StreamService) SubscribeStream(ctx context.Context, args SubscribeArgs)
 	return sub, nil
 }
 
-type StreamReportCallback func(*StreamService, interface{}) bool
-
-func (s *StreamService) ReportState(ctx context.Context, state interface{}) bool {
+func (s *StreamService) ReportState(state interface{}) bool {
 	// ReportState receives following kind of data and will transmit these data to subscribers.
 
-	/*
-		switch v := state.(type) {
-		case
-			*common.StatusStorage, *common.StatusNode,
-			*commandlog.CommandResult:
-			//log.Info("ReportState transaction", state)
-		default:
-			//log.Info("ReportState unknown state", v)
-		}
+	// ReportState receives following kind of data and will transmit these data to subscribers.
+	// *common.StatusNode
+	// *common.StatusStorage
+	// *commandlog.CommandResult
+	// *lib.StatusTransaction
 
-	*/
+	var rpcState struct {
+		Type string      `json:"type"`
+		Data interface{} `json:"data"`
+	}
 
-	return s.reportStateInternal(state)
+	rpcState.Data = state
+
+	switch v := state.(type) {
+	case *common.StatusNode:
+		rpcState.Type = "node"
+	case *common.StatusStorage:
+		rpcState.Type = "storage"
+	case *commandlog.CommandResult:
+		rpcState.Type = "setup"
+	case *lib.StatusTransaction:
+		rpcState.Type = "tx"
+	case *queuestore.PersistedEvent:
+		rpcState.Type = "log"
+	default:
+		log.Info("ReportState unknown state", v)
+		return true
+	}
+
+	return s.reportStateInternal(rpcState)
 }
 
 func (s *StreamService) reportStateInternal(state interface{}) bool {
 	reported := true
 	var err error
-
-	// ReportState receives following kind of data and will transmit these data to subscribers.
-	// *common.StatusNode
-	// *common.StatusStorage
-	// commandlog.CommandResult
-	// *lib.StatusTransaction
 
 	err = s.notifyClient(state)
 	if err != nil {

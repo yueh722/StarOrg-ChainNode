@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/duke-git/lancet/v2/fileutil"
-	"github.com/spf13/viper"
+	"gopkg.in/ini.v1"
 )
 
 type Config struct {
@@ -68,6 +68,17 @@ func (cfg *Config) Valid() error {
 		return fmt.Errorf("invalid Server address: %s", cfg.Addr)
 	}
 
+	if cfg.AppName == "" {
+		cfg.AppName = "NodeMaster"
+	}
+
+	if cfg.FWMode == security.LocalOnly {
+		cfg.Addr, _ = lib.UpdateHost(cfg.Addr, "localhost")
+		cfg.AllowOnlyHosts = append(cfg.AllowOnlyHosts, "127.0.0.1", "localhost")
+
+		//distinct slice 'AllowOnlyHosts' if u think need to
+	}
+
 	return nil
 }
 
@@ -83,14 +94,22 @@ func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, error) {
 			continue
 		}
 
-		viper.SetConfigFile(cfgFile)
-		if err := viper.ReadInConfig(); err != nil {
-			return nil, fmt.Errorf("read config file error: ", err)
+		iniFile, err := ini.LoadSources(ini.LoadOptions{Insensitive: true}, cfgFile)
+		if err != nil {
+			return nil, fmt.Errorf("read config file error: %v", err)
 		}
 
 		cfg := &Config{}
-		if err := viper.Unmarshal(cfg); err != nil {
-			return nil, fmt.Errorf("data in config file error: ", err)
+		if err := iniFile.Section("default").MapTo(cfg); err != nil {
+			return nil, fmt.Errorf("failed to map default section in ini file %v, error: %v", cfgFile, err)
+		}
+
+		if err := iniFile.Section("firewall").MapTo(cfg); err != nil {
+			return nil, fmt.Errorf("failed to map  firewall section in ini file %v, error: %v", cfgFile, err)
+		}
+
+		if err := iniFile.Section("tls").MapTo(&cfg.Tls); err != nil {
+			return nil, fmt.Errorf("failed to map tls section in ini file %v, error: %v", cfgFile, err)
 		}
 
 		if err := cfg.Valid(); err != nil {

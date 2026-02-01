@@ -34,7 +34,7 @@ func (s *StatusService) RegisterService(server *rpc.Server) error {
 // Method
 func (s *StatusService) ReportNodeStatus(ctx context.Context, status *common.StatusNode) error {
 	if s.stream != nil {
-		s.stream.ReportState(ctx, status)
+		s.stream.ReportState(status)
 	}
 
 	//log.Printf("[NodeStatus] %v\n", status)
@@ -45,7 +45,7 @@ func (s *StatusService) ReportNodeStatus(ctx context.Context, status *common.Sta
 func (s *StatusService) ReportStorageStatus(ctx context.Context, status *common.StatusStorage) error {
 
 	if s.stream != nil {
-		s.stream.ReportState(ctx, status)
+		s.stream.ReportState(status)
 	}
 
 	//zlog.Printf("[StorageStatus] %v\n", status)

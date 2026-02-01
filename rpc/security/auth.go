@@ -48,17 +48,17 @@ func GenerateToken(clientID string, secret []byte) string {
 	return fmt.Sprintf("%d:%x", time.Now().Unix(), sig)
 }
 
-func RandString(n int32) string {
-	b := make([]byte, n)
-	rand.Read(b)
-	return (fmt.Sprintf("%x", b))
-}
-
 func Signature(ts int64, clientID string, secret []byte) []byte {
 	mac := hmac.New(sha256.New, (secret))
 	mac.Write([]byte(clientID))
 	mac.Write([]byte(strconv.FormatInt(ts, 10)))
 	return mac.Sum(nil)
+}
+
+func RandString(n int32) string {
+	b := make([]byte, n)
+	rand.Read(b)
+	return (fmt.Sprintf("%x", b))
 }
 
 func (a *Auth) validateToken(clientID, token string) bool {
