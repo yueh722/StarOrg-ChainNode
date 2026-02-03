@@ -2,6 +2,7 @@ package lib
 
 import (
 	log "chain/lib/zlog"
+	"chain/utils"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -262,14 +263,21 @@ func GetNodeByNodeId(nodeId string, peers string) *Peer {
 
 func ValidNodeArray(peers PeerList) error {
 
+	resErr := NewMultiError()
+
 	for _, p := range peers {
+
+		//lookup domain or host, return error if failure
+		if err := utils.CheckIpOrDomain(p.NodeAddress); err != nil {
+			resErr.AddError(err)
+		}
 
 		if p.NodeId == "" ||
 			p.NodeKey == "" ||
 			p.NodeName == "" ||
 			p.PrivKey == "" ||
 			p.NodeAddress == "" {
-			return errors.New("nodeID or NodeKey or NodeName or PrivKey or NodeAddress is empty")
+			resErr.AddError(errors.New("nodeID or NodeKey or NodeName or PrivKey or NodeAddress is empty"))
 		}
 
 		CorrectP2PPortIfNeedTo(&p.P2PPort)
@@ -277,5 +285,6 @@ func ValidNodeArray(peers PeerList) error {
 		CorrectABCIPortIfNeedTo(&p.ABCIPort)
 		CorrectWebServicePortIfNeedTo(&p.WebServicePort)
 	}
-	return nil
+
+	return resErr.ErrorOrNil()
 }

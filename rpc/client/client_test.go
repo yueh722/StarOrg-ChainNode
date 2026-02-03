@@ -360,7 +360,7 @@ func controlNodes(t *testing.T, nodeIDs []string, action common.NodeAction) {
 		return
 	}
 
-	ctlNodes := []common.SetupControlNode{}
+	var ctlNodes []common.SetupControlNode
 
 	for _, nodeID := range nodeIDs {
 		ctlNodes = append(ctlNodes, common.SetupControlNode{

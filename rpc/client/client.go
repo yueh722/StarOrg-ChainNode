@@ -134,7 +134,7 @@ func New(cfg *ClientConfig) (*Client, error) {
 	//check last process info of node runtime
 	if lastRuntime, _ := LoadLastNodeInfo(cfg.getNodeRuntimeFilePath()); lastRuntime != nil {
 		if lastRuntime.Node.Pid != 0 && lastRuntime.App.Pid != 0 {
-			// node and app might exit unexpect, so start node automatically.
+			// node and app might exit unexpected, so start node automatically.
 			time.Sleep(2 * time.Second)
 			_ = setupClient.handleControlNodeCmd(BuildStartCmd(cfg.NodeInfo.NodeID))
 		}

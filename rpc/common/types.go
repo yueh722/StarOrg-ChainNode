@@ -63,10 +63,18 @@ type HostInfo struct {
 type StatusNode struct {
 	lib.NodeInfo `json:"node_info"`
 	HostInfo     `json:"host_info"`
+	Online       bool   `json:"online"`
 	Healthy      bool   `json:"healthy,omitempty"`
 	LastCheck    string `json:"last_check,omitempty"`
 	StartedTime  string `json:"started_time,omitempty"`
 	Initialized  bool   `json:"initialized,omitempty"`
+}
+
+type StatusNotification struct {
+	Catalog   string `json:"catalog,omitempty"`
+	NodeID    string `json:"node_id,omitempty"`
+	Online    bool   `json:"offline,omitempty"`
+	CheckTime string `json:"check_time,omitempty"`
 }
 
 // storage report of host running node

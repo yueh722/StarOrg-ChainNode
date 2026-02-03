@@ -21,6 +21,7 @@ import (
 
 	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
 	"github.com/cometbft/cometbft/v2/types"
+	"github.com/duke-git/lancet/v2/convertor"
 	"github.com/duke-git/lancet/v2/maputil"
 	"github.com/duke-git/lancet/v2/slice"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -29,42 +30,6 @@ import (
 
 type SetupResult struct {
 	Error error `json:"error"`
-}
-
-type MultiError struct {
-	Errors map[string]error
-	Code   int
-}
-
-func NewMultiError() *MultiError {
-	return &MultiError{Errors: make(map[string]error), Code: 1000}
-}
-
-func (m *MultiError) ErrorCode() int {
-	return m.Code
-}
-
-func (m *MultiError) Clear() {
-	m.Errors = nil
-}
-
-func (m *MultiError) ErrorOrNil() error {
-	if len(m.Errors) > 0 {
-		return m
-	} else {
-		return nil
-	}
-}
-
-func (m *MultiError) Error() string {
-	//errStr, err := json.MarshalIndent(m.Errors, "", "  ")
-
-	errStr := []string{}
-	for key, err := range m.Errors {
-		errStr = append(errStr, key+": "+err.Error())
-	}
-
-	return fmt.Sprintf("{ %s }", strings.Join(errStr, ",\n"))
 }
 
 type nodeCommand struct {
@@ -134,11 +99,20 @@ func (s *SetupService) RegisterService(server *rpc.Server) error {
 // RPC Method
 // Fetch: "retrive chain state and node state"
 func (s *SetupService) GetChainState() *ChainState {
-	var nodes []common.StatusNode
+	var nodeMap = map[string]*common.StatusNode{}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	//convert initialized peers to statusNodes first from chainStateInternal
+	nodeMap = convertor.ToMap(s.chainState.Peers, func(peerInfo lib.Peer) (string, *common.StatusNode) {
+		return peerInfo.NodeId, &common.StatusNode{
+			NodeInfo:    *lib.PeerInfoToNodeInfo(&peerInfo),
+			Initialized: true,
+		}
+	})
+
+	//init other members from subscribers
 	for nodeID, clientSub := range s.subs {
 		node := &clientSub.StatusNode
 		if node.Initialized {
@@ -146,8 +120,13 @@ func (s *SetupService) GetChainState() *ChainState {
 			node.LastCheck = utils.NowString()
 		}
 
-		nodes = append(nodes, *node)
+		//update statusNode if node is a command subscriber
+		nodeMap[nodeID] = node
 	}
+
+	nodes := convertor.MapToSlice(nodeMap, func(_ string, statusNode *common.StatusNode) common.StatusNode {
+		return *statusNode
+	})
 
 	slice.SortBy(nodes, func(a, b common.StatusNode) bool {
 		return a.NodeInfo.NodeName < b.NodeInfo.NodeName
@@ -254,6 +233,10 @@ func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) (*RpcResponse
 
 	peerInfo := node.ToPeer()
 
+	if err := lib.ValidNodeArray(lib.PeerList{peerInfo}); err != nil {
+		return MakeRpcError(err)
+	}
+
 	newChainState := s.chainState.CloneAddNode(peerInfo)
 
 	nodecmds := make(map[string]*nodeCommand)
@@ -347,7 +330,7 @@ func (s *SetupService) BroadcaseAddValidator(peerInfo lib.Peer) error {
 		return errors.New("please initialize chain node first before broadcast add validator")
 	}
 
-	var totalErr = NewMultiError()
+	var totalErr = lib.NewMultiError()
 
 	for nodeID, clientStub := range s.subs {
 
@@ -544,7 +527,7 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 	//wait all node completing initialization task
 	ch := s.cmdManager.SyncMultipleCommands(syncCmds...)
 
-	resErr := NewMultiError()
+	resErr := lib.NewMultiError()
 
 	for result := range ch {
 		if result.Err != nil {
