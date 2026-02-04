@@ -2,6 +2,7 @@ package client
 
 import (
 	"chain/lib"
+	"chain/lib/zlog"
 	"chain/rpc/common"
 	"chain/utils"
 	"fmt"
@@ -59,9 +60,13 @@ func (c *StatusClient) ReportNodeStatus() error {
 
 func (c *StatusClient) ReportStorageStatus() error {
 
-	info, _ := disk.Usage(c.cfg.NodeBaseDir[:len("A:/")])
+	info, err := disk.Usage(c.cfg.NodeBaseDir[:len("A:/")])
+	if err != nil {
+		zlog.Errorf("failed to get disk usage, err: %v", err)
+		return nil
+	}
 
-	err := c.client.Call(nil, common.GetMethodName("ReportStorageStatus"), common.StatusStorage{
+	err = c.client.Call(nil, common.GetMethodName("ReportStorageStatus"), common.StatusStorage{
 		Path:        info.Path,
 		TotalSpace:  utils.ConvertBytesToReadable(info.Total),
 		FreeSpace:   utils.ConvertBytesToReadable(info.Free),

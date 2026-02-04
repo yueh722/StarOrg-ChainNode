@@ -161,6 +161,10 @@ func (s *SetupService) BroadcastInitializeChainNode(
 		return MakeRpcErrorf("chain already initialized")
 	}
 
+	if len(nodeArray) == 0 {
+		return MakeRpcErrorf("argument node array is empty")
+	}
+
 	peers := lib.ArgNodeArrayToPeers(nodeArray)
 
 	if err := lib.ValidNodeArray(peers); err != nil {

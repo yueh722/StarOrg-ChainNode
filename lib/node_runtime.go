@@ -101,7 +101,7 @@ func (r NodeRuntimeImpl) CreatedTime() string {
 		if inst == nil || !inst.IsRunning() {
 			continue
 		}
-		timeStr = fmt.Sprintf("%s %s", timeStr, inst.StartTime.Format("2006-01-02 15:04:05"))
+		timeStr = fmt.Sprintf("%s,%s", timeStr, inst.StartTime.Format("2006-01-02 15:04:05"))
 	}
 
 	return strings.Trim(timeStr, " ")

@@ -162,7 +162,7 @@ func GetProcessCreatedTime(node, app string) string {
 			continue
 		}
 
-		timeStr = fmt.Sprintf("%s %s", timeStr, pi.StartedTime.Format("2006-01-02 15:04:05"))
+		timeStr = fmt.Sprintf("%s,%s", timeStr, pi.StartedTime.Format("2006-01-02 15:04:05"))
 	}
 
 	return strings.TrimLeft(timeStr, " ")
