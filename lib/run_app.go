@@ -45,8 +45,9 @@ func BuildNodeLauncher(nodeID string, arg NodeArg) *Launcher {
 			"node":   "",
 			"--home": filepath.Join(arg.NodeBaseDir),
 		},
-		Envs:   nil,
-		Logger: zlog.NewCometbftNodeLogger(nodeID, filepath.Join(arg.LogFilePath, "node", arg.NodeInfo.NodeName+".log"), arg.LogStore),
+		Envs:       nil,
+		NotifyFunc: arg.NodeNotifyFunc,
+		Logger:     zlog.NewCometbftNodeLogger(nodeID, filepath.Join(arg.LogFilePath, "node", arg.NodeInfo.NodeName+".log"), arg.LogStore),
 	}
 
 	return l
@@ -63,8 +64,9 @@ func BuildAppLauncher(nodeID string, arg NodeArg) *Launcher {
 			"--http-addr-listen": arg.NodeInfo.WebServiceListenAddr, //webservice
 			"--abci-rpc-addr":    arg.NodeInfo.RPCAddr,              // rpc
 		},
-		Envs:   nil,
-		Logger: zlog.NewCometbftNodeLogger(GetAppNameByNodeID(nodeID), filepath.Join(arg.LogFilePath, "app", arg.NodeInfo.NodeName+"_app.log"), arg.LogStore),
+		Envs:       nil,
+		NotifyFunc: arg.AppNotifyFunc,
+		Logger:     zlog.NewCometbftNodeLogger(GetAppNameByNodeID(nodeID), filepath.Join(arg.LogFilePath, "app", arg.NodeInfo.NodeName+"_app.log"), arg.LogStore),
 	}
 
 	return l

@@ -70,11 +70,19 @@ type StatusNode struct {
 	Initialized  bool   `json:"initialized,omitempty"`
 }
 
-type StatusNotification struct {
-	Catalog   string `json:"catalog,omitempty"`
-	NodeID    string `json:"node_id,omitempty"`
-	Online    bool   `json:"offline,omitempty"`
-	CheckTime string `json:"check_time,omitempty"`
+type StatusAgent struct {
+	Catalog  string `json:"catalog,omitempty"`
+	NodeID   string `json:"node_id,omitempty"`
+	Online   bool   `json:"online,omitempty"`
+	IssuedAt string `json:"issued_at,omitempty"`
+}
+
+type StatusCometbftProcess struct {
+	Catalog  string `json:"catalog,omitempty"`
+	NodeID   string `json:"node_id,omitempty"`
+	Start    bool   `json:"start,omitempty"`
+	Error    string `json:"error,omitempty"`
+	IssuedAt string `json:"issued_at,omitempty"`
 }
 
 // storage report of host running node

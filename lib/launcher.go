@@ -20,6 +20,7 @@ type Launcher struct {
 	Args        map[string]string
 	Envs        []string
 	Logger      *log.Logger
+	NotifyFunc  NotifyFunc
 }
 
 // Sample
@@ -44,11 +45,13 @@ func (b *Launcher) RunApp() (*Session, error) {
 	cmd.Dir = filepath.Dir(b.AppFilePath)
 
 	sess, err := Start(b.Logger, cmd, func(err error) {
-		//close log file here
+		b.NotifyFunc(true, err)
 	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "launcher '%s' failed to start", b.Name)
 	}
+
+	b.NotifyFunc(true, nil)
 
 	return sess, nil
 }

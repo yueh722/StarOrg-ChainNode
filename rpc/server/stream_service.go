@@ -6,6 +6,8 @@ import (
 	log "chain/lib/zlog"
 	"chain/rpc/commandlog"
 	"chain/rpc/common"
+	"chain/rpc/common/notification"
+	"chain/utils"
 	"context"
 	"fmt"
 	"sync"
@@ -20,8 +22,9 @@ type customerSub struct {
 
 // StreamService is used to provide live stream data about chain network for webserver.
 type StreamService struct {
-	subs map[rpc.ID]customerSub
-	mut  sync.Mutex
+	subs             map[rpc.ID]customerSub
+	mut              sync.Mutex
+	initializedNodes map[string]bool
 }
 
 func NewStreamService() *StreamService {
@@ -75,6 +78,23 @@ func (s *StreamService) SubscribeStream(ctx context.Context, arg StreamSubscribe
 	return sub, nil
 }
 
+func (s *StreamService) OnNotify(msg *notification.Message) {
+
+	switch msg.Type {
+	case notification.MsgTypeOffline, notification.MsgTypeOnline:
+		s.ReportState(&common.StatusAgent{
+			Catalog:  "agent",
+			NodeID:   msg.Payload.(string),
+			Online:   msg.Type == notification.MsgTypeOnline,
+			IssuedAt: utils.NowString(),
+		})
+	case notification.MsgTypeInitialized, notification.MsgTypeUnInitialized:
+		s.mut.Lock()
+		defer s.mut.Unlock()
+		s.initializedNodes[msg.Payload.(string)] = (msg.Type == notification.MsgTypeInitialized)
+	}
+}
+
 func (s *StreamService) ReportState(state interface{}) bool {
 	// ReportState receives following kind of data and will transmit these data to subscribers.
 
@@ -83,11 +103,22 @@ func (s *StreamService) ReportState(state interface{}) bool {
 	// *common.StatusStorage
 	// *commandlog.CommandResult
 	// *lib.StatusTransaction
+	// *common.StatusCometbftProcess
+	// *common.StatusAgent
 
 	var rpcState struct {
 		Type string      `json:"type"`
 		Data interface{} `json:"data"`
 	}
+
+	/*
+		var dropStatus bool
+		needToDropStatusFn := func(nodeID string) bool {
+			s.mut.Lock()
+			defer s.mut.Unlock()
+			return !s.initializedNodes[nodeID]
+		}
+	*/
 
 	rpcState.Data = state
 
@@ -102,6 +133,10 @@ func (s *StreamService) ReportState(state interface{}) bool {
 		rpcState.Type = "tx"
 	case *queuestore.PersistedEvent:
 		rpcState.Type = "log"
+	case *common.StatusCometbftProcess:
+		rpcState.Type = "process"
+	case *common.StatusAgent:
+		rpcState.Type = "agent"
 	default:
 		log.Info("ReportState unknown state", v)
 		return true
@@ -125,6 +160,9 @@ func (s *StreamService) reportStateInternal(state interface{}) bool {
 
 func (s *StreamService) notifyClient(data any) error {
 	var err error
+
+	s.mut.Lock()
+	defer s.mut.Unlock()
 
 	for _, sub := range s.subs {
 		err2 := sub.notifier.Notify(sub.subID, data)

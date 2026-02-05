@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+type NotifyFunc func(exit bool, err error)
+
 type ExitFunc func(error)
 type StdoutFunc func(string)
 
@@ -107,6 +109,9 @@ func (s *Session) waitForExit(logger *zlog.Logger, stdout, stderr io.Reader) {
 	s.waitStatus = s.command.ProcessState.Sys().(syscall.WaitStatus)
 	s.exitTime = time.Now().UnixNano()
 	for _, exit := range s.exitFuncs {
+		if exit == nil {
+			continue
+		}
 		exit(s.exitErr)
 	}
 	close(s.exited)

@@ -139,11 +139,12 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	}
 
 	setuplogStore, _ := NewSetuplogStore(filepath.Join(cfg.AppDataDir, "setuplog.db"))
-	setup := NewSetupService(setuplogStore, stream, notification.NewManager(liveTx))
+	setup := NewSetupService(setuplogStore, stream, notification.NewManager(liveTx, stream))
+
 	if err := setup.RegisterService(rpcServer); err != nil {
 		return nil, err
 	}
-	
+
 	mux := http.NewServeMux()
 
 	mux.Handle("/websocket", rpcServer.WebsocketHandler([]string{"*"}))

@@ -297,6 +297,40 @@ func (c *SetupClient) handlePurgeChainCmd(cmd *common.CommandEnvelope) error {
 	return nil
 }
 
+func (c *SetupClient) reportCometbftStatus(catalog string, start bool, err error) {
+
+	var message string
+	if err != nil {
+		message = err.Error()
+	}
+
+	status := &common.StatusCometbftProcess{
+		Catalog:  catalog,
+		NodeID:   c.NodeID(),
+		Start:    start,
+		Error:    message,
+		IssuedAt: utils.NowString(),
+	}
+
+	if err := c.client.Call(nil, common.GetMethodName("ReportCometbftProcessStatus"), status); err != nil {
+		log.Info("failed to call ReportCometbftProcessStatus, err:", err)
+	}
+}
+
+func (c *SetupClient) buildNodeArg() lib.NodeArg {
+	return lib.NodeArg{
+		LogFilePath:    c.cfg.getLogPath(),
+		LogStore:       c.logStore,
+		NodeInfo:       c.cfg.NodeInfo,
+		BinPath:        c.cfg.getBinPath(),
+		NodeBaseDir:    c.cfg.NodeBaseDir,
+		AppLogger:      nil,
+		NodeLogger:     nil,
+		NodeNotifyFunc: func(exit bool, err error) { c.reportCometbftStatus("node", exit, err) },
+		AppNotifyFunc:  func(exit bool, err error) { c.reportCometbftStatus("app", exit, err) },
+	}
+}
+
 // start node & app
 func (c *SetupClient) handleStartNode() error {
 	if c.nodeRuntime != nil && c.nodeRuntime.IsRunning() {
@@ -399,17 +433,6 @@ func (c *SetupClient) handleResetNode() error {
 	}
 
 	return nil
-}
-func (c *SetupClient) buildNodeArg() lib.NodeArg {
-	return lib.NodeArg{
-		LogFilePath: c.cfg.getLogPath(),
-		LogStore:    c.logStore,
-		NodeInfo:    c.cfg.NodeInfo,
-		BinPath:     c.cfg.getBinPath(),
-		NodeBaseDir: c.cfg.NodeBaseDir,
-		AppLogger:   nil,
-		NodeLogger:  nil,
-	}
 }
 
 func (c *SetupClient) initLogStore(logFilePath string) error {

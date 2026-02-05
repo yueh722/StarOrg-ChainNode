@@ -139,5 +139,11 @@ func (s *NodeLogService) ReportLog(e queuestore.PersistedEvent) error {
 	log.Println("received event", e.EventID, e)
 
 	//notify receiver to receive error zlog from node
-	return s.nodeLogStore.Put(e)
+	if err := s.nodeLogStore.Put(e); err != nil {
+		return err
+	}
+
+	_, _ = s.Ack(e.EventID)
+
+	return nil
 }

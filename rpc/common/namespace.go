@@ -37,6 +37,7 @@ func init() {
 		StatusNamespace{}.GetNamesapceString(): []string{
 			"ReportNodeStatus",
 			"ReportStorageStatus",
+			"ReportCometbftProcessStatus",
 		},
 
 		//livetx service

@@ -33,6 +33,7 @@ func (s *StatusService) RegisterService(server *rpc.Server) error {
 
 // Method
 func (s *StatusService) ReportNodeStatus(ctx context.Context, status *common.StatusNode) error {
+
 	if s.stream != nil {
 		s.stream.ReportState(status)
 	}
@@ -49,5 +50,16 @@ func (s *StatusService) ReportStorageStatus(ctx context.Context, status *common.
 	}
 
 	//zlog.Printf("[StorageStatus] %v\n", status)
+	return nil
+}
+
+// Method
+func (s *StatusService) ReportCometbftProcessStatus(ctx context.Context, status *common.StatusCometbftProcess) error {
+
+	if s.stream != nil {
+		s.stream.ReportState(status)
+	}
+
+	//zlog.Printf("[ReportCometbftProcessStatus] %v\n", status)
 	return nil
 }

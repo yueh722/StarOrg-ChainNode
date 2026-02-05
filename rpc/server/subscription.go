@@ -69,12 +69,15 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 		SubID:      sub.ID,
 	})
 
+	//notify stream's subscribers that node is online
+	s.broadcaseClientStatusChanged(nodeInfo.NodeID, true)
+
 	go func() {
 		err := <-sub.Err()
 		log.Info("rpc client subscription closed,", err)
 
 		//if err := s.PingClient(notifier, sub.ID, nodeInfo.NodeID); err != nil {}
-		s.broadcaseOfflineClient(nodeInfo.NodeID)
+		s.broadcaseClientStatusChanged(nodeInfo.NodeID, false)
 
 		s.mu.Lock()
 		delete(s.subs, nodeInfo.NodeID)
@@ -115,9 +118,35 @@ func (s *SetupService) buildPingCmd(nodeID string) *common.CommandEnvelope {
 	}
 }
 
-func (s *SetupService) broadcaseOfflineClient(nodeID string) {
+func (s *SetupService) broadcaseClientStatusChanged(nodeID string, online bool) {
+
+	var msgType string
+	switch online {
+	case true:
+		msgType = notification.MsgTypeOnline
+	case false:
+		msgType = notification.MsgTypeOffline
+	}
+
 	s.notifierMgr.Notify(notification.Message{
-		Type:    notification.MsgTypeOffline,
+		Type:    msgType,
+		Payload: nodeID,
+		Time:    time.Now().UnixNano(),
+	})
+}
+
+func (s *SetupService) broadcaseNodeStatusChanged(nodeID string, initialized bool) {
+
+	var msgType string
+	switch initialized {
+	case true:
+		msgType = notification.MsgTypeInitialized
+	case false:
+		msgType = notification.MsgTypeUnInitialized
+	}
+
+	s.notifierMgr.Notify(notification.Message{
+		Type:    msgType,
 		Payload: nodeID,
 		Time:    time.Now().UnixNano(),
 	})

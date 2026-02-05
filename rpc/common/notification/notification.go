@@ -3,8 +3,10 @@ package notification
 import "sync"
 
 const (
-	MsgTypeOffline = "offline"
-	MsgTypeOnline  = "offline"
+	MsgTypeOffline       = "offline"
+	MsgTypeOnline        = "online"
+	MsgTypeInitialized   = "initialized"
+	MsgTypeUnInitialized = "uninitialized"
 )
 
 type Message struct {

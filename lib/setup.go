@@ -109,14 +109,16 @@ func AddChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, nodeDir 
 type CtlOption func(*NodeArg)
 
 type NodeArg struct {
-	LogFilePath string
-	LogStore    queuestore.QueueStore
-	NodeInfo    *NodeInfo
-	BinPath     string
-	NodeBaseDir string
-	runtime     *NodeRuntime
-	NodeLogger  *log.Logger
-	AppLogger   *log.Logger
+	LogFilePath    string
+	LogStore       queuestore.QueueStore
+	NodeInfo       *NodeInfo
+	BinPath        string
+	NodeBaseDir    string
+	runtime        *NodeRuntime
+	NodeNotifyFunc NotifyFunc
+	AppNotifyFunc  NotifyFunc
+	NodeLogger     *log.Logger
+	AppLogger      *log.Logger
 }
 
 func WithLogFile(logFilePath string) CtlOption {
