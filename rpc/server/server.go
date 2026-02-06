@@ -8,8 +8,6 @@ import (
 	"chain/rpc/security"
 	"chain/rpc/server/middleware"
 	"chain/utils"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -87,14 +85,6 @@ type ServerConfig struct {
 	LogDir     string
 	Option     security.SecurityOption
 	Tls        TlsOption
-}
-
-func newCommandID() (string, error) {
-	var b [16]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b[:]), nil
 }
 
 func NewSetuplogStore(dataFile string) (cmdlogstore.CommandLogStore, error) {

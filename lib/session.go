@@ -37,13 +37,12 @@ type LogWriter struct {
 	errLevel bool
 }
 
+// basically only stdout of node and app will be redirected to this function.
 func (lw *LogWriter) Write(p []byte) (n int, err error) {
 	if lw.errLevel {
 		lw.logger.Error(string(p))
-		//fmt.Println("err", string(p))
 	} else {
 		lw.logger.Info(string(p))
-		//fmt.Println("info", string(p))
 	}
 
 	return len(p), nil

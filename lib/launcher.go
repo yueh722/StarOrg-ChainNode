@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	DefaultPropagateEnvironment = []string{"NODECLI_HOME", "PATH", "TMPDIR"}
+	DefaultPropagateEnvironment = []string{"PATH", "TMPDIR"}
 )
 
 type Launcher struct {
@@ -51,7 +51,7 @@ func (b *Launcher) RunApp() (*Session, error) {
 		return nil, errors.Wrapf(err, "launcher '%s' failed to start", b.Name)
 	}
 
-	b.NotifyFunc(true, nil)
+	b.NotifyFunc(false, nil)
 
 	return sess, nil
 }

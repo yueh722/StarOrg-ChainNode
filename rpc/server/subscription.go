@@ -97,11 +97,6 @@ func (s *SetupService) AddOrUpdateSubscription(clientSub *ClientSub) {
 
 func (s *SetupService) buildPingCmd(nodeID string) *common.CommandEnvelope {
 
-	cmdID, err := newCommandID()
-	if err != nil {
-		return nil
-	}
-
 	ping := &common.SetupPing{
 		NodeID:    nodeID,
 		Timestamp: time.Now().UnixNano(),
@@ -110,7 +105,7 @@ func (s *SetupService) buildPingCmd(nodeID string) *common.CommandEnvelope {
 	payload, _ := cmtjson.Marshal(ping)
 
 	return &common.CommandEnvelope{
-		CommandID: cmdID,
+		CommandID: utils.UUID(),
 		Cmd:       common.CmdPing,
 		NodeID:    nodeID,
 		Payload:   payload,

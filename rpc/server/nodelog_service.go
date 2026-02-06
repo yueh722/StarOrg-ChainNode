@@ -57,7 +57,7 @@ func (s *NodeLogService) PublishLog() {
 		s.mut.Unlock()
 
 		for eventID, unsendLog := range sendingLogs {
-			log.Println("Sending log", eventID, unsendLog)
+			log.Println("Sending log to stream's subscribers: ", unsendLog)
 			ok := s.stream.ReportState(&unsendLog)
 			if ok {
 				s.mut.Lock()
@@ -136,7 +136,7 @@ func (s *NodeLogService) ReportLog(e queuestore.PersistedEvent) error {
 	s.unsendLogs[e.EventID] = e
 	s.mut.Unlock()
 
-	log.Println("received event", e.EventID, e)
+	log.Println("received event: ", e)
 
 	//notify receiver to receive error zlog from node
 	if err := s.nodeLogStore.Put(e); err != nil {

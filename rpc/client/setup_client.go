@@ -300,7 +300,7 @@ func (c *SetupClient) handlePurgeChainCmd(cmd *common.CommandEnvelope) error {
 func (c *SetupClient) reportCometbftStatus(catalog string, start bool, err error) {
 
 	var message string
-	if err != nil {
+	if !start && err != nil {
 		message = err.Error()
 	}
 
@@ -487,10 +487,20 @@ func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr er
 	var (
 		errText string
 		status  commandlog.CommandStatus
+		message string
 	)
 
+	switch cmd.Cmd {
+	case common.CmdPing:
+		return
+	case common.CmdControlNode:
+		arg := common.SetupControlNode{}
+		_ = cmtjson.Unmarshal(cmd.Payload, &arg)
+		message = string(arg.Action)
+	}
+
 	if cmd.Cmd == common.CmdPing {
-		//ignore sending result of ping back
+		//ignore sending result of command ping back
 		return
 	}
 
@@ -506,7 +516,7 @@ func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr er
 		Cmd:        cmd.Cmd,
 		NodeID:     cmd.NodeID,
 		Status:     status,
-		Message:    "",
+		Message:    message,
 		Error:      errText,
 		ReportedAt: time.Now().UnixNano(),
 		StartedAt:  cmd.IssuedAt,

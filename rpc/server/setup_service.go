@@ -148,6 +148,35 @@ func (s *SetupService) GetChainState() *ChainState {
 }
 
 // RPC Method
+// fetch: retrive history of setup command
+func (s *SetupService) GetHistoryOfCommand(nodeID string) ([]commandlog.CommandResult, error) {
+
+	nodeIDs := []string{}
+	if nodeID != "" {
+		nodeIDs = append(nodeIDs, nodeID)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if len(nodeIDs) == 0 {
+		nodeIDs = maputil.Keys(s.NodeNameCache)
+	}
+
+	results := []commandlog.CommandResult{}
+	for _, id := range nodeIDs {
+		result, err := s.cmdEvent.ListCommandByNode(id)
+		if err != nil {
+			return nil, err
+		}
+
+		results = append(results, result...)
+	}
+
+	return results, nil
+}
+
+// RPC Method
 // Broadcast: "init all node" with per-node NodeID assignment.
 func (s *SetupService) BroadcastInitializeChainNode(
 	chainID string,
@@ -474,10 +503,7 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 
 	for nodeID, cmd := range cmds {
 
-		cmdID, err := newCommandID()
-		if err != nil {
-			return err
-		}
+		cmdID := utils.UUID()
 
 		syncCmds = append(syncCmds, cmdID)
 
@@ -560,8 +586,9 @@ func (s *SetupService) ReportCommandResult(ctx context.Context, res commandlog.C
 	log.Printf("[CommandResult] cmd: %s, node: %v, status: %s, err: %v",
 		res.Cmd, s.FormatName(res.NodeID), res.Status, res.Error)
 
+	//notify the stream's subscribers that one command is completed.
 	if reported := s.stream.ReportState(&res); reported {
-		//set reported state for cmdEvent
+
 	}
 
 	var err error = nil
@@ -569,10 +596,10 @@ func (s *SetupService) ReportCommandResult(ctx context.Context, res commandlog.C
 		err = errors.New(res.Error)
 	}
 
-	// complete command
+	// signal command to let the reader get the result of the command.
 	_ = s.cmdManager.CompleteCommand(res.CommandID, err)
 
-	// complete log status of command event
+	// set the status of command to finished, which will be saved to local db.
 	_, err = s.cmdEvent.Complete(res.CommandID, res.Status == commandlog.CmdSuccess, res.Message, res.Error)
 
 	return nil

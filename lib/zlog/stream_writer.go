@@ -2,9 +2,9 @@ package zlog
 
 import (
 	"chain/lib/queuestore"
+	"chain/utils"
 	"encoding/json"
 	"errors"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -136,9 +136,9 @@ func (c *StreamWriter) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	}
 
 	e := queuestore.PersistedEvent{
+		EventID: utils.UUID(),
 		NodeID:  c.nodeID,
 		Seq:     seq,
-		EventID: c.nodeID + ":" + strconv.FormatUint(seq, 10),
 		Level:   ent.Level.String(),
 		Time:    t.UnixMilli(),
 		JSON:    withSeq,

@@ -7,10 +7,6 @@ import (
 	"github.com/duke-git/lancet/v2/strutil"
 )
 
-const (
-	NameSpaceSetupService = "chain"
-)
-
 var rpcMethods = map[string]string{}
 
 func init() {
@@ -31,6 +27,7 @@ func init() {
 			"BroadcastPurgeChainNode",
 			"ReportCommandResult",
 			"InitializationComplete",
+			"GetHistoryCommands",
 		},
 
 		//status service
