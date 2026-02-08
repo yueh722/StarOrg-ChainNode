@@ -4,6 +4,7 @@ import (
 	"chain/lib/queuestore"
 	log "chain/lib/zlog"
 	"chain/utils"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -153,7 +154,22 @@ func StopNode(runtime NodeRuntime) error {
 		return nil
 	}
 
-	return runtime.KillNode()
+	return runtime.StopNode()
+}
+
+func KillNode(nodeID string) error {
+	//kill all node and app processes
+	var errs error
+
+	if err := utils.KillProcessByProcNameAndCmdline(AppFileName, nodeID); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("failed to kill app process, err: %v", err))
+	}
+
+	if err := utils.KillProcessByProcNameAndCmdline(NodeFileName, nodeID); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("failed to kill node process, err: ", err))
+	}
+
+	return errs
 }
 
 func RestartNode(nodeID string, opts ...CtlOption) NodeRuntime {

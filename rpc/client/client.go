@@ -42,6 +42,7 @@ type ClientConfig struct {
 	AppDataDir  string
 	LogDir      string
 	NodeInfo    *lib.NodeInfo
+	DeviceID    string
 	Initialized bool
 }
 

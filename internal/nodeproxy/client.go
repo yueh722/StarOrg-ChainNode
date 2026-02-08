@@ -5,6 +5,7 @@ import (
 	"chain/lib"
 	log "chain/lib/zlog"
 	"chain/rpc/client"
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -23,7 +24,7 @@ func getNodeBaseDir(nodeDir, nodeID string) string {
 	return filepath.Join(nodeDir, nodeID)
 }
 
-func StartClient(cfg *Config) error {
+func StartClient(ctx context.Context, cfg *Config) error {
 	if cfg == nil {
 		return errors.New("config is nil")
 	}
@@ -42,10 +43,10 @@ func StartClient(cfg *Config) error {
 		if nodeInfo, err = lib.InitializeNewNodeID(cfg.HomeDir, cfg.AppName); err != nil {
 			return fmt.Errorf("failed to initialize new nodeID: %v", err)
 		}
-		log.Infof("initialize new node, nodeName: %s, nodeID: %v", nodeInfo.NodeName, nodeInfo.NodeID)
+		log.Infof("initialized new node, nodeName: %s, nodeID: %v", nodeInfo.NodeName, nodeInfo.NodeID)
 	} else {
 		initialized = lib.IsNodeInitialized(cfg.HomeDir, nodeInfo)
-		log.Infof("loading node, nodeName: %s, nodeID: %v", nodeInfo.NodeName, nodeInfo.NodeID)
+		log.Infof("loaded node, nodeName: %s, nodeID: %v", nodeInfo.NodeName, nodeInfo.NodeID)
 	}
 
 	nodeClient, err := client.New(&client.ClientConfig{
@@ -57,6 +58,7 @@ func StartClient(cfg *Config) error {
 		LogDir:      common.NodeProxyLogPath,
 		AppDataDir:  common.NodeProxyAppDataPath,
 		NodeInfo:    nodeInfo,
+		DeviceID:    cfg.DeviceID,
 		Initialized: initialized,
 	})
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 type DelegatorInfo struct {
 	App        string
 	StatusNode StatusNode
+	DeviceID   string
 }
 
 // Management
@@ -71,16 +72,17 @@ type StatusNode struct {
 }
 
 type StatusAgent struct {
-	Catalog  string `json:"catalog,omitempty"`
-	NodeID   string `json:"node_id,omitempty"`
-	Online   bool   `json:"online,omitempty"`
-	IssuedAt string `json:"issued_at,omitempty"`
+	Catalog   string `json:"catalog,omitempty"`
+	NodeID    string `json:"node_id,omitempty"`
+	AgentName string `json:"agent_name,omitempty"`
+	Status    string `json:"status,omitempty"`
+	IssuedAt  string `json:"issued_at,omitempty"`
 }
 
 type StatusCometbftProcess struct {
 	Catalog  string `json:"catalog,omitempty"`
 	NodeID   string `json:"node_id,omitempty"`
-	Start    bool   `json:"start,omitempty"`
+	Status   string `json:"status,omitempty"`
 	Error    string `json:"error,omitempty"`
 	IssuedAt string `json:"issued_at,omitempty"`
 }

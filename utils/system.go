@@ -144,3 +144,7 @@ func AnyFromFile(dataFile string, data interface{}) error {
 
 	return nil
 }
+
+func DeviceID() string {
+	return UUID()
+}

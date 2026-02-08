@@ -17,7 +17,7 @@ type NodeRuntime interface {
 	GetAppInfo() ProcInfo
 	GetNodeInfo() ProcInfo
 	Error() error
-	KillNode() error
+	StopNode() error
 	IsRunning() bool
 	CreatedTime() string
 }
@@ -74,7 +74,7 @@ func (r NodeRuntimeImpl) Error() error {
 	return errs
 }
 
-func (r NodeRuntimeImpl) KillNode() error {
+func (r NodeRuntimeImpl) StopNode() error {
 	if !r.IsRunning() {
 		return nil
 	}

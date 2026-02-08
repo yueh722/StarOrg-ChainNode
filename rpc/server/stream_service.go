@@ -85,7 +85,7 @@ func (s *StreamService) OnNotify(msg *notification.Message) {
 		s.ReportState(&common.StatusAgent{
 			Catalog:  "agent",
 			NodeID:   msg.Payload.(string),
-			Online:   msg.Type == notification.MsgTypeOnline,
+			Status:   msg.Type,
 			IssuedAt: utils.NowString(),
 		})
 	case notification.MsgTypeInitialized, notification.MsgTypeUnInitialized:

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -249,4 +250,14 @@ func buildProcessInfo(p *process.Process) (*ProcessInfo, error) {
 func GetCurrentProcessInfo() *ProcessInfo {
 	pi, _ := GetProcessInfoByPID(int32(os.Getpid()))
 	return pi
+}
+
+func ParseCmdLineString(cmdLine string) (configFile string, appName string, err error) {
+	fs := flag.NewFlagSet("custom", flag.ContinueOnError)
+
+	fs.StringVar(&configFile, "c", "", "config file path")
+	fs.StringVar(&appName, "n", "", "app name")
+
+	err = fs.Parse(os.Args[1:])
+	return
 }

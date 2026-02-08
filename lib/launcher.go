@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -67,7 +68,7 @@ func (b *Launcher) NewCommandFromMap(name string, args map[string]string) *exec.
 		}
 	}
 
-	log.Println("cmd:", name, argStrings)
+	log.Println("cmd:", name, strings.Join(argStrings, " "))
 
 	return b.NewCommand(name, argStrings...)
 }

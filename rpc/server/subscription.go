@@ -61,13 +61,17 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 
 	sub := notifier.CreateSubscription()
 
-	s.AddOrUpdateSubscription(&ClientSub{
+	if err := s.AddOrUpdateSubscription(&ClientSub{
 		Notifier:   notifier,
 		Client:     client,
 		NodeID:     nodeInfo.NodeID,
+		DeviceID:   delegator.DeviceID,
 		StatusNode: delegator.StatusNode,
 		SubID:      sub.ID,
-	})
+	}); err != nil {
+		log.Println("add subscription error: ", err)
+		return nil, err
+	}
 
 	//notify stream's subscribers that node is online
 	s.broadcaseClientStatusChanged(nodeInfo.NodeID, true)
@@ -87,12 +91,20 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 	return sub, nil
 }
 
-func (s *SetupService) AddOrUpdateSubscription(clientSub *ClientSub) {
+func (s *SetupService) AddOrUpdateSubscription(clientSub *ClientSub) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if existSub, ok := s.subs[clientSub.NodeID]; ok {
+		if existSub.DeviceID != clientSub.DeviceID {
+			return fmt.Errorf("DeviceID conflict (new deviceID: %s, exist DeviceID: %s) for nodeName %s",
+				clientSub.DeviceID, existSub.DeviceID, clientSub.StatusNode.NodeName)
+		}
+	}
+
 	s.subs[clientSub.NodeID] = clientSub
 	s.NodeNameCache[clientSub.NodeID] = clientSub.StatusNode.NodeName
+	return nil
 }
 
 func (s *SetupService) buildPingCmd(nodeID string) *common.CommandEnvelope {

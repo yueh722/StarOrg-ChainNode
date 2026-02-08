@@ -14,6 +14,7 @@ import (
 
 type ServiceRuntime struct {
 	ConfigPath string
+	AppName    string
 }
 
 // 类型定义
@@ -96,6 +97,7 @@ func RunWithConfig(mainFunc MainFunc, stopFunc StopFunc, config Config) error {
 		stopFunc: stopFunc,
 		runtime: ServiceRuntime{
 			ConfigPath: globalConfigPath,
+			// AppName:    globalAppName, // service won't need this argument to launch a specific node.
 		},
 	}
 

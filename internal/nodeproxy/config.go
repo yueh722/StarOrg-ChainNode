@@ -1,13 +1,19 @@
 package nodeproxy
 
 import (
-	"chain/lib"
+	"chain/internal/common"
 	"chain/lib/zlog"
 	"chain/utils"
+	"errors"
 	"fmt"
 	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
 
 	"github.com/duke-git/lancet/v2/fileutil"
+	"github.com/duke-git/lancet/v2/slice"
+	"github.com/samber/lo"
 	_ "github.com/spf13/viper/remote"
 	"gopkg.in/ini.v1"
 )
@@ -15,28 +21,71 @@ import (
 type Config struct {
 	AppName    string
 	ServerAddr string
+	DeviceID   string
 	HomeDir    string
 	BinDir     string // if leave blank, HomeDir/Bin will be applied.
 }
 
-var defaultConfig = Config{
-	ServerAddr: "ws://localhost:8080/ws",
-	AppName:    "NodeProxy",
-	HomeDir:    filepath.Join(utils.GetAppDataPath("node")),
+type GlobalConfig struct {
+	ServerAddr string
+	DeviceID   string
+	HomeDir    string
+	BinDir     string // if leave blank, HomeDir/Bin will be applied.
 }
 
-func GetDefaultConfig() Config {
-	if defaultConfig.BinDir == "" {
-		defaultConfig.BinDir = filepath.Join(defaultConfig.HomeDir, "bin")
-	}
-	return defaultConfig
+func (cfg GlobalConfig) DefaultHomeDir() string {
+	return common.NodeProxyAppDataPath
 }
 
-func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, error) {
+type AppConfig struct {
+	AppName string
+	HomeDir string
+}
 
+var cfgMux = sync.Mutex{}
+
+func InitializeDeviceID(cfgFiles []string) error {
 	if len(cfgFiles) == 0 {
-		zlog.Info("Default config applied")
-		return &defaultCfg, nil
+		return errors.New("no config files specified")
+	}
+
+	for _, cfgFile := range cfgFiles {
+		if !fileutil.IsExist(cfgFile) {
+			continue
+		}
+
+		iniFile, err := ini.LoadSources(ini.LoadOptions{Insensitive: true}, cfgFile)
+		if err != nil {
+			return fmt.Errorf("read config file error: %v", err)
+		}
+
+		// global config
+		globalCfg := &GlobalConfig{}
+		if err := iniFile.Section("global").MapTo(globalCfg); err != nil {
+			return fmt.Errorf("data in config file error: %v", err)
+		}
+
+		if globalCfg.DeviceID == "" {
+			globalCfg.DeviceID = utils.DeviceID()
+			iniFile.Section("global").Key("DeviceId").SetValue(globalCfg.DeviceID)
+			if err := iniFile.SaveTo(cfgFile); err != nil {
+				return fmt.Errorf("save deviceID to config file of NodeProxy error: %v", err)
+			}
+
+			zlog.Infof("create a new device ID %v with current config", globalCfg.DeviceID)
+		} else {
+			zlog.Info("loaded device ID ", globalCfg.DeviceID)
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("no config files found from: %v", cfgFiles)
+}
+
+func GetManagedApps(cfgFiles []string) ([]AppConfig, error) {
+	if len(cfgFiles) == 0 {
+		return nil, errors.New("no config files specified")
 	}
 
 	for _, cfgFile := range cfgFiles {
@@ -49,31 +98,91 @@ func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, error) {
 			return nil, fmt.Errorf("read config file error: %v", err)
 		}
 
-		defaultSection := iniFile.Section("default")
+		sections := iniFile.SectionStrings()
+		sections = slice.Filter(sections, func(_ int, sectionName string) bool {
+			return strings.HasPrefix(sectionName, "node")
+		})
+
+		sort.Strings(sections)
+
+		return slice.Map(sections, func(_ int, sectionName string) AppConfig {
+			homeDirs := []string{
+				iniFile.Section(sectionName).Key("HomeDir").String(),
+				iniFile.Section("global").Key("HomeDir").String(),
+				GlobalConfig{}.DefaultHomeDir(),
+			}
+
+			homeDir, _ := lo.Find(homeDirs, func(str string) bool {
+				return str != ""
+			})
+
+			appName := sectionName
+			//appName := iniFile.Section(sectionName).Key("AppName").String()
+
+			return AppConfig{
+				AppName: appName,
+				HomeDir: filepath.Join(homeDir, appName),
+			}
+		}), nil
+	}
+
+	return nil, fmt.Errorf("no config files found from: %v", cfgFiles)
+}
+
+func LoadConfig(cfgFiles []string, appName string) (*Config, error) {
+
+	cfgMux.Lock()
+	defer cfgMux.Unlock()
+
+	if len(cfgFiles) == 0 {
+		return nil, errors.New("no config files specified")
+	}
+
+	for _, cfgFile := range cfgFiles {
+		if !fileutil.IsExist(cfgFile) {
+			continue
+		}
+
+		iniFile, err := ini.LoadSources(ini.LoadOptions{Insensitive: true}, cfgFile)
+		if err != nil {
+			return nil, fmt.Errorf("read config file error: %v", err)
+		}
+
+		globalCfg := &GlobalConfig{}
+		if err := iniFile.Section("global").MapTo(globalCfg); err != nil {
+			return nil, fmt.Errorf("data in config file error: %v", err)
+		}
+
+		if globalCfg.HomeDir == "" {
+			globalCfg.HomeDir = globalCfg.DefaultHomeDir()
+		}
+
+		if globalCfg.BinDir == "" {
+			globalCfg.BinDir = filepath.Join(globalCfg.HomeDir, "bin")
+		}
 
 		cfg := &Config{}
-		if err := defaultSection.MapTo(cfg); err != nil {
-			return nil, fmt.Errorf("data in config file error: %v", err)
+		if err := iniFile.Section(appName).MapTo(cfg); err != nil {
+			return nil, fmt.Errorf("could not find app section '%v', error: %v", appName, err)
+		}
+
+		if cfg.AppName == "" {
+			return nil, fmt.Errorf("app name of section '%s' cannot be empty in file: %v", appName, cfgFile)
+		}
+
+		cfg.ServerAddr = globalCfg.ServerAddr
+		cfg.DeviceID = globalCfg.DeviceID
+		cfg.BinDir = globalCfg.BinDir
+		if cfg.HomeDir == "" {
+			cfg.HomeDir = filepath.Join(globalCfg.HomeDir, cfg.AppName)
+		} else {
+			cfg.HomeDir = filepath.Join(cfg.HomeDir, cfg.AppName)
 		}
 
 		zlog.Infof("config file %s applied", cfgFile)
 
-		if cfg.BinDir == "" {
-			cfg.BinDir = filepath.Join(cfg.HomeDir, "bin")
-		}
-
-		if cfg.AppName == "" {
-			newAppName := lib.RandomNodeName()
-			defaultSection.Key("AppName").SetValue(newAppName)
-			if err := iniFile.SaveTo(cfgFile); err != nil {
-				return nil, fmt.Errorf("save config file of NodeProxy error: %v", err)
-			}
-
-			zlog.Info("create a random node name with current config", newAppName)
-		}
-
 		return cfg, nil
 	}
 
-	return &defaultCfg, nil
+	return nil, fmt.Errorf("no config files found from: %v", cfgFiles)
 }

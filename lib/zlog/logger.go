@@ -242,18 +242,6 @@ func NewLoggerWithConfig(config LogConfig) *zap.SugaredLogger {
 	return logger
 }
 
-// 提供一些预设的快捷函数
-func NewDevelopmentLogger() *zap.SugaredLogger {
-	return NewZapSugaredLogger(
-		[]OutputSpec{
-			{
-				Target: "stdout",
-				Format: "console",
-			},
-		},
-	)
-}
-
 func NewProductionLogger(logFile string) *zap.SugaredLogger {
 	return NewZapSugaredLogger(
 		[]OutputSpec{

@@ -88,6 +88,7 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 		common.DelegatorInfo{
 			App:        c.cfg.AppName,
 			StatusNode: *statusNode,
+			DeviceID:   c.cfg.DeviceID,
 		},
 	)
 
@@ -268,17 +269,12 @@ func (c *SetupClient) handlePurgeChainCmd(cmd *common.CommandEnvelope) error {
 	defer log.Info("[handlePurgeChainCmd] reset chain complete")
 
 	if c.nodeRuntime != nil {
-		if err := c.nodeRuntime.KillNode(); err != nil {
-			log.Error("[handlePurgeChainCmd] failed to kill node, err:", err)
+		if err := c.nodeRuntime.StopNode(); err != nil {
+			log.Error("[handlePurgeChainCmd] failed to stop node, err:", err)
 		}
 	} else {
-		//kill all node and app processes
-		if err := utils.KillProcessByProcNameAndCmdline(lib.AppFileName, c.cfg.NodeInfo.NodeID); err != nil {
-			log.Info("[handlePurgeChainCmd] failed to kill app process, err: ", err)
-		}
-
-		if err := utils.KillProcessByProcNameAndCmdline(lib.NodeFileName, c.cfg.NodeInfo.NodeID); err != nil {
-			log.Info("[handlePurgeChainCmd] failed to kill node process, err: ", err)
+		if err := lib.KillNode(c.cfg.NodeInfo.NodeID); err != nil {
+			log.Error("[handlePurgeChainCmd] failed to kill node, err:", err)
 		}
 	}
 
@@ -299,20 +295,29 @@ func (c *SetupClient) handlePurgeChainCmd(cmd *common.CommandEnvelope) error {
 
 func (c *SetupClient) reportCometbftStatus(catalog string, start bool, err error) {
 
-	var message string
+	var (
+		message string
+		status  string
+	)
 	if !start && err != nil {
 		message = err.Error()
 	}
 
-	status := &common.StatusCometbftProcess{
+	if start {
+		status = "started"
+	} else {
+		status = "stopped"
+	}
+
+	statusProcess := &common.StatusCometbftProcess{
 		Catalog:  catalog,
 		NodeID:   c.NodeID(),
-		Start:    start,
+		Status:   status,
 		Error:    message,
 		IssuedAt: utils.NowString(),
 	}
 
-	if err := c.client.Call(nil, common.GetMethodName("ReportCometbftProcessStatus"), status); err != nil {
+	if err := c.client.Call(nil, common.GetMethodName("ReportCometbftProcessStatus"), statusProcess); err != nil {
 		log.Info("failed to call ReportCometbftProcessStatus, err:", err)
 	}
 }

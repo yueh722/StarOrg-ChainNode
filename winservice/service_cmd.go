@@ -9,7 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var globalConfigPath string
+var (
+	globalConfigPath string
+	globalAppName    string
+)
 
 // Global variables for application registration
 var (
@@ -51,6 +54,14 @@ func rootCmd() *cobra.Command {
 		"config file path (ini file)",
 	)
 
+	cmd.PersistentFlags().StringVarP(
+		&globalAppName,
+		"app-name",
+		"n",
+		"",
+		"launch app specified by app name",
+	)
+
 	return cmd
 }
 
@@ -88,7 +99,7 @@ func runConsoleMode(cmd *cobra.Command, args []string) {
 	}
 
 	ctx := context.Background()
-	if err := consoleMainFunc(ctx, ServiceRuntime{ConfigPath: globalConfigPath}); err != nil {
+	if err := consoleMainFunc(ctx, ServiceRuntime{ConfigPath: globalConfigPath, AppName: globalAppName}); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

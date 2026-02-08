@@ -55,6 +55,7 @@ type ClientSub struct {
 	Notifier   *rpc.Notifier
 	Client     *rpc.Client
 	NodeID     string
+	DeviceID   string
 	StatusNode common.StatusNode
 	SubID      rpc.ID
 }

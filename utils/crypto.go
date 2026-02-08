@@ -3,7 +3,7 @@ package utils
 import (
 	"encoding/base64"
 	"encoding/hex"
-	"log/slog"
+	"fmt"
 
 	cryptoencoding "github.com/cometbft/cometbft/v2/crypto/encoding"
 	"github.com/google/uuid"
@@ -24,7 +24,7 @@ func IsPubkeyCorrect(pkType string, pubKey string) bool {
 
 	_, err = cryptoencoding.PubKeyFromTypeAndBytes(pkType, pubkeyBytes)
 	if err != nil {
-		slog.Error("can't decode public key from bytes: %w", err)
+		fmt.Println("can't decode public key from bytes: %w", err)
 		return false
 	}
 

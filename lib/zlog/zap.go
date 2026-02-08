@@ -17,21 +17,41 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+func NewStdoutLogger() *Logger {
+
+	return &Logger{
+		s: NewZapSugaredLogger(
+			[]OutputSpec{
+				{
+					Target: "stdout",
+					Format: "console",
+				},
+			},
+		),
+	}
+}
+
 // NewDefaultAppLog return default zlog of current process which logpath depends on the process name.
 func NewDefaultAppLog() *Logger {
 	pi := utils.GetCurrentProcessInfo()
-	appName := strings.TrimSuffix(filepath.Base(pi.ImagePath), filepath.Ext(pi.ImagePath))
-	appName = strings.ToLower(appName)
+	procName := strings.TrimSuffix(filepath.Base(pi.ImagePath), filepath.Ext(pi.ImagePath))
+	procName = strings.ToLower(procName)
 
-	if strings.Contains(appName, "nodeproxy") {
-		appName = "nodeproxy"
+	//extract appName from commandline
+	_, appName, _ := utils.ParseCmdLineString("")
+	if appName != "" {
+		appName = "_" + appName
+	}
+
+	if strings.Contains(procName, "nodeproxy") {
+		procName = "nodeproxy"
 	} else {
-		if strings.Contains(appName, "nodemaster") {
-			appName = "nodemaster"
+		if strings.Contains(procName, "nodemaster") {
+			procName = "nodemaster"
 		}
 	}
 
-	return NewLogger(appName)
+	return NewLogger(fmt.Sprintf("%s%s", procName, appName))
 }
 
 // NewLogger creates a zlog that delegates to the zap.SugaredLogger.
