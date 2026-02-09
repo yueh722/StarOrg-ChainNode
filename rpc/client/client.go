@@ -103,7 +103,7 @@ func BuildStartCmd(nodeID string) *common.CommandEnvelope {
 		Cmd:       common.CmdControlNode,
 		NodeID:    nodeID,
 		Payload:   payload,
-		IssuedAt:  time.Now().Unix(),
+		IssuedAt:  utils.NowString(),
 	}
 }
 

@@ -114,5 +114,5 @@ type CommandEnvelope struct {
 	Cmd       CmdType         `json:"cmd"`     // e.g. "setup_initialize_chain_node", "setup_control_node"
 	NodeID    string          `json:"node_id"` // target node for this client
 	Payload   json.RawMessage `json:"payload"`
-	IssuedAt  int64           `json:"issued_at"`
+	IssuedAt  string          `json:"issued_at"`
 }

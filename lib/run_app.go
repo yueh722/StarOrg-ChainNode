@@ -128,6 +128,7 @@ func StartNodeWithArg(nodeID string, arg NodeArg) NodeRuntime {
 	start_failure := false
 	for _, item := range items {
 		if err := item.inst.Start(); err != nil {
+			item.inst.Err = err
 			start_failure = true
 		}
 	}

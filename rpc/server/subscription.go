@@ -121,7 +121,7 @@ func (s *SetupService) buildPingCmd(nodeID string) *common.CommandEnvelope {
 		Cmd:       common.CmdPing,
 		NodeID:    nodeID,
 		Payload:   payload,
-		IssuedAt:  time.Now().UnixNano(),
+		IssuedAt:  utils.NowString(),
 	}
 }
 

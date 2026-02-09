@@ -155,7 +155,7 @@ func AppLauncher(ctx context.Context, runtime service.ServiceRuntime) {
 			}()
 
 			for {
-				//LaunchAppInternal(ctx, appName, runtime)
+				//LaunchAppInternal(ctx, appCfg.AppName, runtime)
 				LaunchAppExternal(ctx, appCfg, runtime)
 			}
 		}()

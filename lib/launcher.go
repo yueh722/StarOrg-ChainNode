@@ -68,7 +68,7 @@ func (b *Launcher) NewCommandFromMap(name string, args map[string]string) *exec.
 		}
 	}
 
-	log.Println("cmd:", name, strings.Join(argStrings, " "))
+	log.Infof("cmd: %s %s", name, strings.Join(argStrings, " "))
 
 	return b.NewCommand(name, argStrings...)
 }

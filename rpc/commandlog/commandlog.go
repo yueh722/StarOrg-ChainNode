@@ -3,11 +3,11 @@ package commandlog
 import (
 	"chain/lib/cmdlogstore"
 	"chain/rpc/common"
+	"chain/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 )
 
 var (
@@ -36,9 +36,9 @@ type CommandResult struct {
 	Message string `json:"message,omitempty"` // human readable
 	Error   string `json:"error,omitempty"`   // non-empty when failed
 
-	ReportedAt int64 `json:"reported_at"`           // report time (always)
-	StartedAt  int64 `json:"started_at,omitempty"`  // optional
-	FinishedAt int64 `json:"finished_at,omitempty"` // optional
+	ReportedAt string `json:"reported_at"`           // report time (always)
+	StartedAt  string `json:"started_at,omitempty"`  // optional
+	FinishedAt string `json:"finished_at,omitempty"` // optional
 }
 
 type CompletedRoutine func(err error)
@@ -105,11 +105,11 @@ func (r *CommandRepo) Update(e CommandResult, completedRoutine CompletedRoutine)
 	if err = validateBasic(e); err != nil {
 		return err
 	}
-	now := time.Now().UnixMilli()
-	if e.ReportedAt == 0 {
+	now := utils.NowString()
+	if e.ReportedAt == "" {
 		e.ReportedAt = now
 	}
-	if e.Status == CmdRunning && e.StartedAt == 0 {
+	if e.Status == CmdRunning && e.StartedAt == "" {
 		e.StartedAt = now
 	}
 
@@ -137,12 +137,11 @@ func (r *CommandRepo) Complete(commandID string, success bool, message string, e
 		return cur, err
 	}
 
-	now := time.Now().UnixMilli()
-	cur.ReportedAt = now
-	if cur.StartedAt == 0 {
-		cur.StartedAt = now
+	cur.ReportedAt = utils.NowString()
+	if cur.StartedAt == "" {
+		cur.StartedAt = utils.NowString()
 	}
-	cur.FinishedAt = now
+	cur.FinishedAt = utils.NowString()
 	cur.Message = message
 
 	if success {

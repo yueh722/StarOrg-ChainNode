@@ -68,7 +68,7 @@ func TryCreateDir(path string) string {
 }
 
 func NowString() string {
-	return time.Now().Format("2006-01-02 15:04:05")
+	return time.Now().Format("2006-01-02 15:04:05.000")
 }
 
 // GetAllIPAddresses returns a slice of strings in the format "adapter name: ip address",

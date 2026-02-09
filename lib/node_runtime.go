@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 type ProcInfo struct {
@@ -56,7 +54,7 @@ func (r NodeRuntimeImpl) GetAppInfo() ProcInfo {
 }
 
 func (r NodeRuntimeImpl) Error() error {
-	var errs error
+	var errs = NewMultiError()
 
 	insts := []*Instance{r.NodeInst, r.AppInst}
 
@@ -66,12 +64,12 @@ func (r NodeRuntimeImpl) Error() error {
 		}
 
 		if err := inst.GetErr(); err != nil {
-			errs = errors.Wrapf(errs, err.Error())
+			errs.AddError(err)
 		}
 
 	}
 
-	return errs
+	return errs.ErrorOrNil()
 }
 
 func (r NodeRuntimeImpl) StopNode() error {

@@ -293,17 +293,17 @@ func (c *SetupClient) handlePurgeChainCmd(cmd *common.CommandEnvelope) error {
 	return nil
 }
 
-func (c *SetupClient) reportCometbftStatus(catalog string, start bool, err error) {
+func (c *SetupClient) reportCometbftStatus(catalog string, exit bool, err error) {
 
 	var (
 		message string
 		status  string
 	)
-	if !start && err != nil {
+	if exit && err != nil {
 		message = err.Error()
 	}
 
-	if start {
+	if !exit {
 		status = "started"
 	} else {
 		status = "stopped"
@@ -523,9 +523,8 @@ func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr er
 		Status:     status,
 		Message:    message,
 		Error:      errText,
-		ReportedAt: time.Now().UnixNano(),
 		StartedAt:  cmd.IssuedAt,
-		FinishedAt: time.Now().UnixNano(),
+		FinishedAt: utils.NowString(),
 	})
 	if err != nil {
 		log.Println("failed to report command result:", err)

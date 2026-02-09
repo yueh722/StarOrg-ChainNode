@@ -166,7 +166,7 @@ func KillNode(nodeID string) error {
 	}
 
 	if err := utils.KillProcessByProcNameAndCmdline(NodeFileName, nodeID); err != nil {
-		errs = errors.Join(errs, fmt.Errorf("failed to kill node process, err: ", err))
+		errs = errors.Join(errs, fmt.Errorf("failed to kill node process, err: %v", err))
 	}
 
 	return errs

@@ -515,7 +515,7 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 			Cmd:       cmds[nodeID].cmd,
 			NodeID:    nodeID,
 			Payload:   payload,
-			IssuedAt:  time.Now().UnixNano(),
+			IssuedAt:  utils.NowString(),
 		}
 
 		//put command record into database
@@ -525,7 +525,7 @@ func (s *SetupService) sendNodeCommand(cmds map[string]*nodeCommand) error {
 			NodeID:    nodeID,
 			Status:    commandlog.CmdRunning,
 			Message:   string(payload),
-			StartedAt: time.Now().UnixNano(),
+			StartedAt: utils.NowString(),
 		}, nil)
 
 		requestNodeFn := func() error {

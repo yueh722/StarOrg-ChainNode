@@ -18,6 +18,11 @@ import (
 	"gopkg.in/ini.v1"
 )
 
+const (
+	SingleModel = "single"
+	MultiModel  = "multi"
+)
+
 type Config struct {
 	AppName    string
 	ServerAddr string
@@ -27,10 +32,11 @@ type Config struct {
 }
 
 type GlobalConfig struct {
-	ServerAddr string
-	DeviceID   string
-	HomeDir    string
-	BinDir     string // if leave blank, HomeDir/Bin will be applied.
+	ServerAddr    string
+	DeviceID      string
+	HomeDir       string
+	BinDir        string // if leave blank, HomeDir/Bin will be applied.
+	LauncherModel string // if leave blank, use Single
 }
 
 func (cfg GlobalConfig) DefaultHomeDir() string {
@@ -129,6 +135,11 @@ func GetManagedApps(cfgFiles []string) ([]AppConfig, error) {
 	return nil, fmt.Errorf("no config files found from: %v", cfgFiles)
 }
 
+func LoadGlobalConfig(cfgFiles []string) (*GlobalConfig, error) {
+
+	return nil, nil
+}
+
 func LoadConfig(cfgFiles []string, appName string) (*Config, error) {
 
 	cfgMux.Lock()
@@ -157,6 +168,10 @@ func LoadConfig(cfgFiles []string, appName string) (*Config, error) {
 			globalCfg.HomeDir = globalCfg.DefaultHomeDir()
 		}
 
+		if globalCfg.LauncherModel == "" {
+			globalCfg.LauncherModel = MultiModel
+		}
+
 		if globalCfg.BinDir == "" {
 			globalCfg.BinDir = filepath.Join(globalCfg.HomeDir, "bin")
 		}
@@ -166,13 +181,11 @@ func LoadConfig(cfgFiles []string, appName string) (*Config, error) {
 			return nil, fmt.Errorf("could not find app section '%v', error: %v", appName, err)
 		}
 
-		if cfg.AppName == "" {
-			return nil, fmt.Errorf("app name of section '%s' cannot be empty in file: %v", appName, cfgFile)
-		}
-
+		cfg.AppName = appName
 		cfg.ServerAddr = globalCfg.ServerAddr
 		cfg.DeviceID = globalCfg.DeviceID
 		cfg.BinDir = globalCfg.BinDir
+
 		if cfg.HomeDir == "" {
 			cfg.HomeDir = filepath.Join(globalCfg.HomeDir, cfg.AppName)
 		} else {
