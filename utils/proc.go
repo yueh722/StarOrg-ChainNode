@@ -2,7 +2,6 @@ package utils
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -253,11 +252,14 @@ func GetCurrentProcessInfo() *ProcessInfo {
 }
 
 func ParseCmdLineString(cmdLine string) (configFile string, appName string, err error) {
-	fs := flag.NewFlagSet("custom", flag.ContinueOnError)
+	/*
+		fs := flag.NewFlagSet("custom", flag.ContinueOnError)
 
-	fs.StringVar(&configFile, "c", "", "config file path")
-	fs.StringVar(&appName, "n", "", "app name")
+		fs.StringVar(&configFile, "c", "", "config file path")
+		fs.StringVar(&appName, "n", "", "app name")
 
-	err = fs.Parse(os.Args[1:])
+		err = fs.Parse(os.Args[1:])
+
+	*/
 	return
 }

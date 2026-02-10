@@ -183,9 +183,15 @@ func CheckChainNode(nodeId, nodeDir string) bool {
 
 func PurgeChainNode(homeDir, nodeID, nodeName string) (*NodeInfo, error) {
 	nodeDir := filepath.Join(homeDir, nodeID)
+
 	err := os.RemoveAll(nodeDir)
 	if err != nil {
-		return nil, fmt.Errorf("remove chain node path %v failed: %v", nodeDir, err)
+		if err := KillNode(nodeID); err != nil {
+			return nil, err
+		}
+		if err := os.RemoveAll(nodeDir); err != nil {
+			return nil, fmt.Errorf("remove chain node path %v failed: %v", nodeDir, err)
+		}
 	}
 
 	nodeInfo, err := ResetPeerConfig(homeDir, nodeID, nodeName)

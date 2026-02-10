@@ -88,7 +88,7 @@ func (r NodeRuntimeImpl) StopNode() error {
 }
 
 func (r NodeRuntimeImpl) IsRunning() bool {
-	return r.AppInst.IsRunning() && r.NodeInst.IsRunning()
+	return r.AppInst.IsRunning() || r.NodeInst.IsRunning()
 }
 
 func (r NodeRuntimeImpl) CreatedTime() string {

@@ -182,23 +182,23 @@ func (s *SetupService) GetHistoryOfCommand(nodeID string) ([]commandlog.CommandR
 func (s *SetupService) BroadcastInitializeChainNode(
 	chainID string,
 	nodeArray []lib.ArgNodeInfo,
-) (*RpcResponse, error) {
+) (*common.RpcResponse, error) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.chainState.Initialized() {
-		return MakeRpcErrorf("chain already initialized")
+		return common.MakeRpcErrorf("chain already initialized")
 	}
 
 	if len(nodeArray) == 0 {
-		return MakeRpcErrorf("argument node array is empty")
+		return common.MakeRpcErrorf("argument node array is empty")
 	}
 
 	peers := lib.ArgNodeArrayToPeers(nodeArray)
 
 	if err := lib.ValidNodeArray(peers); err != nil {
-		return MakeRpcError(err)
+		return common.MakeRpcError(err)
 	}
 
 	newChainState := NewChainState(chainID, peers)
@@ -228,7 +228,7 @@ func (s *SetupService) BroadcastInitializeChainNode(
 	}
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
-		return MakeRpcError(err)
+		return common.MakeRpcError(err)
 	}
 
 	// update initialization status of nodes that had finished.
@@ -237,38 +237,38 @@ func (s *SetupService) BroadcastInitializeChainNode(
 	//succeed
 	//save chain node information, genesisDoc
 	if err := newChainState.Save(chainStateFile); err != nil {
-		return MakeRpcErrorf("failed to save chain state file: %v, err: %v", chainStateFile, err)
+		return common.MakeRpcErrorf("failed to save chain state file: %v, err: %v", chainStateFile, err)
 	} else {
 		s.chainState = newChainState
 	}
 
 	log.Info("initializeChainNode complete", chainID)
 
-	return MakeRpcSucceed()
+	return common.MakeRpcSucceed()
 }
 
 // RPC Method
 // Broadcase: add one node and update others nodes.
-func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) (*RpcResponse, error) {
+func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) (*common.RpcResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if !s.chainState.Initialized() {
-		return MakeRpcErrorf("please initialize chain first")
+		return common.MakeRpcErrorf("please initialize chain first")
 	}
 
 	if s.chainState.IsNodeInitialized(node.NodeId) {
-		return MakeRpcErrorf("this node had already initialized")
+		return common.MakeRpcErrorf("this node had already initialized")
 	}
 
 	if !s.HasActivatedValidator() {
-		return MakeRpcErrorf("activated validator nodes not found, please run all nodes first before add a new node")
+		return common.MakeRpcErrorf("activated validator nodes not found, please run all nodes first before add a new node")
 	}
 
 	peerInfo := node.ToPeer()
 
 	if err := lib.ValidNodeArray(lib.PeerList{peerInfo}); err != nil {
-		return MakeRpcError(err)
+		return common.MakeRpcError(err)
 	}
 
 	newChainState := s.chainState.CloneAddNode(peerInfo)
@@ -326,7 +326,7 @@ func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) (*RpcResponse
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
 		log.Info("send node command failure:", err)
-		return MakeRpcError(err)
+		return common.MakeRpcError(err)
 	}
 
 	s.NodeNameCache[peerInfo.NodeId] = peerInfo.NodeName
@@ -336,7 +336,7 @@ func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) (*RpcResponse
 
 	//save chain node information, genesisDoc
 	if err := newChainState.Save(chainStateFile); err != nil {
-		return MakeRpcErrorf("failed to save chain state file: %v, err: %v", chainStateFile, err)
+		return common.MakeRpcErrorf("failed to save chain state file: %v, err: %v", chainStateFile, err)
 	} else {
 		s.chainState = newChainState
 	}
@@ -345,11 +345,11 @@ func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) (*RpcResponse
 	if peerInfo.IsValidator {
 		if err := s.BroadcaseAddValidator(peerInfo); err != nil {
 			log.Info("broadcast add validator failure:", err)
-			return MakeRpcError(err)
+			return common.MakeRpcError(err)
 		}
 	}
 
-	return MakeRpcSucceed()
+	return common.MakeRpcSucceed()
 }
 
 func (s *SetupService) isOriginalValidator(nodeName string) bool {
@@ -425,13 +425,13 @@ func (s *SetupService) ResetNodeStatus() {
 
 // RPC Method
 // send start,stop,restart command to specified node
-func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) (*RpcResponse, error) {
+func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) (*common.RpcResponse, error) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if !s.chainState.Initialized() {
-		return MakeRpcErrorf("please initialize chain node first")
+		return common.MakeRpcErrorf("please initialize chain node first")
 	}
 
 	nodecmds := make(map[string]*nodeCommand)
@@ -452,21 +452,21 @@ func (s *SetupService) ControlNode(ctlNodes []common.SetupControlNode) (*RpcResp
 	}
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
-		return MakeRpcError(err)
+		return common.MakeRpcError(err)
 	}
 
-	return MakeRpcSucceed()
+	return common.MakeRpcSucceed()
 }
 
 // RPC Method
 // reset chain state to uninitialized state, remove all data of node and app
-func (s *SetupService) BroadcastPurgeChainNode(purgeChain common.SetupPurgeChain) (*RpcResponse, error) {
+func (s *SetupService) BroadcastPurgeChainNode(purgeChain common.SetupPurgeChain) (*common.RpcResponse, error) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if !s.chainState.Initialized() {
-		return MakeRpcErrorf("chain has not been initialized")
+		return common.MakeRpcErrorf("chain has not been initialized")
 	}
 
 	nodecmds := make(map[string]*nodeCommand, len(s.subs))
@@ -479,21 +479,21 @@ func (s *SetupService) BroadcastPurgeChainNode(purgeChain common.SetupPurgeChain
 	}
 
 	if err := s.sendNodeCommand(nodecmds); err != nil {
-		return MakeRpcError(err)
+		return common.MakeRpcError(err)
 	}
 
 	//clean event log up
 	if err := s.cmdEvent.Reset(); err != nil {
-		return MakeRpcErrorf("failed to reset cmd event: %v", err)
+		return common.MakeRpcErrorf("failed to reset cmd event: %v", err)
 	}
 
 	if err := s.chainState.Reset(chainStateFile); err != nil {
-		return MakeRpcErrorf("failed to reset chain state file: %v, err: %v", chainStateFile, err)
+		return common.MakeRpcErrorf("failed to reset chain state file: %v, err: %v", chainStateFile, err)
 	}
 
 	s.ResetNodeStatus()
 
-	return MakeRpcSucceed()
+	return common.MakeRpcSucceed()
 }
 
 // arg

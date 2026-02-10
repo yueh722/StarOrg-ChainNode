@@ -149,6 +149,26 @@ func MakeLocalNet_Peer_05_06() ArgNodeList {
 			WebServicePort: 4700,
 			IsValidator:    true,
 		},
+		{
+			NodeName:       "node06",
+			NodeId:         lib.NewNodeId(),
+			NodeDomainOrIP: "127.0.0.1",
+			P2PPort:        58656,
+			RPCPort:        58657,
+			ABCIPort:       58658,
+			WebServicePort: 4800,
+			IsValidator:    true,
+		},
+		{
+			NodeName:       "node05",
+			NodeId:         lib.NewNodeId(),
+			NodeDomainOrIP: "127.0.0.1",
+			P2PPort:        59656,
+			RPCPort:        59657,
+			ABCIPort:       59658,
+			WebServicePort: 4900,
+			IsValidator:    true,
+		},
 	}
 
 	return peers
@@ -215,9 +235,9 @@ func initializeNodes(t *testing.T, argNodes ArgNodeList) {
 		t.Log("node info: ", status.NodeName, localIp)
 	}
 
-	var errResult error
+	var resp common.RpcResponse
 
-	err = myclient.Call(&errResult, methods["BroadcastInitializeChainNode"], "greedisgood", argNodes)
+	err = myclient.Call(&resp, methods["BroadcastInitializeChainNode"], "greedisgood", argNodes)
 	if err != nil {
 		t.Fatal("Failed to broadcast init chain node:", err)
 	}
@@ -286,7 +306,7 @@ func addNodes(t *testing.T, argNodes ArgNodeList) {
 		}
 
 		t.Log("adding node: ", node.NodeId, node.NodeName, "count", i)
-		var errResult error
+		var errResult common.RpcResponse
 		err = myclient.Call(&errResult, methods["BroadcastAddChainNode"], node)
 		if err != nil {
 			t.Fatal("Failed to broadcast add chain node:", node.NodeName, err)
@@ -420,7 +440,7 @@ func Test_PurgeChainNode(t *testing.T) {
 		return
 	}
 
-	var errResult error
+	var errResult common.RpcResponse
 
 	err = myclient.Call(&errResult, methods["BroadcastPurgeChainNode"], common.SetupPurgeChain{})
 	if err != nil {
@@ -456,6 +476,8 @@ func TestAutoDeployFromScratch(t *testing.T) {
 
 	t.Log("start running nodes 03, 04...")
 	controlNodes(t, getNodeIDsFromArgNodeListByName(peers2), common.NodeStart)
+
+	Test_StopAllNodes(t)
 }
 
 func TestAddValidator(t *testing.T) {
@@ -463,4 +485,12 @@ func TestAddValidator(t *testing.T) {
 	peers2 := MakeLocalNet_Peer_03_04()
 	addNodes(t, peers2)
 	sleepSec(10)
+}
+
+func TestValidPeers(t *testing.T) {
+	peers := lib.ArgNodeArrayToPeers(MakeLocalNet_Peer_03_04())
+
+	if err := lib.ValidNodeArray(peers); err != nil {
+		t.Fatal(err)
+	}
 }

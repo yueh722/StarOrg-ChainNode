@@ -15,6 +15,7 @@ import (
 	"github.com/cometbft/cometbft/v2/crypto/ed25519"
 	"github.com/cometbft/cometbft/v2/p2p"
 	"github.com/cometbft/cometbft/v2/types"
+	"github.com/duke-git/lancet/v2/slice"
 )
 
 type Peer struct {
@@ -264,6 +265,21 @@ func GetNodeByNodeId(nodeId string, peers string) *Peer {
 func ValidNodeArray(peers PeerList) error {
 
 	resErr := NewMultiError()
+
+	//check if node name of peers are conflict.
+
+	uniquePeers, err := slice.UniqueByField(peers, "NodeName")
+	if err != nil {
+		return err
+	}
+
+	diff := slice.Difference(peers, uniquePeers)
+	if len(diff) > 0 {
+		duplicatedNodeNames := slice.Map(diff, func(_ int, p Peer) string {
+			return p.NodeName
+		})
+		return fmt.Errorf("node name [%v] had been found duplicated", strings.Join(duplicatedNodeNames, ","))
+	}
 
 	for _, p := range peers {
 

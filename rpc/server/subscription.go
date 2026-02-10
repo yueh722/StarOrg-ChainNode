@@ -4,7 +4,6 @@ import (
 	"chain/lib"
 	log "chain/lib/zlog"
 	"chain/rpc/common"
-	"chain/rpc/common/callclient"
 	"chain/rpc/common/notification"
 	"chain/utils"
 	"context"
@@ -31,8 +30,6 @@ func (s *SetupService) SubscribeCommand(ctx context.Context, delegator common.De
 	client, ok := rpc.ClientFromContext(ctx)
 	if !ok {
 		log.Info("rpc client from context is not available: ", delegator.StatusNode.NodeName)
-	} else {
-		log.Infof("RpcAlive: %v, NodeName: %s", callclient.IsNodeRpcAlive(client), delegator.StatusNode.NodeName)
 	}
 
 	// use initialization status that stored on master side.
@@ -178,6 +175,7 @@ func (s *SetupService) InitializationComplete(nodeID string, status *common.Stat
 	if clientStub, ok := s.subs[nodeID]; ok {
 		if status.NodeID == nodeID {
 			clientStub.StatusNode = *status
+			clientStub.StatusNode.Online = true
 			log.Infof("node initialization complete, nodeID: %v, nodeName: %v", status.NodeID, status.NodeName)
 		}
 	}
