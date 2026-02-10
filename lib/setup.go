@@ -76,6 +76,7 @@ func UpdateChainCfg(peers PeerList, homeDir, nodeID string) error {
 	return peerConfig.UpdateChainConfig(peers)
 }
 
+// deprecated
 func AddChainNode(genesisDoc *types.GenesisDoc, peers PeerList, nodeId, nodeDir string) error {
 
 	currPeer := peers.GetPeerByNodeId(nodeId)

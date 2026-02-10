@@ -207,7 +207,7 @@ func (s *SetupService) BroadcastInitializeChainNode(
 
 	for nodeID, _ := range s.subs {
 		peer := peers.GetPeerByNodeId(nodeID)
-		if peer == nil || !peer.Valid() {
+		if peer.NodeId != nodeID {
 			log.Infof("Peer is not in the initialization list, Ignore sending init command with peer %v to node",
 				s.FormatName(nodeID))
 			continue
@@ -267,10 +267,12 @@ func (s *SetupService) BroadcastAddChainNode(node lib.ArgNodeInfo) (*common.RpcR
 
 	peerInfo := node.ToPeer()
 
-	if err := lib.ValidNodeArray(lib.PeerList{peerInfo}); err != nil {
+	peers := lib.PeerList{node.ToPeer()}
+	if err := lib.ValidNodeArray(peers); err != nil {
 		return common.MakeRpcError(err)
 	}
 
+	peerInfo = peers[0]
 	newChainState := s.chainState.CloneAddNode(peerInfo)
 
 	nodecmds := make(map[string]*nodeCommand)

@@ -281,7 +281,8 @@ func ValidNodeArray(peers PeerList) error {
 		return fmt.Errorf("node name [%v] had been found duplicated", strings.Join(duplicatedNodeNames, ","))
 	}
 
-	for _, p := range peers {
+	for i := range peers {
+		p := &peers[i]
 
 		//lookup domain or host, return error if failure
 		if err := utils.CheckIpOrDomain(p.NodeAddress); err != nil {

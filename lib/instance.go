@@ -64,7 +64,8 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 
 func NewInstance(launcher *Launcher) *Instance {
 	return &Instance{
-		Launcher: launcher,
+		Launcher:    launcher,
+		TermTimeout: 5 * time.Second,
 	}
 }
 
