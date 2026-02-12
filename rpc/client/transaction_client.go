@@ -151,12 +151,15 @@ func (c *LiveTxClient) StartLiveTxTransmitter() {
 	logger := utils.NewThrottledLogger(zlog.Info)
 
 	for {
-
 		nodeInfo := *c.cfg.NodeInfo
 
 		//check if current peer is online
 		if lib.CheckNodeOnline(nodeInfo.RPCAddr) == false {
-			logger.Log("[live transaction] node rpc is offline: ", nodeInfo.NodeName, nodeInfo.RPCAddr)
+
+			if c.cfg.Initialized {
+				logger.Log("[live transaction] node rpc is offline: ", nodeInfo.NodeName, nodeInfo.RPCAddr)
+			}
+
 			time.Sleep(3 * time.Second)
 			continue
 		}

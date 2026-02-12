@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/duke-git/lancet/v2/slice"
 )
@@ -124,6 +125,39 @@ func LaunchAppExternal(ctx context.Context, appCfg nodeproxy.AppConfig, runtime 
 	}
 }
 
+func LaunchApp(ctx context.Context, appCfgs []nodeproxy.AppConfig, runtime service.ServiceRuntime) {
+
+	for _, appCfg := range appCfgs {
+
+		go func() {
+			for {
+				//LaunchAppInternal(ctx, appCfg.AppName, runtime)
+				LaunchAppExternal(ctx, appCfg, runtime)
+			}
+		}()
+	}
+
+}
+
+func MonitorConfig(cfgFile string, reload func()) {
+	// create watcher that will call our reload function after debounced changes
+	watcher, err := utils.NewConfigWatcher(cfgFile,
+		utils.WithDebounceTime(1000*time.Millisecond),
+		utils.WithOnChange(reload),
+		utils.WithOnError(func(err error) {
+			log.Printf("watcher error: %v", err)
+		}),
+	)
+	if err != nil {
+		log.Fatalf("failed to create watcher: %v", err)
+	}
+	defer watcher.Close()
+
+	var wg = &sync.WaitGroup{}
+	wg.Add(1)
+	wg.Wait()
+}
+
 func AppLauncher(ctx context.Context, runtime service.ServiceRuntime) {
 	cfgFiles := []string{runtime.ConfigPath, filepath.Join(common.NodeProxyAppDataPath, "config.ini")}
 
@@ -133,7 +167,7 @@ func AppLauncher(ctx context.Context, runtime service.ServiceRuntime) {
 	}
 
 	//loading nodes from config file and launch them all with separate processes.
-	appCfgs, err := nodeproxy.GetManagedApps(cfgFiles)
+	appCfgs, cfgFile, err := nodeproxy.GetManagedApps(cfgFiles)
 	if err != nil {
 		log.Fatal("Get managed app names failed:", err)
 		return
@@ -143,25 +177,27 @@ func AppLauncher(ctx context.Context, runtime service.ServiceRuntime) {
 		return cfg.AppName
 	}))
 
-	var wg = &sync.WaitGroup{}
+	LaunchApp(ctx, appCfgs, runtime)
 
-	//AppLauncher won't return from here, start monitor all go-routine or children processes
-	for _, appCfg := range appCfgs {
-		wg.Add(1)
+	MonitorConfig(cfgFile, func() {
+		log.Info("[reloading config] trying to load new apps from config file...")
 
-		go func() {
-			defer func() {
-				wg.Done()
-			}()
+		reloadingAppCfgs, _, err := nodeproxy.GetManagedApps([]string{cfgFile})
+		if err != nil {
+			log.Info("[reloading config] Get managed app names failed:", err)
+			return
+		}
 
-			for {
-				//LaunchAppInternal(ctx, appCfg.AppName, runtime)
-				LaunchAppExternal(ctx, appCfg, runtime)
-			}
-		}()
-	}
+		newAppCfgs := slice.Difference(reloadingAppCfgs, appCfgs)
+		if len(newAppCfgs) > 0 {
+			LaunchApp(ctx, newAppCfgs, runtime)
+			log.Println("[reloading config] new app are launched, ", newAppCfgs)
+			return
+		}
 
-	wg.Wait()
+		log.Info("[reloading config] no new apps found.")
+	})
+
 	log.Println("Launch app finished")
 }
 

@@ -270,11 +270,11 @@ func (c *SetupClient) handlePurgeChainCmd(cmd *common.CommandEnvelope) error {
 
 	if c.nodeRuntime != nil {
 		if err := c.nodeRuntime.StopNode(); err != nil {
-			log.Error("[handlePurgeChainCmd] failed to stop node, err:", err)
+			log.Info("[handlePurgeChainCmd] failed to stop node, err:", err)
 		}
 	} else {
 		if err := lib.KillNode(c.cfg.NodeInfo.NodeID); err != nil {
-			log.Error("[handlePurgeChainCmd] failed to kill node, err:", err)
+			log.Info("[handlePurgeChainCmd] failed to kill node, err:", err)
 		}
 	}
 

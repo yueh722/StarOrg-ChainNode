@@ -43,7 +43,13 @@ func (c *StatusClient) Update(client *rpc.Client) {
 }
 
 func (c *StatusClient) IsNodeRpcAlive() bool {
-	return lib.CheckNodeOnline(c.cfg.NodeInfo.RPCAddr)
+
+	if !c.cfg.Initialized {
+		return false
+	}
+
+	ret := lib.CheckNodeOnline(c.cfg.NodeInfo.RPCAddr)
+	return ret
 }
 
 func (c *StatusClient) ReportNodeStatus() error {

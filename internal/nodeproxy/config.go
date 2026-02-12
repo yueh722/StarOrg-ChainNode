@@ -89,9 +89,9 @@ func InitializeDeviceID(cfgFiles []string) error {
 	return fmt.Errorf("no config files found from: %v", cfgFiles)
 }
 
-func GetManagedApps(cfgFiles []string) ([]AppConfig, error) {
+func GetManagedApps(cfgFiles []string) ([]AppConfig, string, error) {
 	if len(cfgFiles) == 0 {
-		return nil, errors.New("no config files specified")
+		return nil, "", errors.New("no config files specified")
 	}
 
 	for _, cfgFile := range cfgFiles {
@@ -101,7 +101,7 @@ func GetManagedApps(cfgFiles []string) ([]AppConfig, error) {
 
 		iniFile, err := ini.LoadSources(ini.LoadOptions{Insensitive: true}, cfgFile)
 		if err != nil {
-			return nil, fmt.Errorf("read config file error: %v", err)
+			return nil, "", fmt.Errorf("read config file error: %v", err)
 		}
 
 		sections := iniFile.SectionStrings()
@@ -129,10 +129,10 @@ func GetManagedApps(cfgFiles []string) ([]AppConfig, error) {
 				AppName: appName,
 				HomeDir: filepath.Join(homeDir, appName),
 			}
-		}), nil
+		}), cfgFile, nil
 	}
 
-	return nil, fmt.Errorf("no config files found from: %v", cfgFiles)
+	return nil, "", fmt.Errorf("no config files found from: %v", cfgFiles)
 }
 
 func LoadGlobalConfig(cfgFiles []string) (*GlobalConfig, error) {

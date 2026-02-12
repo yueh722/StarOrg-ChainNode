@@ -26,6 +26,10 @@ func rpcRoutine(name string) any {
 
 func CheckNodeOnline(rpcAddr string) bool {
 
+	if utils.CheckURL(rpcAddr) != nil {
+		return false
+	}
+
 	url := fmt.Sprintf("%s/status", rpcAddr)
 
 	_, err := utils.HttpGet(url)

@@ -285,7 +285,7 @@ func ValidNodeArray(peers PeerList) error {
 		p := &peers[i]
 
 		//lookup domain or host, return error if failure
-		if err := utils.CheckIpOrDomain(p.NodeAddress); err != nil {
+		if _, err := utils.CheckIpOrDomain(p.NodeAddress); err != nil {
 			resErr.AddError(err)
 		}
 

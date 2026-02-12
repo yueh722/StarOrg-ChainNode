@@ -151,7 +151,7 @@ func (s *StreamService) reportStateInternal(state interface{}) bool {
 
 	err = s.notifyClient(state)
 	if err != nil {
-		log.Error("notify stream data error", err)
+		log.Info("notify stream data error", err)
 		reported = false
 	}
 

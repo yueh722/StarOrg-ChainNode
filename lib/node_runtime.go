@@ -76,6 +76,7 @@ func (r NodeRuntimeImpl) StopNode() error {
 	if !r.IsRunning() {
 		return nil
 	}
+
 	err1 := r.AppInst.Stop()
 	time.Sleep(2 * time.Second)
 	err2 := r.NodeInst.Stop()

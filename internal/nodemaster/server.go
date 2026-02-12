@@ -10,6 +10,7 @@ import (
 	"chain/utils"
 	"errors"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -17,10 +18,12 @@ var (
 	wsServer *server.Server
 
 	//
-	nodelogStore  queuestore.QueueStore
-	setuplogStore cmdlogstore.CommandLogStore
-	logPath       = common.NodeMasterLogPath
-	dataPath      = common.NodeMasterAppDataPath
+	nodelogStore   queuestore.QueueStore
+	setuplogStore  cmdlogstore.CommandLogStore
+	logPath        = common.NodeMasterLogPath
+	dataPath       = common.NodeMasterAppDataPath
+	firewallPolicy security.FirewallPolicy
+	muxPolicy      sync.Mutex
 )
 
 func init() {
@@ -48,15 +51,25 @@ func StartServer(cfg *Config) error {
 		return errors.New("config is nil")
 	}
 
+	UpdateFirewallPolicy(security.FirewallPolicy{
+		FWMode:         cfg.FWMode,
+		AllowOnlyHosts: cfg.AllowOnlyHosts,
+	})
+
 	wsServer, err := server.NewServer(server.ServerConfig{
 		AppName:    cfg.AppName,
 		Addr:       cfg.Addr,
 		AppDataDir: common.NodeMasterAppDataPath,
 		LogDir:     common.NodeMasterLogPath,
 		Option: security.SecurityOption{
-			FWMode:         cfg.FWMode,
-			AllowOnlyHosts: cfg.AllowOnlyHosts,
-			TokenSecret:    security.SharedSecret,
+			//FWMode:         cfg.FWMode,
+			//AllowOnlyHosts: cfg.AllowOnlyHosts,
+			FetchPolicy: func() security.FirewallPolicy {
+				muxPolicy.Lock()
+				defer muxPolicy.Unlock()
+				return firewallPolicy
+			},
+			TokenSecret: security.SharedSecret,
 		},
 		Tls: cfg.Tls,
 	})
@@ -65,4 +78,10 @@ func StartServer(cfg *Config) error {
 	}
 
 	return wsServer.Serve()
+}
+
+func UpdateFirewallPolicy(policy security.FirewallPolicy) {
+	muxPolicy.Lock()
+	defer muxPolicy.Unlock()
+	firewallPolicy = policy
 }

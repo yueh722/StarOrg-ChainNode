@@ -5,10 +5,17 @@ import (
 	"net/http"
 )
 
-type SecurityOption struct {
+type FirewallPolicy struct {
 	FWMode         FirewallMode
 	AllowOnlyHosts []string //ip slice
-	TokenSecret    []byte
+}
+
+type SecurityOption struct {
+	//FWMode         FirewallMode
+	//AllowOnlyHosts []string //ip slice
+
+	FetchPolicy func() FirewallPolicy
+	TokenSecret []byte
 }
 
 type FirewallMode string
@@ -20,28 +27,12 @@ const (
 )
 
 type Firewall struct {
-	mode    FirewallMode
-	allowIP map[string]struct{}
+	fetchPolicy func() FirewallPolicy
 }
 
 func NewFirewall(opt SecurityOption) *Firewall {
 	fw := &Firewall{
-		mode:    opt.FWMode,
-		allowIP: make(map[string]struct{}),
-	}
-
-	for _, v := range opt.AllowOnlyHosts {
-		ip := net.ParseIP(v)
-		if ip == nil {
-			continue
-		}
-
-		// 统一 IP 表示
-		if ip4 := ip.To4(); ip4 != nil {
-			fw.allowIP[ip4.String()] = struct{}{}
-		} else {
-			fw.allowIP[ip.To16().String()] = struct{}{}
-		}
+		fetchPolicy: opt.FetchPolicy,
 	}
 
 	return fw
@@ -55,7 +46,7 @@ func (fw *Firewall) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		switch fw.mode {
+		switch fw.fetchPolicy().FWMode {
 
 		case AllowAll:
 			next.ServeHTTP(w, r)
@@ -86,18 +77,40 @@ func (fw *Firewall) Middleware(next http.Handler) http.Handler {
 	})
 }
 
+func (fw *Firewall) getAllowIP() map[string]struct{} {
+
+	var ips = make(map[string]struct{})
+
+	for _, v := range fw.fetchPolicy().AllowOnlyHosts {
+		ip := net.ParseIP(v)
+		if ip == nil {
+			continue
+		}
+
+		// 统一 IP 表示
+		if ip4 := ip.To4(); ip4 != nil {
+			ips[ip4.String()] = struct{}{}
+		} else {
+			ips[ip.To16().String()] = struct{}{}
+		}
+	}
+
+	return ips
+}
+
 func (fw *Firewall) isAllowed(r *http.Request) bool {
 	ip := clientIP(r.RemoteAddr)
 	if ip == nil {
 		return false
 	}
 
+	allowIP := fw.getAllowIP()
 	if ip4 := ip.To4(); ip4 != nil {
-		_, ok := fw.allowIP[ip4.String()]
+		_, ok := allowIP[ip4.String()]
 		return ok
 	}
 
-	_, ok := fw.allowIP[ip.To16().String()]
+	_, ok := allowIP[ip.To16().String()]
 	return ok
 }
 

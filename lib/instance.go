@@ -8,10 +8,12 @@ package lib
 
 import (
 	"encoding/json"
+	"fmt"
 	"os/exec"
 	"syscall"
 	"time"
 
+	"github.com/duke-git/lancet/v2/mathutil"
 	"github.com/pkg/errors"
 )
 
@@ -90,6 +92,12 @@ func (i *Instance) Start() error {
 func (i *Instance) Stop() error {
 	if i.Session == nil {
 		return errors.Errorf("instance has not been started")
+	}
+
+	if mathutil.Abs(time.Now().Sub(i.StartTime)) < (2 * time.Second) {
+		fmt.Println("delay to stop instance", i.Launcher.Args)
+		<-time.After(2 * time.Second)
+		fmt.Println("delay time exceed", i.Launcher.Args)
 	}
 
 	done := make(chan struct{})

@@ -53,7 +53,7 @@ var allowOnlyConfig = Config{
 }
 
 func GetDefaultConfig() Config {
-	cfg := allowOnlyConfig
+	cfg := defaultConfig
 	if cfg.FWMode == security.LocalOnly {
 		cfg.Addr, _ = lib.UpdateHost(cfg.Addr, "localhost")
 	}
@@ -69,7 +69,11 @@ func (cfg *Config) Valid() error {
 	}
 
 	if cfg.AppName == "" {
-		cfg.AppName = "NodeMaster"
+		cfg.AppName = defaultConfig.AppName
+	}
+
+	if cfg.FWMode == "" {
+		cfg.FWMode = defaultConfig.FWMode
 	}
 
 	if cfg.FWMode == security.LocalOnly {
@@ -82,11 +86,11 @@ func (cfg *Config) Valid() error {
 	return nil
 }
 
-func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, error) {
+func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, string, error) {
 
 	if len(cfgFiles) == 0 {
 		zlog.Info("Default config applied")
-		return &defaultCfg, nil
+		return &defaultCfg, "", nil
 	}
 
 	for _, cfgFile := range cfgFiles {
@@ -96,29 +100,29 @@ func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, error) {
 
 		iniFile, err := ini.LoadSources(ini.LoadOptions{Insensitive: true}, cfgFile)
 		if err != nil {
-			return nil, fmt.Errorf("read config file error: %v", err)
+			return nil, cfgFile, fmt.Errorf("read config file error: %v", err)
 		}
 
 		cfg := &Config{}
 		if err := iniFile.Section("default").MapTo(cfg); err != nil {
-			return nil, fmt.Errorf("failed to map default section in ini file %v, error: %v", cfgFile, err)
+			return nil, cfgFile, fmt.Errorf("failed to map default section in ini file %v, error: %v", cfgFile, err)
 		}
 
 		if err := iniFile.Section("firewall").MapTo(cfg); err != nil {
-			return nil, fmt.Errorf("failed to map  firewall section in ini file %v, error: %v", cfgFile, err)
+			return nil, cfgFile, fmt.Errorf("failed to map  firewall section in ini file %v, error: %v", cfgFile, err)
 		}
 
 		if err := iniFile.Section("tls").MapTo(&cfg.Tls); err != nil {
-			return nil, fmt.Errorf("failed to map tls section in ini file %v, error: %v", cfgFile, err)
+			return nil, cfgFile, fmt.Errorf("failed to map tls section in ini file %v, error: %v", cfgFile, err)
 		}
 
 		if err := cfg.Valid(); err != nil {
-			return nil, fmt.Errorf("config data is invalidate, err: %v", err)
+			return nil, cfgFile, fmt.Errorf("config data is invalidate, err: %v", err)
 		}
 
 		zlog.Infof("config file %s applied", cfgFile)
-		return cfg, nil
+		return cfg, cfgFile, nil
 	}
 	zlog.Info("Default config applied")
-	return &defaultCfg, nil
+	return &defaultCfg, "", nil
 }
