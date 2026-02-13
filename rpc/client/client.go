@@ -56,7 +56,11 @@ func (c ClientConfig) getBinPath() string {
 }
 
 func (c ClientConfig) getChainlogFilePath() string {
-	return filepath.Join(c.getLogPath(), "chainlog.db")
+	appName := filepath.Base(c.AppDataDir)
+	appName = fmt.Sprintf("%s_%s", appName, c.NodeInfo.NodeName)
+	dbFile := filepath.Join(c.LogDir, appName)
+	utils.TryCreateDir(dbFile)
+	return filepath.Join(dbFile, "chainlog.db")
 }
 
 func (c ClientConfig) getAppBinFile() string {

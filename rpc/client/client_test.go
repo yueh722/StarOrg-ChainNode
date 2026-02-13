@@ -480,7 +480,7 @@ func TestAutoDeployFromScratch(t *testing.T) {
 	t.Log("start running nodes 03, 04...")
 	controlNodes(t, getNodeIDsFromArgNodeListByName(peers2), common.NodeStart)
 
-	Test_StopAllNodes(t)
+	Test_RestartAllNodes(t)
 }
 
 func TestAddValidator(t *testing.T) {
