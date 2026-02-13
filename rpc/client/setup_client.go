@@ -19,11 +19,12 @@ import (
 )
 
 type SetupClient struct {
-	client      *rpc.Client
-	logStore    queuestore.QueueStore
-	cfg         *ClientConfig
-	nodeRuntime lib.NodeRuntime
-	mux         sync.Mutex
+	client          *rpc.Client
+	logStore        queuestore.QueueStore
+	cfg             *ClientConfig
+	nodeRuntime     lib.NodeRuntime
+	mux             sync.Mutex
+	handledStopTime time.Time
 }
 
 var router = map[common.CmdType]func(*SetupClient, *common.CommandEnvelope) error{
@@ -320,6 +321,12 @@ func (c *SetupClient) reportCometbftStatus(catalog string, exit bool, err error)
 	if err := c.client.Call(nil, common.GetMethodName("ReportCometbftProcessStatus"), statusProcess); err != nil {
 		log.Info("failed to call ReportCometbftProcessStatus, err:", err)
 	}
+
+	if c.cfg.RestartOnNodeExited && c.handledStopTime.IsZero() {
+		if err := c.handleRestartNode(); err != nil {
+			log.Infof("[reportCometbftStatus] fail to start node after exit, err: %v", err)
+		}
+	}
 }
 
 func (c *SetupClient) buildNodeArg() lib.NodeArg {
@@ -346,6 +353,8 @@ func (c *SetupClient) handleStartNode() error {
 		return errors.New("node not initialized")
 	}
 
+	//clear time of last handledStop
+	c.handledStopTime = time.Time{}
 	nodeArg := c.buildNodeArg()
 	runtime := lib.StartNode(c.NodeID(), lib.WithNodeArgs(nodeArg))
 	err := runtime.Error()
@@ -399,12 +408,13 @@ func (c *SetupClient) HandlePing(cmd *common.CommandEnvelope) error {
 
 // stop node & app
 func (c *SetupClient) handleStopNode() error {
+	c.handledStopTime = time.Now()
+	_ = WriteRuntimeData(c.cfg.getNodeRuntimeFilePath(), nil)
+
 	err := lib.StopNode(c.nodeRuntime)
 	if err != nil {
 		return err
 	}
-
-	_ = WriteRuntimeData(c.cfg.getNodeRuntimeFilePath(), nil)
 
 	c.nodeRuntime = nil
 	return nil

@@ -1,4 +1,4 @@
-package nodeproxy
+package nodeagent
 
 import (
 	"chain/internal/common"
@@ -50,16 +50,17 @@ func StartClient(ctx context.Context, cfg *Config) error {
 	}
 
 	nodeClient, err := client.New(&client.ClientConfig{
-		AppName:     lib.DelegatorApp + cfg.AppName,
-		ServerAddr:  cfg.ServerAddr,
-		HomeDir:     cfg.HomeDir,
-		BinDir:      cfg.BinDir,
-		NodeBaseDir: getNodeBaseDir(cfg.HomeDir, nodeInfo.NodeID),
-		LogDir:      common.NodeProxyLogPath,
-		AppDataDir:  common.NodeProxyAppDataPath,
-		NodeInfo:    nodeInfo,
-		DeviceID:    cfg.DeviceID,
-		Initialized: initialized,
+		AppName:             lib.DelegatorApp + cfg.AppName,
+		ServerAddr:          cfg.ServerAddr,
+		HomeDir:             cfg.HomeDir,
+		BinDir:              cfg.BinDir,
+		NodeBaseDir:         getNodeBaseDir(cfg.HomeDir, nodeInfo.NodeID),
+		LogDir:              common.NodeAgentLogPath,
+		AppDataDir:          common.NodeAgentAppDataPath,
+		NodeInfo:            nodeInfo,
+		DeviceID:            cfg.DeviceID,
+		Initialized:         initialized,
+		RestartOnNodeExited: cfg.RestartOnNodeExited,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create client: %v", err)

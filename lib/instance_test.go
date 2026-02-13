@@ -12,7 +12,7 @@ func TestInstance_StartNode(t *testing.T) {
 
 	core, err := queuestore.NewSQLiteStore(
 		queuestore.SQLiteConfig{
-			Path:        utils.GetLogPath("nodeproxy", "node01"),
+			Path:        utils.GetLogPath("nodeagent", "node01"),
 			Migrate:     true,
 			OpTimeout:   5 * time.Second,
 			InitTimeout: 3 * time.Second,

@@ -6,8 +6,8 @@ import (
 
 var (
 	NodeMasterLogPath = utils.GetLogPath("NodeMaster")
-	NodeProxyLogPath  = utils.GetLogPath("NodeProxy")
+	NodeAgentLogPath  = utils.GetLogPath("NodeAgent")
 
 	NodeMasterAppDataPath = utils.GetAppDataPath("NodeMaster")
-	NodeProxyAppDataPath  = utils.GetAppDataPath("NodeProxy")
+	NodeAgentAppDataPath  = utils.GetAppDataPath("NodeAgent")
 )

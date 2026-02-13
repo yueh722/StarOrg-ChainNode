@@ -9,6 +9,7 @@ import (
 	"chain/rpc/common/notification"
 	"chain/utils"
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -151,7 +152,6 @@ func (s *StreamService) reportStateInternal(state interface{}) bool {
 
 	err = s.notifyClient(state)
 	if err != nil {
-		log.Info("notify stream data error", err)
 		reported = false
 	}
 
@@ -159,16 +159,21 @@ func (s *StreamService) reportStateInternal(state interface{}) bool {
 }
 
 func (s *StreamService) notifyClient(data any) error {
-	var err error
+	var err = lib.NewMultiError()
 
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
+	if len(s.subs) == 0 {
+		return errors.New("no subscribers registered")
+	}
+
 	for _, sub := range s.subs {
 		err2 := sub.notifier.Notify(sub.subID, data)
-		if err == nil {
-			err = err2
+		if err2 != nil {
+			log.Info("notify err:", err2)
+			err.AddError(err2)
 		}
 	}
-	return err
+	return err.ErrorOrNil()
 }

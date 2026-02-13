@@ -19,7 +19,7 @@ import (
 
 // nodemaster.exe
 //
-//	option1: load config file from %ProgramData%/chain/nodemaster/config.ini
+//	option1: load config file from %ProgramData%/chainnode/nodemaster/config.ini
 
 // Service functions
 func serviceMain(ctx context.Context, runtime cmd.ServiceRuntime) error {

@@ -38,7 +38,7 @@ type nodeCommand struct {
 	ctx     context.Context
 }
 
-// SetupService is designed for nodeproxy getting setup command dispatched from NodeMaster.
+// SetupService is designed for nodeagent getting setup command dispatched from NodeMaster.
 // Request from: NodeProxy
 type SetupService struct {
 	mu            sync.Mutex

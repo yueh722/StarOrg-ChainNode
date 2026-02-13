@@ -43,8 +43,8 @@ func NewDefaultAppLog() *Logger {
 		appName = "_" + appName
 	}
 
-	if strings.Contains(procName, "nodeproxy") {
-		procName = "nodeproxy"
+	if strings.Contains(procName, "nodeagent") {
+		procName = "nodeagent"
 	} else {
 		if strings.Contains(procName, "nodemaster") {
 			procName = "nodemaster"

@@ -390,6 +390,9 @@ func controlNodes(t *testing.T, nodeIDs []string, action common.NodeAction) {
 	}
 
 	if err := myclient.Call(nil, methods["ControlNode"], ctlNodes); err != nil {
+		if action == common.NodeStart && IsAlreadyRunningError(err) {
+			return
+		}
 		t.Fatal("Failed to call:", err)
 	}
 }
@@ -493,4 +496,8 @@ func TestValidPeers(t *testing.T) {
 	if err := lib.ValidNodeArray(peers); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func IsAlreadyRunningError(err error) bool {
+	return strings.Contains(err.Error(), "node or app already running")
 }

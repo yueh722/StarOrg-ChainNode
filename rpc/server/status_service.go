@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-// SetupService is designed for nodeproxy reportting status about node to NodeMaster.
+// SetupService is designed for nodeagent reportting status about node to NodeMaster.
 // Request from: NodeProxy
 type StatusService struct {
 	mu     sync.Mutex

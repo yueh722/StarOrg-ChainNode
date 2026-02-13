@@ -34,16 +34,17 @@ type Client struct {
 }
 
 type ClientConfig struct {
-	AppName     string
-	ServerAddr  string
-	HomeDir     string
-	BinDir      string
-	NodeBaseDir string
-	AppDataDir  string
-	LogDir      string
-	NodeInfo    *lib.NodeInfo
-	DeviceID    string
-	Initialized bool
+	AppName             string
+	ServerAddr          string
+	HomeDir             string
+	BinDir              string
+	NodeBaseDir         string
+	AppDataDir          string
+	LogDir              string
+	NodeInfo            *lib.NodeInfo
+	DeviceID            string
+	Initialized         bool
+	RestartOnNodeExited bool
 }
 
 func (c ClientConfig) getLogPath() string {

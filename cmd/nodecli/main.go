@@ -13,8 +13,7 @@ func main() {
 
 	rootCmd := nodecli.RootCmd
 	rootCmd.AddCommand(
-		nodecli.CreateInitNodeFileCommand(),
-		nodecli.CreateAddNodeFileCommand())
+		nodecli.CreateInitNodeFileCommand())
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)

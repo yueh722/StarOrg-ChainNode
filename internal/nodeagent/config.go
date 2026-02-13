@@ -1,4 +1,4 @@
-package nodeproxy
+package nodeagent
 
 import (
 	"chain/internal/common"
@@ -24,23 +24,25 @@ const (
 )
 
 type Config struct {
-	AppName    string
-	ServerAddr string
-	DeviceID   string
-	HomeDir    string
-	BinDir     string // if leave blank, HomeDir/Bin will be applied.
+	AppName             string
+	ServerAddr          string
+	DeviceID            string
+	HomeDir             string
+	BinDir              string // if leave blank, HomeDir/Bin will be applied.
+	RestartOnNodeExited bool
 }
 
 type GlobalConfig struct {
-	ServerAddr    string
-	DeviceID      string
-	HomeDir       string
-	BinDir        string // if leave blank, HomeDir/Bin will be applied.
-	LauncherModel string // if leave blank, use Single
+	ServerAddr          string
+	DeviceID            string
+	HomeDir             string
+	BinDir              string // if leave blank, HomeDir/Bin will be applied.
+	LauncherModel       string // if leave blank, use Single
+	RestartOnNodeExited bool
 }
 
 func (cfg GlobalConfig) DefaultHomeDir() string {
-	return common.NodeProxyAppDataPath
+	return common.NodeAgentAppDataPath
 }
 
 type AppConfig struct {
@@ -185,6 +187,7 @@ func LoadConfig(cfgFiles []string, appName string) (*Config, error) {
 		cfg.ServerAddr = globalCfg.ServerAddr
 		cfg.DeviceID = globalCfg.DeviceID
 		cfg.BinDir = globalCfg.BinDir
+		cfg.RestartOnNodeExited = globalCfg.RestartOnNodeExited
 
 		if cfg.HomeDir == "" {
 			cfg.HomeDir = filepath.Join(globalCfg.HomeDir, cfg.AppName)

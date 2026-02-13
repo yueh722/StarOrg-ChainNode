@@ -16,6 +16,7 @@ type Config struct {
 	Addr    string
 	AppName string
 	//TlsPort string
+	OutputLiveTx bool
 
 	FWMode         security.FirewallMode
 	AllowOnlyHosts []string
@@ -31,6 +32,7 @@ var testTlsOption = server.TlsOption{
 var defaultConfig = Config{
 	Addr:           ":8080",
 	AppName:        "NodeMaster",
+	OutputLiveTx:   false,
 	FWMode:         security.AllowAll,
 	AllowOnlyHosts: []string{},
 	Tls:            testTlsOption,
@@ -104,6 +106,8 @@ func LoadConfig(cfgFiles []string, defaultCfg Config) (*Config, string, error) {
 		}
 
 		cfg := &Config{}
+		*cfg = GetDefaultConfig()
+
 		if err := iniFile.Section("default").MapTo(cfg); err != nil {
 			return nil, cfgFile, fmt.Errorf("failed to map default section in ini file %v, error: %v", cfgFile, err)
 		}

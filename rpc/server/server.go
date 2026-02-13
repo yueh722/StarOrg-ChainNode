@@ -79,12 +79,13 @@ type Server struct {
 }
 
 type ServerConfig struct {
-	AppName    string
-	Addr       string
-	AppDataDir string
-	LogDir     string
-	Option     security.SecurityOption
-	Tls        TlsOption
+	AppName      string
+	Addr         string
+	AppDataDir   string
+	LogDir       string
+	Option       security.SecurityOption
+	Tls          TlsOption
+	OutputLiveTx bool
 }
 
 func NewSetuplogStore(dataFile string) (cmdlogstore.CommandLogStore, error) {

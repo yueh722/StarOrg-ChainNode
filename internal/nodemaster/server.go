@@ -71,7 +71,8 @@ func StartServer(cfg *Config) error {
 			},
 			TokenSecret: security.SharedSecret,
 		},
-		Tls: cfg.Tls,
+		Tls:          cfg.Tls,
+		OutputLiveTx: cfg.OutputLiveTx,
 	})
 	if err != nil {
 		return err

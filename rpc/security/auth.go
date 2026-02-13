@@ -50,8 +50,7 @@ func GenerateToken(clientID string, secret []byte) string {
 
 func Signature(ts int64, clientID string, secret []byte) []byte {
 	mac := hmac.New(sha256.New, (secret))
-	mac.Write([]byte(clientID))
-	mac.Write([]byte(strconv.FormatInt(ts, 10)))
+	mac.Write([]byte(clientID + strconv.FormatInt(ts, 10)))
 	return mac.Sum(nil)
 }
 

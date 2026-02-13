@@ -2,7 +2,7 @@ package main
 
 import (
 	"chain/internal/common"
-	"chain/internal/nodeproxy"
+	"chain/internal/nodeagent"
 	"chain/lib"
 	log "chain/lib/zlog"
 	"chain/utils"
@@ -17,13 +17,13 @@ import (
 	"github.com/duke-git/lancet/v2/slice"
 )
 
-// nodeproxy.exe -c your-path-to-config.ini
+// nodeagent.exe -c your-path-to-config.ini
 //
 //	option1: load config file from the path you specified
 
-// nodeproxy.exe
+// nodeagent.exe
 //
-//	option1: load config file from %ProgramData%/chain/nodeproxy/config.ini
+//	option1: load config file from %ProgramData%/chainnode/nodeagent/config.ini
 
 // Service functions
 func serviceMain(ctx context.Context, runtime service.ServiceRuntime) error {
@@ -98,7 +98,7 @@ func KillNodeAppProcess(homeDir string) {
 }
 
 // LaunchAppExternal create process to run a node agent
-func LaunchAppExternal(ctx context.Context, appCfg nodeproxy.AppConfig, runtime service.ServiceRuntime) {
+func LaunchAppExternal(ctx context.Context, appCfg nodeagent.AppConfig, runtime service.ServiceRuntime) {
 
 	KillNodeAppProcess(appCfg.HomeDir)
 
@@ -125,7 +125,7 @@ func LaunchAppExternal(ctx context.Context, appCfg nodeproxy.AppConfig, runtime 
 	}
 }
 
-func LaunchApp(ctx context.Context, appCfgs []nodeproxy.AppConfig, runtime service.ServiceRuntime) {
+func LaunchApp(ctx context.Context, appCfgs []nodeagent.AppConfig, runtime service.ServiceRuntime) {
 
 	for _, appCfg := range appCfgs {
 
@@ -159,21 +159,21 @@ func MonitorConfig(cfgFile string, reload func()) {
 }
 
 func AppLauncher(ctx context.Context, runtime service.ServiceRuntime) {
-	cfgFiles := []string{runtime.ConfigPath, filepath.Join(common.NodeProxyAppDataPath, "config.ini")}
+	cfgFiles := []string{runtime.ConfigPath, filepath.Join(common.NodeAgentAppDataPath, "config.ini")}
 
-	if err := nodeproxy.InitializeDeviceID(cfgFiles); err != nil {
+	if err := nodeagent.InitializeDeviceID(cfgFiles); err != nil {
 		log.Fatal("Failed to initialize device ID", err)
 		return
 	}
 
 	//loading nodes from config file and launch them all with separate processes.
-	appCfgs, cfgFile, err := nodeproxy.GetManagedApps(cfgFiles)
+	appCfgs, cfgFile, err := nodeagent.GetManagedApps(cfgFiles)
 	if err != nil {
 		log.Fatal("Get managed app names failed:", err)
 		return
 	}
 
-	log.Info("loaded managed app names:", slice.Map(appCfgs, func(_ int, cfg nodeproxy.AppConfig) string {
+	log.Info("loaded managed app names:", slice.Map(appCfgs, func(_ int, cfg nodeagent.AppConfig) string {
 		return cfg.AppName
 	}))
 
@@ -182,7 +182,7 @@ func AppLauncher(ctx context.Context, runtime service.ServiceRuntime) {
 	MonitorConfig(cfgFile, func() {
 		log.Info("[reloading config] trying to load new apps from config file...")
 
-		reloadingAppCfgs, _, err := nodeproxy.GetManagedApps([]string{cfgFile})
+		reloadingAppCfgs, _, err := nodeagent.GetManagedApps([]string{cfgFile})
 		if err != nil {
 			log.Info("[reloading config] Get managed app names failed:", err)
 			return
@@ -203,9 +203,9 @@ func AppLauncher(ctx context.Context, runtime service.ServiceRuntime) {
 
 func AppMain(ctx context.Context, runtime service.ServiceRuntime) {
 
-	cfgFiles := []string{runtime.ConfigPath, filepath.Join(common.NodeProxyAppDataPath, "config.ini")}
+	cfgFiles := []string{runtime.ConfigPath, filepath.Join(common.NodeAgentAppDataPath, "config.ini")}
 
-	cfg, err := nodeproxy.LoadConfig(cfgFiles, runtime.AppName)
+	cfg, err := nodeagent.LoadConfig(cfgFiles, runtime.AppName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func AppMain(ctx context.Context, runtime service.ServiceRuntime) {
 	cfgByte, _ := json.MarshalIndent(cfg, "", "  ")
 	log.Info("applied config data: \n", string(cfgByte))
 
-	err = nodeproxy.StartClient(ctx, cfg)
+	err = nodeagent.StartClient(ctx, cfg)
 	if err != nil {
 		log.Error("start NodeProxy client error:", err)
 	} else {
