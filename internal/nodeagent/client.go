@@ -66,7 +66,7 @@ func StartClient(ctx context.Context, cfg *Config) error {
 		return fmt.Errorf("failed to create client: %v", err)
 	}
 
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(60 * time.Second)
 	defer ticker.Stop()
 
 	errCh := nodeClient.SetupClient.SubscribeCommand()

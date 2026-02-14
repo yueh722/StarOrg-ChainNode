@@ -9,12 +9,16 @@ import (
 	service "chain/winservice"
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/duke-git/lancet/v2/slice"
+
+	_ "net/http/pprof"
 )
 
 // nodeagent.exe -c your-path-to-config.ini
@@ -57,7 +61,20 @@ func consoleMain(ctx context.Context, runtime service.ServiceRuntime) error {
 	return nil
 }
 
+func enablepprof() {
+	go func() {
+		// 监听6060端口，启动pprof服务
+		err := http.ListenAndServe(":6060", nil)
+		if err != nil {
+			fmt.Printf("pprof服务启动失败：%v\n", err)
+			return
+		}
+		fmt.Println("pprof服务已启动：http://localhost:6060/debug/pprof/")
+	}()
+}
+
 func main() {
+
 	// Register service functions
 	service.RegisterService(serviceMain, serviceStop)
 
@@ -99,6 +116,12 @@ func KillNodeAppProcess(homeDir string) {
 
 // LaunchAppExternal create process to run a node agent
 func LaunchAppExternal(ctx context.Context, appCfg nodeagent.AppConfig, runtime service.ServiceRuntime) {
+
+	existPids, _ := utils.GetMatchedPids(filepath.Base(utils.GetCurrentProcessInfo().ImagePath), appCfg.AppName)
+	if len(existPids) > 0 {
+		log.Println("App already running: ", appCfg.AppName)
+		return
+	}
 
 	KillNodeAppProcess(appCfg.HomeDir)
 
@@ -158,6 +181,28 @@ func MonitorConfig(cfgFile string, reload func()) {
 	wg.Wait()
 }
 
+// 返回值：new中AppName不在old中的AppConfig元素切片
+func findNotInOldByAppName(new, old []nodeagent.AppConfig) []nodeagent.AppConfig {
+	var result []nodeagent.AppConfig
+
+	// 1. 仅用AppName作为key构建old的查找map
+	oldAppNameMap := make(map[string]struct{}) // 用空结构体节省内存
+	for _, config := range old {
+		// 关键修改：只取AppName作为唯一标识
+		oldAppNameMap[config.AppName] = struct{}{}
+	}
+
+	// 2. 遍历new切片，检查AppName是否不在old的map中
+	for _, config := range new {
+		// 仅判断AppName是否存在
+		if _, ok := oldAppNameMap[config.AppName]; !ok {
+			result = append(result, config)
+		}
+	}
+
+	return result
+}
+
 func AppLauncher(ctx context.Context, runtime service.ServiceRuntime) {
 	cfgFiles := []string{runtime.ConfigPath, filepath.Join(common.NodeAgentAppDataPath, "config.ini")}
 
@@ -188,8 +233,9 @@ func AppLauncher(ctx context.Context, runtime service.ServiceRuntime) {
 			return
 		}
 
-		newAppCfgs := slice.Difference(reloadingAppCfgs, appCfgs)
+		newAppCfgs := findNotInOldByAppName(reloadingAppCfgs, appCfgs)
 		if len(newAppCfgs) > 0 {
+			appCfgs = reloadingAppCfgs
 			LaunchApp(ctx, newAppCfgs, runtime)
 			log.Println("[reloading config] new app are launched, ", newAppCfgs)
 			return

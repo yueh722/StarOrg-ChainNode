@@ -74,6 +74,57 @@ func KillProcessByProcNameAndCmdline(procName, cmdlineKeyword string) error {
 	return nil
 }
 
+func GetMatchedPids(procName, cmdlineKeyword string) ([]int32, error) {
+	// 标准化目标进程名
+	normTarget, err := normalizePath(procName)
+	if err != nil {
+		return nil, fmt.Errorf("normalize proc name failed: %v", err)
+	}
+
+	// 获取所有进程列表
+	ps, err := process.Processes()
+	if err != nil {
+		return nil, fmt.Errorf("fetch processes failed: %v", err)
+	}
+
+	// 收集符合条件的PID
+	var matchedPids []int32
+	for _, p := range ps {
+		// 获取进程可执行文件路径
+		exe, err := p.Exe()
+		if err != nil || exe == "" {
+			continue
+		}
+
+		// 获取进程命令行
+		cmd, err := p.Cmdline()
+		if err != nil || cmd == "" {
+			continue
+		}
+
+		// 匹配命令行关键字
+		cmdlineMatched := cmdlineKeyword == ""
+		if cmdlineKeyword != "" && strings.Contains(cmd, cmdlineKeyword) {
+			cmdlineMatched = true
+		}
+
+		// 标准化进程可执行文件名并匹配
+		normExe, err := normalizePath(filepath.Base(exe))
+		if err != nil {
+			continue
+		}
+		procNameMatched := normExe == normTarget
+
+		// 两个条件都满足则收集PID
+		if procNameMatched && cmdlineMatched {
+			matchedPids = append(matchedPids, p.Pid)
+		}
+	}
+
+	// 未找到匹配进程时返回空切片（无error，由调用方判断）
+	return matchedPids, nil
+}
+
 func normalizePath(p string) (string, error) {
 	if p == "" {
 		return "", errors.New("empty path")

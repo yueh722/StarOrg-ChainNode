@@ -101,7 +101,11 @@ func GetManagedApps(cfgFiles []string) ([]AppConfig, string, error) {
 			continue
 		}
 
-		iniFile, err := ini.LoadSources(ini.LoadOptions{Insensitive: true}, cfgFile)
+		iniFile, err := ini.LoadSources(ini.LoadOptions{
+			Insensitive:        true,
+			IgnoreContinuation: true,
+		},
+			cfgFile)
 		if err != nil {
 			return nil, "", fmt.Errorf("read config file error: %v", err)
 		}
