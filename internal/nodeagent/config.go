@@ -52,6 +52,13 @@ type AppConfig struct {
 
 var cfgMux = sync.Mutex{}
 
+func loadInI(iniFile string) (*ini.File, error) {
+	return ini.LoadSources(ini.LoadOptions{
+		Insensitive:        true,
+		IgnoreContinuation: true},
+		iniFile)
+}
+
 func InitializeDeviceID(cfgFiles []string) error {
 	if len(cfgFiles) == 0 {
 		return errors.New("no config files specified")
@@ -62,7 +69,7 @@ func InitializeDeviceID(cfgFiles []string) error {
 			continue
 		}
 
-		iniFile, err := ini.LoadSources(ini.LoadOptions{Insensitive: true}, cfgFile)
+		iniFile, err := loadInI(cfgFile)
 		if err != nil {
 			return fmt.Errorf("read config file error: %v", err)
 		}
@@ -101,11 +108,7 @@ func GetManagedApps(cfgFiles []string) ([]AppConfig, string, error) {
 			continue
 		}
 
-		iniFile, err := ini.LoadSources(ini.LoadOptions{
-			Insensitive:        true,
-			IgnoreContinuation: true,
-		},
-			cfgFile)
+		iniFile, err := loadInI(cfgFile)
 		if err != nil {
 			return nil, "", fmt.Errorf("read config file error: %v", err)
 		}
@@ -160,7 +163,7 @@ func LoadConfig(cfgFiles []string, appName string) (*Config, error) {
 			continue
 		}
 
-		iniFile, err := ini.LoadSources(ini.LoadOptions{Insensitive: true}, cfgFile)
+		iniFile, err := loadInI(cfgFile)
 		if err != nil {
 			return nil, fmt.Errorf("read config file error: %v", err)
 		}

@@ -45,10 +45,12 @@ func (c *StatusClient) Update(client *rpc.Client) {
 func (c *StatusClient) IsNodeRpcAlive() bool {
 
 	if !c.cfg.Initialized {
+		zlog.Info("[IsNodeRpcAlive] node is not initialized yet, deny")
 		return false
 	}
 
 	ret := lib.CheckNodeOnline(c.cfg.NodeInfo.RPCAddr)
+	zlog.Info("[IsNodeRpcAlive] checking node rpc:", c.cfg.NodeInfo.RPCAddr, ret)
 	return ret
 }
 

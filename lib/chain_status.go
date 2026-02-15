@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"chain/lib/zlog"
 	"chain/utils"
 	"fmt"
 
@@ -34,6 +35,7 @@ func CheckNodeOnline(rpcAddr string) bool {
 
 	_, err := utils.HttpGet(url)
 	if err != nil {
+		zlog.Infof("CheckNodeOnline for server %s error: %v", url, err)
 		return false
 	}
 

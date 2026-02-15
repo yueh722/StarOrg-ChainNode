@@ -9,6 +9,7 @@ import (
 
 	cmtjson "github.com/cometbft/cometbft/v2/libs/json"
 	"github.com/cometbft/cometbft/v2/types"
+	"github.com/duke-git/lancet/v2/fileutil"
 )
 
 type ChainStateInternal struct {
@@ -111,6 +112,9 @@ func (s *ChainStateInternal) Save(filePath string) error {
 }
 
 func (s *ChainStateInternal) Reset(filePath string) error {
+	if !fileutil.IsExist(filePath) {
+		return nil
+	}
 	if err := os.Remove(filePath); err != nil {
 		return fmt.Errorf("failed to remove chain state file %s, err: %v", filePath, err)
 	}

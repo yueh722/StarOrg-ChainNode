@@ -25,8 +25,8 @@ type Config struct {
 }
 
 var testTlsOption = server.TlsOption{
-	TlsCertFile: "n:/tmp/test.crt",
-	TlsKeyFile:  "n:/tmp/test.key",
+	TlsCertFile: "",
+	TlsKeyFile:  "",
 }
 
 var defaultConfig = Config{
@@ -35,7 +35,7 @@ var defaultConfig = Config{
 	OutputLiveTx:   false,
 	FWMode:         security.AllowAll,
 	AllowOnlyHosts: []string{},
-	Tls:            testTlsOption,
+	Tls:            server.TlsOption{},
 }
 
 var localOnlyConfig = Config{

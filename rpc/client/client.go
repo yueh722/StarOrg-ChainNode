@@ -142,7 +142,10 @@ func New(cfg *ClientConfig) (*Client, error) {
 		if lastRuntime.Node.Pid != 0 && lastRuntime.App.Pid != 0 {
 			// node and app might exit unexpected, so start node automatically.
 			time.Sleep(2 * time.Second)
-			_ = setupClient.handleControlNodeCmd(BuildStartCmd(cfg.NodeInfo.NodeID))
+			err := setupClient.handleControlNodeCmd(BuildStartCmd(cfg.NodeInfo.NodeID))
+			if err != nil {
+				log.Println("failed to start node on startup: ", err)
+			}
 		}
 	}
 
