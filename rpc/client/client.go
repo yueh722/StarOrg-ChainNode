@@ -3,8 +3,8 @@ package client
 import (
 	"chain/lib"
 	log "chain/lib/zlog"
-	"chain/rpc/common"
 	"chain/rpc/common/notification"
+	"chain/rpc/common/types"
 	"chain/rpc/security"
 	"chain/utils"
 	"context"
@@ -95,17 +95,17 @@ func MakeRpcHeader(clientID string) http.Header {
 	return header
 }
 
-func BuildStartCmd(nodeID string) *common.CommandEnvelope {
+func BuildStartCmd(nodeID string) *types.CommandEnvelope {
 
-	payloadStruct := common.SetupControlNode{
+	payloadStruct := types.SetupControlNode{
 		NodeID: nodeID,
-		Action: common.NodeStart,
+		Action: types.NodeStart,
 	}
 	payload, _ := cmtjson.Marshal(payloadStruct)
 
-	return &common.CommandEnvelope{
+	return &types.CommandEnvelope{
 		CommandID: utils.UUID(),
-		Cmd:       common.CmdControlNode,
+		Cmd:       types.CmdControlNode,
 		NodeID:    nodeID,
 		Payload:   payload,
 		IssuedAt:  utils.NowString(),
@@ -228,7 +228,7 @@ func Connect(rawurl *string, header http.Header) (*rpc.Client, error) {
 	return nil, err
 }
 
-func BuildStatusNode(cfg *ClientConfig, nr lib.NodeRuntime) (*common.StatusNode, error) {
+func BuildStatusNode(cfg *ClientConfig, nr lib.NodeRuntime) (*types.StatusNode, error) {
 
 	ips, err := utils.GetAllIPAddresses()
 	if err != nil {
@@ -249,9 +249,9 @@ func BuildStatusNode(cfg *ClientConfig, nr lib.NodeRuntime) (*common.StatusNode,
 		nodeStartTime = utils.GetProcessCreatedTime(lib.NodeFileName, lib.AppFileName)
 	}
 
-	return &common.StatusNode{
+	statusNode := &types.StatusNode{
 		NodeInfo: *cfg.NodeInfo,
-		HostInfo: common.HostInfo{
+		HostInfo: types.HostInfo{
 			HostName: hostname,
 			IpAddrs:  ips,
 		},
@@ -259,7 +259,11 @@ func BuildStatusNode(cfg *ClientConfig, nr lib.NodeRuntime) (*common.StatusNode,
 		LastCheck:   utils.NowString(),
 		StartedTime: nodeStartTime,
 		Initialized: cfg.Initialized,
-	}, nil
+	}
+
+	statusNode.Token = utils.Sum256([]byte(statusNode.Token))
+
+	return statusNode, nil
 }
 
 type RuntimeProcInfo struct {

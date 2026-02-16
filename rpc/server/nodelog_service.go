@@ -3,7 +3,7 @@ package server
 import (
 	"chain/lib/queuestore"
 	log "chain/lib/zlog"
-	"chain/rpc/common"
+	"chain/rpc/common/namespace"
 	"context"
 	"fmt"
 	"sync"
@@ -69,7 +69,7 @@ func (s *NodeLogService) PublishLog() {
 }
 
 func (s *NodeLogService) RegisterService(server *rpc.Server) error {
-	if err := server.RegisterName(common.NodeLogNamespace{}.GetNamesapceString(), s); err != nil {
+	if err := server.RegisterName(namespace.NodeLogNamespace{}.GetNamesapceString(), s); err != nil {
 		return fmt.Errorf("Failed to register nodelog service: %v", err)
 	}
 

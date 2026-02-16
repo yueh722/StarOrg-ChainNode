@@ -2,6 +2,7 @@ package lib
 
 import (
 	log "chain/lib/zlog"
+	"chain/utils"
 	"fmt"
 	"net/url"
 	"os"
@@ -86,6 +87,8 @@ func NewPeerConfig(currPeer *Peer, persistentPeers, homeDir string) (*PeerConfig
 	if currPeer == nil {
 		return nil, errors.New("currPeer is nil")
 	}
+
+	currPeer.Token = utils.NewToken()
 
 	if homeDir == "" {
 		homeDir = "./"

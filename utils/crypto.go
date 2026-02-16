@@ -34,3 +34,7 @@ func IsPubkeyCorrect(pkType string, pubKey string) bool {
 func UUID() string {
 	return uuid.New().String()
 }
+
+func NewToken() string {
+	return Sum256([]byte(UUID() + NowString()))
+}

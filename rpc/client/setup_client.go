@@ -5,8 +5,9 @@ import (
 	"chain/lib/queuestore"
 	log "chain/lib/zlog"
 	"chain/rpc/commandlog"
-	"chain/rpc/common"
+	"chain/rpc/common/namespace"
 	"chain/rpc/common/notification"
+	"chain/rpc/common/types"
 	"chain/utils"
 	"context"
 	"errors"
@@ -27,13 +28,13 @@ type SetupClient struct {
 	handledStopTime time.Time
 }
 
-var router = map[common.CmdType]func(*SetupClient, *common.CommandEnvelope) error{
-	common.CmdInitializeChainNode: (*SetupClient).handleInitChainNodeCmd,
-	common.CmdUpdateChainCfg:      (*SetupClient).handleUpdateChainCfgCmd,
-	common.CmdControlNode:         (*SetupClient).handleControlNodeCmd,
-	common.CmdPurgeChain:          (*SetupClient).handlePurgeChainCmd,
-	common.CmdAddValidator:        (*SetupClient).HandleAddValidator,
-	common.CmdPing:                (*SetupClient).HandlePing,
+var router = map[types.CmdType]func(*SetupClient, *types.CommandEnvelope) error{
+	types.CmdInitializeChainNode: (*SetupClient).handleInitChainNodeCmd,
+	types.CmdUpdateChainCfg:      (*SetupClient).handleUpdateChainCfgCmd,
+	types.CmdControlNode:         (*SetupClient).handleControlNodeCmd,
+	types.CmdPurgeChain:          (*SetupClient).handlePurgeChainCmd,
+	types.CmdAddValidator:        (*SetupClient).HandleAddValidator,
+	types.CmdPing:                (*SetupClient).HandlePing,
 }
 
 func newSetupClient(client *rpc.Client, cfg *ClientConfig) *SetupClient {
@@ -71,7 +72,7 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 	//ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cmdChan := make(chan common.CommandEnvelope, 1000)
+	cmdChan := make(chan types.CommandEnvelope, 1000)
 
 	statusNode, err := BuildStatusNode(c.cfg, c.nodeRuntime)
 	if err != nil {
@@ -83,10 +84,10 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 
 	sub, err := c.client.Subscribe(
 		ctx,
-		common.SetupNamespace{}.GetNamesapceString(),
+		namespace.SetupNamespace{}.GetNamesapceString(),
 		cmdChan,
-		common.SetupNamespace{}.GetSubscriptionName(),
-		common.DelegatorInfo{
+		namespace.SetupNamespace{}.GetSubscriptionName(),
+		types.DelegatorInfo{
 			App:        c.cfg.AppName,
 			StatusNode: *statusNode,
 			DeviceID:   c.cfg.DeviceID,
@@ -134,7 +135,7 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 	return errChan
 }
 
-func (c *SetupClient) handleCmd(cmd *common.CommandEnvelope) error {
+func (c *SetupClient) handleCmd(cmd *types.CommandEnvelope) error {
 	if cmd.NodeID != c.NodeID() {
 		return fmt.Errorf("nodeID mismatch, ignore")
 	}
@@ -152,9 +153,9 @@ func (c *SetupClient) handleCmd(cmd *common.CommandEnvelope) error {
 }
 
 // init node handler
-func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error {
+func (c *SetupClient) handleInitChainNodeCmd(cmd *types.CommandEnvelope) error {
 
-	arg := common.SetupInitializeChainNode{}
+	arg := types.SetupInitializeChainNode{}
 	err := cmtjson.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
@@ -195,17 +196,17 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *common.CommandEnvelope) error 
 	return nil
 }
 
-func (c *SetupClient) CompleteInitNodeCmd(statusNode *common.StatusNode) {
+func (c *SetupClient) CompleteInitNodeCmd(statusNode *types.StatusNode) {
 
-	if err := c.client.Call(nil, common.GetMethodName("InitializationComplete"), c.NodeID(), statusNode); err != nil {
+	if err := c.client.Call(nil, namespace.GetMethodName("InitializationComplete"), c.NodeID(), statusNode); err != nil {
 		log.Info("failed to call InitializationComplete, err:", err)
 	}
 }
 
 // update chain config handler
-func (c *SetupClient) handleUpdateChainCfgCmd(cmd *common.CommandEnvelope) error {
+func (c *SetupClient) handleUpdateChainCfgCmd(cmd *types.CommandEnvelope) error {
 
-	arg := common.SetupUpdateChainCfg{}
+	arg := types.SetupUpdateChainCfg{}
 	err := cmtjson.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
@@ -227,9 +228,9 @@ func (c *SetupClient) handleUpdateChainCfgCmd(cmd *common.CommandEnvelope) error
 }
 
 // control node handler
-func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
+func (c *SetupClient) handleControlNodeCmd(cmd *types.CommandEnvelope) error {
 
-	arg := common.SetupControlNode{}
+	arg := types.SetupControlNode{}
 	err := cmtjson.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
@@ -242,13 +243,13 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 	}
 
 	switch arg.Action {
-	case common.NodeStart:
+	case types.NodeStart:
 		err = c.handleStartNode()
-	case common.NodeStop:
+	case types.NodeStop:
 		err = c.handleStopNode()
-	case common.NodeRestart:
+	case types.NodeRestart:
 		err = c.handleRestartNode()
-	case common.NodeReset:
+	case types.NodeReset:
 		err = c.handleResetNode()
 	default:
 		err = fmt.Errorf("invalid action")
@@ -264,7 +265,7 @@ func (c *SetupClient) handleControlNodeCmd(cmd *common.CommandEnvelope) error {
 }
 
 // reset chain handler
-func (c *SetupClient) handlePurgeChainCmd(cmd *common.CommandEnvelope) error {
+func (c *SetupClient) handlePurgeChainCmd(cmd *types.CommandEnvelope) error {
 
 	log.Info("[handlePurgeChainCmd] prepare to reset chain")
 	defer log.Info("[handlePurgeChainCmd] reset chain complete")
@@ -310,7 +311,7 @@ func (c *SetupClient) reportCometbftStatus(catalog string, exit bool, err error)
 		status = "stopped"
 	}
 
-	statusProcess := &common.StatusCometbftProcess{
+	statusProcess := &types.StatusCometbftProcess{
 		Catalog:  catalog,
 		NodeID:   c.NodeID(),
 		Status:   status,
@@ -318,7 +319,7 @@ func (c *SetupClient) reportCometbftStatus(catalog string, exit bool, err error)
 		IssuedAt: utils.NowString(),
 	}
 
-	if err := c.client.Call(nil, common.GetMethodName("ReportCometbftProcessStatus"), statusProcess); err != nil {
+	if err := c.client.Call(nil, namespace.GetMethodName("ReportCometbftProcessStatus"), statusProcess); err != nil {
 		log.Info("failed to call ReportCometbftProcessStatus, err:", err)
 	}
 
@@ -338,6 +339,7 @@ func (c *SetupClient) buildNodeArg() lib.NodeArg {
 		NodeBaseDir:    c.cfg.NodeBaseDir,
 		AppLogger:      nil,
 		NodeLogger:     nil,
+		Token:          c.cfg.NodeInfo.Token,
 		NodeNotifyFunc: func(exit bool, err error) { c.reportCometbftStatus("node", exit, err) },
 		AppNotifyFunc:  func(exit bool, err error) { c.reportCometbftStatus("app", exit, err) },
 	}
@@ -373,9 +375,9 @@ func (c *SetupClient) handleStartNode() error {
 }
 
 // add validator
-func (c *SetupClient) HandleAddValidator(cmd *common.CommandEnvelope) error {
+func (c *SetupClient) HandleAddValidator(cmd *types.CommandEnvelope) error {
 
-	arg := common.SetupAddValidator{}
+	arg := types.SetupAddValidator{}
 	err := cmtjson.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
@@ -392,8 +394,8 @@ func (c *SetupClient) HandleAddValidator(cmd *common.CommandEnvelope) error {
 	return nil
 }
 
-func (c *SetupClient) HandlePing(cmd *common.CommandEnvelope) error {
-	arg := common.SetupPing{}
+func (c *SetupClient) HandlePing(cmd *types.CommandEnvelope) error {
+	arg := types.SetupPing{}
 	err := cmtjson.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
@@ -489,7 +491,7 @@ func (c *SetupClient) initLogStore(logFilePath string) error {
 
 func (c *SetupClient) reportLog(event *queuestore.PersistedEvent) error {
 
-	err := c.client.Call(nil, common.GetMethodName("ReportLog"), *event)
+	err := c.client.Call(nil, namespace.GetMethodName("ReportLog"), *event)
 	if err != nil {
 		return err
 	}
@@ -497,7 +499,7 @@ func (c *SetupClient) reportLog(event *queuestore.PersistedEvent) error {
 }
 
 // report result of command to NodeMaster
-func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr error) {
+func (c *SetupClient) reportCommandResult(cmd *types.CommandEnvelope, cmdErr error) {
 
 	var (
 		errText string
@@ -506,15 +508,15 @@ func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr er
 	)
 
 	switch cmd.Cmd {
-	case common.CmdPing:
+	case types.CmdPing:
 		return
-	case common.CmdControlNode:
-		arg := common.SetupControlNode{}
+	case types.CmdControlNode:
+		arg := types.SetupControlNode{}
 		_ = cmtjson.Unmarshal(cmd.Payload, &arg)
 		message = string(arg.Action)
 	}
 
-	if cmd.Cmd == common.CmdPing {
+	if cmd.Cmd == types.CmdPing {
 		//ignore sending result of command ping back
 		return
 	}
@@ -526,7 +528,7 @@ func (c *SetupClient) reportCommandResult(cmd *common.CommandEnvelope, cmdErr er
 		status = commandlog.CmdSuccess
 	}
 
-	err := c.client.Call(nil, common.GetMethodName("ReportCommandResult"), commandlog.CommandResult{
+	err := c.client.Call(nil, namespace.GetMethodName("ReportCommandResult"), commandlog.CommandResult{
 		CommandID:  cmd.CommandID,
 		Cmd:        cmd.Cmd,
 		NodeID:     cmd.NodeID,

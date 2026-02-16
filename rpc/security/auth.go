@@ -1,6 +1,7 @@
 package security
 
 import (
+	"chain/lib/zlog"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
@@ -98,9 +99,8 @@ func (a *Auth) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		//zlog.Info("validateToken clientID: ", clientID)
-
 		if !a.validateToken(clientID, token) {
+			zlog.Info("StatusUnauthorized with invalid Token, clientID: ", clientID)
 			http.Error(w, "invalid token", http.StatusUnauthorized)
 			return
 		}

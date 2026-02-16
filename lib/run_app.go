@@ -63,6 +63,7 @@ func BuildAppLauncher(nodeID string, arg NodeArg) *Launcher {
 			"--proxy-app-listen": arg.NodeInfo.ProxyApp,             // proxy_app
 			"--http-addr-listen": arg.NodeInfo.WebServiceListenAddr, //webservice
 			"--abci-rpc-addr":    arg.NodeInfo.RPCAddr,              // rpc
+			"--token":            arg.Token,
 		},
 		Envs:       nil,
 		NotifyFunc: arg.AppNotifyFunc,

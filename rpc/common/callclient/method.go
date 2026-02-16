@@ -2,13 +2,13 @@ package callclient
 
 import (
 	"chain/lib/zlog"
-	"chain/rpc/common"
+	"chain/rpc/common/namespace"
 
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 func CallRpcClient(reply interface{}, client *rpc.Client, method string, args ...interface{}) error {
-	return client.Call(reply, common.GetMethodName(method), args...)
+	return client.Call(reply, namespace.GetMethodName(method), args...)
 }
 
 func IsNodeRpcAlive(client *rpc.Client) bool {

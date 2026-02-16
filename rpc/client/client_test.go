@@ -2,7 +2,9 @@ package client
 
 import (
 	"chain/lib"
-	"chain/rpc/common"
+	"chain/rpc/common/namespace"
+	rpc2 "chain/rpc/common/rpc"
+	"chain/rpc/common/types"
 	"chain/rpc/server"
 	"chain/utils"
 	"encoding/json"
@@ -79,7 +81,7 @@ func init() {
 	}
 
 	slice.ForEach(functions, func(index int, name string) {
-		methods[name] = common.MakeMethodName(common.SetupNamespace{}.GetNamesapceString(), name)
+		methods[name] = namespace.MakeMethodName(namespace.SetupNamespace{}.GetNamesapceString(), name)
 	})
 }
 
@@ -235,7 +237,7 @@ func initializeNodes(t *testing.T, argNodes ArgNodeList) {
 		t.Log("node info: ", status.NodeName, localIp)
 	}
 
-	var resp common.RpcResponse
+	var resp rpc2.RpcResponse
 
 	err = myclient.Call(&resp, methods["BroadcastInitializeChainNode"], "greedisgood", argNodes)
 	if err != nil {
@@ -306,7 +308,7 @@ func addNodes(t *testing.T, argNodes ArgNodeList) {
 		}
 
 		t.Log("adding node: ", node.NodeId, node.NodeName, "count", i)
-		var errResult common.RpcResponse
+		var errResult rpc2.RpcResponse
 		err = myclient.Call(&errResult, methods["BroadcastAddChainNode"], node)
 		if err != nil {
 			t.Fatal("Failed to broadcast add chain node:", node.NodeName, err)
@@ -328,13 +330,13 @@ func getChainState(myclient *rpc.Client) (*server.ChainState, error) {
 	return state, nil
 }
 
-func SetupService_ControlNode(t *testing.T, action common.NodeAction) {
+func SetupService_ControlNode(t *testing.T, action types.NodeAction) {
 	myclient, err := getConnection(t)
 	if err != nil {
 		return
 	}
 
-	ctlNodes := []common.SetupControlNode{}
+	ctlNodes := []types.SetupControlNode{}
 
 	state, err := getChainState(myclient)
 	if err != nil {
@@ -343,7 +345,7 @@ func SetupService_ControlNode(t *testing.T, action common.NodeAction) {
 
 	//update nodeID to testData
 	for _, status := range state.Nodes {
-		ctlNodes = append(ctlNodes, common.SetupControlNode{
+		ctlNodes = append(ctlNodes, types.SetupControlNode{
 			NodeID: status.NodeID,
 			Action: action,
 		})
@@ -355,7 +357,7 @@ func SetupService_ControlNode(t *testing.T, action common.NodeAction) {
 
 }
 
-func getActivatedStatusNodesByName(t *testing.T, nodeName string) []common.StatusNode {
+func getActivatedStatusNodesByName(t *testing.T, nodeName string) []types.StatusNode {
 	myclient, err := getConnection(t)
 	if err != nil {
 		t.Fatal(err)
@@ -366,31 +368,31 @@ func getActivatedStatusNodesByName(t *testing.T, nodeName string) []common.Statu
 		t.Fatal(err)
 	}
 
-	ss := lo.Filter(state.Nodes, func(status common.StatusNode, _ int) bool {
+	ss := lo.Filter(state.Nodes, func(status types.StatusNode, _ int) bool {
 		return strings.Contains(status.NodeName, nodeName)
 	})
 
 	return ss
 }
 
-func controlNodes(t *testing.T, nodeIDs []string, action common.NodeAction) {
+func controlNodes(t *testing.T, nodeIDs []string, action types.NodeAction) {
 
 	myclient, err := getConnection(t)
 	if err != nil {
 		return
 	}
 
-	var ctlNodes []common.SetupControlNode
+	var ctlNodes []types.SetupControlNode
 
 	for _, nodeID := range nodeIDs {
-		ctlNodes = append(ctlNodes, common.SetupControlNode{
+		ctlNodes = append(ctlNodes, types.SetupControlNode{
 			NodeID: nodeID,
 			Action: action,
 		})
 	}
 
 	if err := myclient.Call(nil, methods["ControlNode"], ctlNodes); err != nil {
-		if action == common.NodeStart && IsAlreadyRunningError(err) {
+		if action == types.NodeStart && IsAlreadyRunningError(err) {
 			return
 		}
 		t.Fatal("Failed to call:", err)
@@ -398,32 +400,32 @@ func controlNodes(t *testing.T, nodeIDs []string, action common.NodeAction) {
 }
 
 func Test_StartAllNodes(t *testing.T) {
-	SetupService_ControlNode(t, common.NodeStart)
+	SetupService_ControlNode(t, types.NodeStart)
 }
 
 func Test_RestartAllNodes(t *testing.T) {
-	SetupService_ControlNode(t, common.NodeRestart)
+	SetupService_ControlNode(t, types.NodeRestart)
 }
 
 func Test_StopAllNodes(t *testing.T) {
-	SetupService_ControlNode(t, common.NodeStop)
+	SetupService_ControlNode(t, types.NodeStop)
 }
 
 func Test_ResetNode01(t *testing.T) {
 
-	nodeIDs := lo.Map(getActivatedStatusNodesByName(t, "1"), func(status common.StatusNode, _ int) string {
+	nodeIDs := lo.Map(getActivatedStatusNodesByName(t, "1"), func(status types.StatusNode, _ int) string {
 		return status.NodeID
 	})
 
-	controlNodes(t, nodeIDs, common.NodeReset)
+	controlNodes(t, nodeIDs, types.NodeReset)
 }
 
 func Test_ResetNode02(t *testing.T) {
-	nodeIDs := lo.Map(getActivatedStatusNodesByName(t, "2"), func(status common.StatusNode, _ int) string {
+	nodeIDs := lo.Map(getActivatedStatusNodesByName(t, "2"), func(status types.StatusNode, _ int) string {
 		return status.NodeID
 	})
 
-	controlNodes(t, nodeIDs, common.NodeReset)
+	controlNodes(t, nodeIDs, types.NodeReset)
 }
 
 func Test_PurgeChainNode(t *testing.T) {
@@ -443,9 +445,9 @@ func Test_PurgeChainNode(t *testing.T) {
 		return
 	}
 
-	var errResult common.RpcResponse
+	var errResult rpc2.RpcResponse
 
-	err = myclient.Call(&errResult, methods["BroadcastPurgeChainNode"], common.SetupPurgeChain{})
+	err = myclient.Call(&errResult, methods["BroadcastPurgeChainNode"], types.SetupPurgeChain{})
 	if err != nil {
 		t.Fatal("Failed to broadcast reset chain node:", err)
 	}
@@ -469,7 +471,7 @@ func TestAutoDeployFromScratch(t *testing.T) {
 	sleepSec(10)
 
 	t.Log("start running nodes 01, 02...")
-	controlNodes(t, getNodeIDsFromArgNodeListByName(peers1), common.NodeStart)
+	controlNodes(t, getNodeIDsFromArgNodeListByName(peers1), types.NodeStart)
 	sleepSec(30)
 
 	t.Log("start adding nodes 03, 04...")
@@ -478,7 +480,7 @@ func TestAutoDeployFromScratch(t *testing.T) {
 	sleepSec(10)
 
 	t.Log("start running nodes 03, 04...")
-	controlNodes(t, getNodeIDsFromArgNodeListByName(peers2), common.NodeStart)
+	controlNodes(t, getNodeIDsFromArgNodeListByName(peers2), types.NodeStart)
 
 	Test_RestartAllNodes(t)
 }

@@ -1,7 +1,8 @@
 package server
 
 import (
-	"chain/rpc/common"
+	"chain/rpc/common/namespace"
+	"chain/rpc/common/types"
 	"context"
 	"fmt"
 	"sync"
@@ -24,7 +25,7 @@ func NewStatusService(stream *StreamService) *StatusService {
 }
 
 func (s *StatusService) RegisterService(server *rpc.Server) error {
-	if err := server.RegisterName(common.StatusNamespace{}.GetNamesapceString(), s); err != nil {
+	if err := server.RegisterName(namespace.StatusNamespace{}.GetNamesapceString(), s); err != nil {
 		return fmt.Errorf("Failed to register status service: %v", err)
 	}
 
@@ -32,7 +33,7 @@ func (s *StatusService) RegisterService(server *rpc.Server) error {
 }
 
 // Method
-func (s *StatusService) ReportNodeStatus(ctx context.Context, status *common.StatusNode) error {
+func (s *StatusService) ReportNodeStatus(ctx context.Context, status *types.StatusNode) error {
 
 	if s.stream != nil {
 		s.stream.ReportState(status)
@@ -43,7 +44,7 @@ func (s *StatusService) ReportNodeStatus(ctx context.Context, status *common.Sta
 }
 
 // Method
-func (s *StatusService) ReportStorageStatus(ctx context.Context, status *common.StatusStorage) error {
+func (s *StatusService) ReportStorageStatus(ctx context.Context, status *types.StatusStorage) error {
 
 	if s.stream != nil {
 		s.stream.ReportState(status)
@@ -54,7 +55,7 @@ func (s *StatusService) ReportStorageStatus(ctx context.Context, status *common.
 }
 
 // Method
-func (s *StatusService) ReportCometbftProcessStatus(ctx context.Context, status *common.StatusCometbftProcess) error {
+func (s *StatusService) ReportCometbftProcessStatus(ctx context.Context, status *types.StatusCometbftProcess) error {
 
 	if s.stream != nil {
 		s.stream.ReportState(status)

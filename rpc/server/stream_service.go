@@ -5,8 +5,9 @@ import (
 	"chain/lib/queuestore"
 	log "chain/lib/zlog"
 	"chain/rpc/commandlog"
-	"chain/rpc/common"
+	"chain/rpc/common/namespace"
 	"chain/rpc/common/notification"
+	"chain/rpc/common/types"
 	"chain/utils"
 	"context"
 	"errors"
@@ -36,7 +37,7 @@ func NewStreamService() *StreamService {
 }
 
 func (s *StreamService) RegisterService(server *rpc.Server) error {
-	if err := server.RegisterName(common.StreamNamespace{}.GetNamesapceString(), s); err != nil {
+	if err := server.RegisterName(namespace.StreamNamespace{}.GetNamesapceString(), s); err != nil {
 		return fmt.Errorf("Failed to register stream service: %v", err)
 	}
 
@@ -83,7 +84,7 @@ func (s *StreamService) OnNotify(msg *notification.Message) {
 
 	switch msg.Type {
 	case notification.MsgTypeOffline, notification.MsgTypeOnline:
-		s.ReportState(&common.StatusAgent{
+		s.ReportState(&types.StatusAgent{
 			Catalog:  "agent",
 			NodeID:   msg.Payload.(string),
 			Status:   msg.Type,
@@ -124,9 +125,9 @@ func (s *StreamService) ReportState(state interface{}) bool {
 	rpcState.Data = state
 
 	switch v := state.(type) {
-	case *common.StatusNode:
+	case *types.StatusNode:
 		rpcState.Type = "node"
-	case *common.StatusStorage:
+	case *types.StatusStorage:
 		rpcState.Type = "storage"
 	case *commandlog.CommandResult:
 		rpcState.Type = "setup"
@@ -134,9 +135,9 @@ func (s *StreamService) ReportState(state interface{}) bool {
 		rpcState.Type = "tx"
 	case *queuestore.PersistedEvent:
 		rpcState.Type = "log"
-	case *common.StatusCometbftProcess:
+	case *types.StatusCometbftProcess:
 		rpcState.Type = "process"
-	case *common.StatusAgent:
+	case *types.StatusAgent:
 		rpcState.Type = "agent"
 	default:
 		log.Info("ReportState unknown state", v)

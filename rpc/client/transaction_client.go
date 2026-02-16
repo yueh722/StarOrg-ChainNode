@@ -3,7 +3,7 @@ package client
 import (
 	"chain/lib"
 	"chain/lib/zlog"
-	"chain/rpc/common"
+	"chain/rpc/common/namespace"
 	"chain/rpc/common/notification"
 	"chain/utils"
 	"context"
@@ -59,7 +59,7 @@ func (c *LiveTxClient) ReportLiveTx(tx *lib.StatusTransaction) error {
 	nodeInfo := *c.cfg.NodeInfo
 
 	//send tx to master
-	err := c.client.Call(nil, common.GetMethodName("ReportLiveTx"), nodeInfo.NodeID, tx)
+	err := c.client.Call(nil, namespace.GetMethodName("ReportLiveTx"), nodeInfo.NodeID, tx)
 	if err != nil {
 		zlog.Info("failed to report live tx to master, ", err)
 	}
@@ -136,7 +136,7 @@ func ListenTransaction(ctx context.Context, conn *websocket.Conn) <-chan lib.Sta
 func (c *LiveTxClient) CheckEnabledTransmitter() bool {
 	nodeInfo := *c.cfg.NodeInfo
 	var enableTransmitter bool
-	err := c.client.Call(&enableTransmitter, common.GetMethodName("EnableTransmitter"),
+	err := c.client.Call(&enableTransmitter, namespace.GetMethodName("EnableTransmitter"),
 		nodeInfo.NodeID,
 		lib.CheckNodeOnline(nodeInfo.RPCAddr))
 	if err != nil {

@@ -1,4 +1,4 @@
-package common
+package namespace
 
 import (
 	"fmt"

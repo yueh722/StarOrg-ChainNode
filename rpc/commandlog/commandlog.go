@@ -2,7 +2,7 @@ package commandlog
 
 import (
 	"chain/lib/cmdlogstore"
-	"chain/rpc/common"
+	"chain/rpc/common/types"
 	"chain/utils"
 	"encoding/json"
 	"errors"
@@ -28,10 +28,10 @@ const (
 )
 
 type CommandResult struct {
-	CommandID string         `json:"command_id"`
-	Cmd       common.CmdType `json:"cmd"`
-	NodeID    string         `json:"node_id"`
-	Status    CommandStatus  `json:"status"`
+	CommandID string        `json:"command_id"`
+	Cmd       types.CmdType `json:"cmd"`
+	NodeID    string        `json:"node_id"`
+	Status    CommandStatus `json:"status"`
 
 	Message string `json:"message,omitempty"` // human readable
 	Error   string `json:"error,omitempty"`   // non-empty when failed

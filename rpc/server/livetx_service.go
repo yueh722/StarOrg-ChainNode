@@ -3,7 +3,7 @@ package server
 import (
 	"chain/lib"
 	"chain/lib/zlog"
-	"chain/rpc/common"
+	"chain/rpc/common/namespace"
 	"chain/rpc/common/notification"
 	"context"
 	"errors"
@@ -29,7 +29,7 @@ func NewLiveTxService(server *rpc.Server, cfg *ServerConfig, stream *StreamServi
 		stream:       stream,
 	}
 
-	if err := server.RegisterName(common.LiveTxNamespace{}.GetNamesapceString(), s); err != nil {
+	if err := server.RegisterName(namespace.LiveTxNamespace{}.GetNamesapceString(), s); err != nil {
 		zlog.Infof("Failed to register liveTx service: %v", err)
 		return nil
 	}

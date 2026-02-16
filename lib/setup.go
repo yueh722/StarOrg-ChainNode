@@ -29,6 +29,7 @@ type NodeInfo struct {
 	RPCAddr              string `json:"rpc_addr,omitempty"`
 	WebServiceListenAddr string `json:"web_service_listen_addr,omitempty"`
 	Validator            bool   `json:"validator,omitempty"`
+	Token                string `json:"token,omitempty"`
 }
 
 func GenesisTimeFromUnix(nsec int64) time.Time {
@@ -121,6 +122,7 @@ type NodeArg struct {
 	AppNotifyFunc  NotifyFunc
 	NodeLogger     *log.Logger
 	AppLogger      *log.Logger
+	Token          string
 }
 
 func WithLogFile(logFilePath string) CtlOption {
@@ -296,6 +298,7 @@ func PeerInfoToNodeInfo(peer *Peer) *NodeInfo {
 		RPCAddr:              peer.RPCAddr(),
 		WebServiceListenAddr: peer.WebServiceListenAddr(),
 		Validator:            peer.IsValidator,
+		Token:                peer.Token,
 	}
 }
 

@@ -6,8 +6,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
+	"github.com/duke-git/lancet/v2/maputil"
 	"github.com/pkg/errors"
 )
 
@@ -60,11 +62,14 @@ func (b *Launcher) RunApp() (*Session, error) {
 func (b *Launcher) NewCommandFromMap(name string, args map[string]string) *exec.Cmd {
 	argStrings := []string{}
 
+	flags := maputil.Keys(args)
+	sort.Strings(flags)
+
 	//iterator args
-	for arg, val := range args {
+	for _, arg := range flags {
 		argStrings = append(argStrings, arg)
-		if val != "" {
-			argStrings = append(argStrings, val)
+		if args[arg] != "" {
+			argStrings = append(argStrings, args[arg])
 		}
 	}
 

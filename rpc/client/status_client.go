@@ -3,7 +3,8 @@ package client
 import (
 	"chain/lib"
 	"chain/lib/zlog"
-	"chain/rpc/common"
+	"chain/rpc/common/namespace"
+	"chain/rpc/common/types"
 	"chain/utils"
 	"fmt"
 
@@ -29,7 +30,7 @@ func newStatusClient(client *rpc.Client, cfg *ClientConfig) *StatusClient {
 }
 
 func (c *StatusClient) registerService() {
-	if err := c.client.RegisterName(common.StatusClientNamespace{}.GetNamesapceString(), c); err != nil {
+	if err := c.client.RegisterName(namespace.StatusClientNamespace{}.GetNamesapceString(), c); err != nil {
 		panic(fmt.Errorf("failed to register StatusClient, err: %v", err))
 	}
 }
@@ -62,7 +63,7 @@ func (c *StatusClient) ReportNodeStatus() error {
 		return err
 	}
 
-	err = c.client.Call(nil, common.GetMethodName("ReportNodeStatus"), statusNode)
+	err = c.client.Call(nil, namespace.GetMethodName("ReportNodeStatus"), statusNode)
 	return err
 }
 
@@ -74,7 +75,7 @@ func (c *StatusClient) ReportStorageStatus() error {
 		return nil
 	}
 
-	err = c.client.Call(nil, common.GetMethodName("ReportStorageStatus"), common.StatusStorage{
+	err = c.client.Call(nil, namespace.GetMethodName("ReportStorageStatus"), types.StatusStorage{
 		Path:        info.Path,
 		TotalSpace:  utils.ConvertBytesToReadable(info.Total),
 		FreeSpace:   utils.ConvertBytesToReadable(info.Free),

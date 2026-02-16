@@ -29,6 +29,7 @@ type Peer struct {
 	ABCIPort       uint16 `json:"abci_port"`
 	WebServicePort uint16 `json:"webservice_port"`
 	IsValidator    bool   `json:"is_validator"`
+	Token          string `json:"token"`
 }
 
 func (p *Peer) PrivateKey() crypto.PrivKey {
