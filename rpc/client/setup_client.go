@@ -7,7 +7,7 @@ import (
 	"chain/rpc/commandlog"
 	"chain/rpc/common/namespace"
 	"chain/rpc/common/notification"
-	"chain/rpc/common/types"
+	"chain/rpc/common/setupTypes"
 	"chain/utils"
 	"context"
 	"errors"
@@ -28,13 +28,13 @@ type SetupClient struct {
 	handledStopTime time.Time
 }
 
-var router = map[types.CmdType]func(*SetupClient, *types.CommandEnvelope) error{
-	types.CmdInitializeChainNode: (*SetupClient).handleInitChainNodeCmd,
-	types.CmdUpdateChainCfg:      (*SetupClient).handleUpdateChainCfgCmd,
-	types.CmdControlNode:         (*SetupClient).handleControlNodeCmd,
-	types.CmdPurgeChain:          (*SetupClient).handlePurgeChainCmd,
-	types.CmdAddValidator:        (*SetupClient).HandleAddValidator,
-	types.CmdPing:                (*SetupClient).HandlePing,
+var router = map[setupTypes.CmdType]func(*SetupClient, *setupTypes.CommandEnvelope) error{
+	setupTypes.CmdInitializeChainNode: (*SetupClient).handleInitChainNodeCmd,
+	setupTypes.CmdUpdateChainCfg:      (*SetupClient).handleUpdateChainCfgCmd,
+	setupTypes.CmdControlNode:         (*SetupClient).handleControlNodeCmd,
+	setupTypes.CmdPurgeChain:          (*SetupClient).handlePurgeChainCmd,
+	setupTypes.CmdAddValidator:        (*SetupClient).HandleAddValidator,
+	setupTypes.CmdPing:                (*SetupClient).HandlePing,
 }
 
 func newSetupClient(client *rpc.Client, cfg *ClientConfig) *SetupClient {
@@ -64,7 +64,7 @@ func (c *SetupClient) GetCurrentPeer() *lib.Peer {
 	return peerInfo
 }
 
-func (c *SetupClient) SubscribeCommand() <-chan error {
+func (c *SetupClient) SubscribeCommand() (<-chan error, error) {
 
 	var errChan = make(chan error, 5)
 
@@ -72,14 +72,14 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 	//ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cmdChan := make(chan types.CommandEnvelope, 1000)
+	cmdChan := make(chan setupTypes.CommandEnvelope, 1000)
 
 	statusNode, err := BuildStatusNode(c.cfg, c.nodeRuntime)
 	if err != nil {
 		log.Infof("build status node error: %v", err)
 		errChan <- err
 		close(cmdChan)
-		return errChan
+		return errChan, err
 	}
 
 	sub, err := c.client.Subscribe(
@@ -87,7 +87,7 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 		namespace.SetupNamespace{}.GetNamesapceString(),
 		cmdChan,
 		namespace.SetupNamespace{}.GetSubscriptionName(),
-		types.DelegatorInfo{
+		setupTypes.DelegatorInfo{
 			App:        c.cfg.AppName,
 			StatusNode: *statusNode,
 			DeviceID:   c.cfg.DeviceID,
@@ -98,7 +98,7 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 		log.Infof("subscribe command error: %v", err)
 		errChan <- err
 		close(cmdChan)
-		return errChan
+		return errChan, err
 	}
 
 	go func() {
@@ -132,10 +132,10 @@ func (c *SetupClient) SubscribeCommand() <-chan error {
 		}
 	}()
 
-	return errChan
+	return errChan, nil
 }
 
-func (c *SetupClient) handleCmd(cmd *types.CommandEnvelope) error {
+func (c *SetupClient) handleCmd(cmd *setupTypes.CommandEnvelope) error {
 	if cmd.NodeID != c.NodeID() {
 		return fmt.Errorf("nodeID mismatch, ignore")
 	}
@@ -153,9 +153,9 @@ func (c *SetupClient) handleCmd(cmd *types.CommandEnvelope) error {
 }
 
 // init node handler
-func (c *SetupClient) handleInitChainNodeCmd(cmd *types.CommandEnvelope) error {
+func (c *SetupClient) handleInitChainNodeCmd(cmd *setupTypes.CommandEnvelope) error {
 
-	arg := types.SetupInitializeChainNode{}
+	arg := setupTypes.SetupInitializeChainNode{}
 	err := cmtjson.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
@@ -196,7 +196,7 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *types.CommandEnvelope) error {
 	return nil
 }
 
-func (c *SetupClient) CompleteInitNodeCmd(statusNode *types.StatusNode) {
+func (c *SetupClient) CompleteInitNodeCmd(statusNode *setupTypes.StatusNode) {
 
 	if err := c.client.Call(nil, namespace.GetMethodName("InitializationComplete"), c.NodeID(), statusNode); err != nil {
 		log.Info("failed to call InitializationComplete, err:", err)
@@ -204,9 +204,9 @@ func (c *SetupClient) CompleteInitNodeCmd(statusNode *types.StatusNode) {
 }
 
 // update chain config handler
-func (c *SetupClient) handleUpdateChainCfgCmd(cmd *types.CommandEnvelope) error {
+func (c *SetupClient) handleUpdateChainCfgCmd(cmd *setupTypes.CommandEnvelope) error {
 
-	arg := types.SetupUpdateChainCfg{}
+	arg := setupTypes.SetupUpdateChainCfg{}
 	err := cmtjson.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
@@ -228,9 +228,9 @@ func (c *SetupClient) handleUpdateChainCfgCmd(cmd *types.CommandEnvelope) error 
 }
 
 // control node handler
-func (c *SetupClient) handleControlNodeCmd(cmd *types.CommandEnvelope) error {
+func (c *SetupClient) handleControlNodeCmd(cmd *setupTypes.CommandEnvelope) error {
 
-	arg := types.SetupControlNode{}
+	arg := setupTypes.SetupControlNode{}
 	err := cmtjson.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
@@ -243,13 +243,13 @@ func (c *SetupClient) handleControlNodeCmd(cmd *types.CommandEnvelope) error {
 	}
 
 	switch arg.Action {
-	case types.NodeStart:
+	case setupTypes.NodeStart:
 		err = c.handleStartNode()
-	case types.NodeStop:
+	case setupTypes.NodeStop:
 		err = c.handleStopNode()
-	case types.NodeRestart:
+	case setupTypes.NodeRestart:
 		err = c.handleRestartNode()
-	case types.NodeReset:
+	case setupTypes.NodeReset:
 		err = c.handleResetNode()
 	default:
 		err = fmt.Errorf("invalid action")
@@ -265,7 +265,7 @@ func (c *SetupClient) handleControlNodeCmd(cmd *types.CommandEnvelope) error {
 }
 
 // reset chain handler
-func (c *SetupClient) handlePurgeChainCmd(cmd *types.CommandEnvelope) error {
+func (c *SetupClient) handlePurgeChainCmd(cmd *setupTypes.CommandEnvelope) error {
 
 	log.Info("[handlePurgeChainCmd] prepare to reset chain")
 	defer log.Info("[handlePurgeChainCmd] reset chain complete")
@@ -311,7 +311,7 @@ func (c *SetupClient) reportCometbftStatus(catalog string, exit bool, err error)
 		status = "stopped"
 	}
 
-	statusProcess := &types.StatusCometbftProcess{
+	statusProcess := &setupTypes.StatusCometbftProcess{
 		Catalog:  catalog,
 		NodeID:   c.NodeID(),
 		Status:   status,
@@ -375,9 +375,9 @@ func (c *SetupClient) handleStartNode() error {
 }
 
 // add validator
-func (c *SetupClient) HandleAddValidator(cmd *types.CommandEnvelope) error {
+func (c *SetupClient) HandleAddValidator(cmd *setupTypes.CommandEnvelope) error {
 
-	arg := types.SetupAddValidator{}
+	arg := setupTypes.SetupAddValidator{}
 	err := cmtjson.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
@@ -394,8 +394,8 @@ func (c *SetupClient) HandleAddValidator(cmd *types.CommandEnvelope) error {
 	return nil
 }
 
-func (c *SetupClient) HandlePing(cmd *types.CommandEnvelope) error {
-	arg := types.SetupPing{}
+func (c *SetupClient) HandlePing(cmd *setupTypes.CommandEnvelope) error {
+	arg := setupTypes.SetupPing{}
 	err := cmtjson.Unmarshal(cmd.Payload, &arg)
 	if err != nil {
 		return err
@@ -499,7 +499,7 @@ func (c *SetupClient) reportLog(event *queuestore.PersistedEvent) error {
 }
 
 // report result of command to NodeMaster
-func (c *SetupClient) reportCommandResult(cmd *types.CommandEnvelope, cmdErr error) {
+func (c *SetupClient) reportCommandResult(cmd *setupTypes.CommandEnvelope, cmdErr error) {
 
 	var (
 		errText string
@@ -508,15 +508,15 @@ func (c *SetupClient) reportCommandResult(cmd *types.CommandEnvelope, cmdErr err
 	)
 
 	switch cmd.Cmd {
-	case types.CmdPing:
+	case setupTypes.CmdPing:
 		return
-	case types.CmdControlNode:
-		arg := types.SetupControlNode{}
+	case setupTypes.CmdControlNode:
+		arg := setupTypes.SetupControlNode{}
 		_ = cmtjson.Unmarshal(cmd.Payload, &arg)
 		message = string(arg.Action)
 	}
 
-	if cmd.Cmd == types.CmdPing {
+	if cmd.Cmd == setupTypes.CmdPing {
 		//ignore sending result of command ping back
 		return
 	}

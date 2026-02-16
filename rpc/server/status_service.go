@@ -2,7 +2,7 @@ package server
 
 import (
 	"chain/rpc/common/namespace"
-	"chain/rpc/common/types"
+	"chain/rpc/common/setupTypes"
 	"context"
 	"fmt"
 	"sync"
@@ -33,7 +33,7 @@ func (s *StatusService) RegisterService(server *rpc.Server) error {
 }
 
 // Method
-func (s *StatusService) ReportNodeStatus(ctx context.Context, status *types.StatusNode) error {
+func (s *StatusService) ReportNodeStatus(ctx context.Context, status *setupTypes.StatusNode) error {
 
 	if s.stream != nil {
 		s.stream.ReportState(status)
@@ -44,7 +44,7 @@ func (s *StatusService) ReportNodeStatus(ctx context.Context, status *types.Stat
 }
 
 // Method
-func (s *StatusService) ReportStorageStatus(ctx context.Context, status *types.StatusStorage) error {
+func (s *StatusService) ReportStorageStatus(ctx context.Context, status *setupTypes.StatusStorage) error {
 
 	if s.stream != nil {
 		s.stream.ReportState(status)
@@ -55,7 +55,7 @@ func (s *StatusService) ReportStorageStatus(ctx context.Context, status *types.S
 }
 
 // Method
-func (s *StatusService) ReportCometbftProcessStatus(ctx context.Context, status *types.StatusCometbftProcess) error {
+func (s *StatusService) ReportCometbftProcessStatus(ctx context.Context, status *setupTypes.StatusCometbftProcess) error {
 
 	if s.stream != nil {
 		s.stream.ReportState(status)

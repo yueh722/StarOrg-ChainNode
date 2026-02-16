@@ -28,6 +28,7 @@ func init() {
 			"ReportCommandResult",
 			"InitializationComplete",
 			"GetHistoryCommands",
+			"GetNodeInitializedStatus",
 		},
 
 		//status service

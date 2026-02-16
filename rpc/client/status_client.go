@@ -4,7 +4,7 @@ import (
 	"chain/lib"
 	"chain/lib/zlog"
 	"chain/rpc/common/namespace"
-	"chain/rpc/common/types"
+	"chain/rpc/common/setupTypes"
 	"chain/utils"
 	"fmt"
 
@@ -75,7 +75,7 @@ func (c *StatusClient) ReportStorageStatus() error {
 		return nil
 	}
 
-	err = c.client.Call(nil, namespace.GetMethodName("ReportStorageStatus"), types.StatusStorage{
+	err = c.client.Call(nil, namespace.GetMethodName("ReportStorageStatus"), setupTypes.StatusStorage{
 		Path:        info.Path,
 		TotalSpace:  utils.ConvertBytesToReadable(info.Total),
 		FreeSpace:   utils.ConvertBytesToReadable(info.Free),

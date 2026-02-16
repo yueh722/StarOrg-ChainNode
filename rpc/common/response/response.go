@@ -1,4 +1,4 @@
-package rpc
+package response
 
 import (
 	"fmt"

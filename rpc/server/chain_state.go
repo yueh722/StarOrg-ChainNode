@@ -2,7 +2,7 @@ package server
 
 import (
 	"chain/lib"
-	types2 "chain/rpc/common/types"
+	"chain/rpc/common/setupTypes"
 	"fmt"
 	"os"
 	"time"
@@ -20,10 +20,10 @@ type ChainStateInternal struct {
 }
 
 type ChainState struct {
-	Nodes           []types2.StatusNode `json:"nodes"`
-	ChainID         string              `json:"chain_id"`
-	InitializedTime int64               `json:"initialized_time"`
-	LastAddNodeTime int64               `json:"last_add_node_time"`
+	Nodes           []setupTypes.StatusNode `json:"nodes"`
+	ChainID         string                  `json:"chain_id"`
+	InitializedTime int64                   `json:"initialized_time"`
+	LastAddNodeTime int64                   `json:"last_add_node_time"`
 }
 
 func LoadChainState(filePath string) (*ChainStateInternal, error) {

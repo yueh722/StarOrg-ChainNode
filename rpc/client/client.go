@@ -3,8 +3,9 @@ package client
 import (
 	"chain/lib"
 	log "chain/lib/zlog"
+	"chain/rpc/common/callserver"
 	"chain/rpc/common/notification"
-	"chain/rpc/common/types"
+	"chain/rpc/common/setupTypes"
 	"chain/rpc/security"
 	"chain/utils"
 	"context"
@@ -95,17 +96,17 @@ func MakeRpcHeader(clientID string) http.Header {
 	return header
 }
 
-func BuildStartCmd(nodeID string) *types.CommandEnvelope {
+func BuildStartCmd(nodeID string) *setupTypes.CommandEnvelope {
 
-	payloadStruct := types.SetupControlNode{
+	payloadStruct := setupTypes.SetupControlNode{
 		NodeID: nodeID,
-		Action: types.NodeStart,
+		Action: setupTypes.NodeStart,
 	}
 	payload, _ := cmtjson.Marshal(payloadStruct)
 
-	return &types.CommandEnvelope{
+	return &setupTypes.CommandEnvelope{
 		CommandID: utils.UUID(),
-		Cmd:       types.CmdControlNode,
+		Cmd:       setupTypes.CmdControlNode,
 		NodeID:    nodeID,
 		Payload:   payload,
 		IssuedAt:  utils.NowString(),
@@ -137,18 +138,6 @@ func New(cfg *ClientConfig) (*Client, error) {
 	statusClient := newStatusClient(client, cfg)
 	liveTxClient := newLiveTxClient(client, cfg)
 
-	//check last process info of node runtime
-	if lastRuntime, _ := LoadLastNodeInfo(cfg.getNodeRuntimeFilePath()); lastRuntime != nil {
-		if lastRuntime.Node.Pid != 0 && lastRuntime.App.Pid != 0 {
-			// node and app might exit unexpected, so start node automatically.
-			time.Sleep(2 * time.Second)
-			err := setupClient.handleControlNodeCmd(BuildStartCmd(cfg.NodeInfo.NodeID))
-			if err != nil {
-				log.Println("failed to start node on startup: ", err)
-			}
-		}
-	}
-
 	return &Client{
 		Conn:         client,
 		Cfg:          cfg,
@@ -156,6 +145,27 @@ func New(cfg *ClientConfig) (*Client, error) {
 		StatusClient: statusClient,
 		TxClient:     liveTxClient,
 	}, nil
+}
+
+func (c *Client) FetchInitializedStatusFromMaster() bool {
+
+	c.Cfg.Initialized = callserver.IsNodeInitialized(c.Conn, c.Cfg.NodeInfo.NodeID)
+	return c.Cfg.Initialized
+}
+
+func (c *Client) StartNodeFromLastRuntime() {
+
+	//check last process info of node runtime
+	if lastRuntime, _ := LoadLastNodeInfo(c.Cfg.getNodeRuntimeFilePath()); lastRuntime != nil {
+		if lastRuntime.Node.Pid != 0 && lastRuntime.App.Pid != 0 {
+			// node and app might exit unexpected, so start node automatically.
+			time.Sleep(2 * time.Second)
+			err := c.SetupClient.handleControlNodeCmd(BuildStartCmd(c.Cfg.NodeInfo.NodeID))
+			if err != nil {
+				log.Println("failed to start node on startup: ", err)
+			}
+		}
+	}
 }
 
 func (c *Client) Reconnect() {
@@ -228,7 +238,7 @@ func Connect(rawurl *string, header http.Header) (*rpc.Client, error) {
 	return nil, err
 }
 
-func BuildStatusNode(cfg *ClientConfig, nr lib.NodeRuntime) (*types.StatusNode, error) {
+func BuildStatusNode(cfg *ClientConfig, nr lib.NodeRuntime) (*setupTypes.StatusNode, error) {
 
 	ips, err := utils.GetAllIPAddresses()
 	if err != nil {
@@ -249,9 +259,9 @@ func BuildStatusNode(cfg *ClientConfig, nr lib.NodeRuntime) (*types.StatusNode, 
 		nodeStartTime = utils.GetProcessCreatedTime(lib.NodeFileName, lib.AppFileName)
 	}
 
-	statusNode := &types.StatusNode{
+	statusNode := &setupTypes.StatusNode{
 		NodeInfo: *cfg.NodeInfo,
-		HostInfo: types.HostInfo{
+		HostInfo: setupTypes.HostInfo{
 			HostName: hostname,
 			IpAddrs:  ips,
 		},

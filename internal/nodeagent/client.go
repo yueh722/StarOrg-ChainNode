@@ -69,7 +69,13 @@ func StartClient(ctx context.Context, cfg *Config) error {
 	ticker := time.NewTicker(60 * time.Second)
 	defer ticker.Stop()
 
-	errCh := nodeClient.SetupClient.SubscribeCommand()
+	subErrCh, err := nodeClient.SetupClient.SubscribeCommand()
+	if err == nil {
+		if nodeClient.FetchInitializedStatusFromMaster() == true {
+			log.Info("initialized status of node from server is:", true, cfg.AppName)
+			nodeClient.StartNodeFromLastRuntime()
+		}
+	}
 
 	needsReconnect := false
 
@@ -87,7 +93,7 @@ func StartClient(ctx context.Context, cfg *Config) error {
 				needsReconnect = true
 			}
 
-		case err := <-errCh:
+		case err := <-subErrCh:
 			//subscription error happened
 			if err != nil {
 				needsReconnect = true
@@ -98,7 +104,7 @@ func StartClient(ctx context.Context, cfg *Config) error {
 		if needsReconnect {
 			nodeClient.Reconnect()
 			needsReconnect = false
-			errCh = nodeClient.SetupClient.SubscribeCommand()
+			subErrCh, _ = nodeClient.SetupClient.SubscribeCommand()
 		}
 	}
 }

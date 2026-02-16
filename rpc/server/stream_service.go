@@ -7,7 +7,7 @@ import (
 	"chain/rpc/commandlog"
 	"chain/rpc/common/namespace"
 	"chain/rpc/common/notification"
-	"chain/rpc/common/types"
+	"chain/rpc/common/setupTypes"
 	"chain/utils"
 	"context"
 	"errors"
@@ -84,7 +84,7 @@ func (s *StreamService) OnNotify(msg *notification.Message) {
 
 	switch msg.Type {
 	case notification.MsgTypeOffline, notification.MsgTypeOnline:
-		s.ReportState(&types.StatusAgent{
+		s.ReportState(&setupTypes.StatusAgent{
 			Catalog:  "agent",
 			NodeID:   msg.Payload.(string),
 			Status:   msg.Type,
@@ -125,9 +125,9 @@ func (s *StreamService) ReportState(state interface{}) bool {
 	rpcState.Data = state
 
 	switch v := state.(type) {
-	case *types.StatusNode:
+	case *setupTypes.StatusNode:
 		rpcState.Type = "node"
-	case *types.StatusStorage:
+	case *setupTypes.StatusStorage:
 		rpcState.Type = "storage"
 	case *commandlog.CommandResult:
 		rpcState.Type = "setup"
@@ -135,9 +135,9 @@ func (s *StreamService) ReportState(state interface{}) bool {
 		rpcState.Type = "tx"
 	case *queuestore.PersistedEvent:
 		rpcState.Type = "log"
-	case *types.StatusCometbftProcess:
+	case *setupTypes.StatusCometbftProcess:
 		rpcState.Type = "process"
-	case *types.StatusAgent:
+	case *setupTypes.StatusAgent:
 		rpcState.Type = "agent"
 	default:
 		log.Info("ReportState unknown state", v)

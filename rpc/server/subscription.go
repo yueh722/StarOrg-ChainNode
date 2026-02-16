@@ -4,7 +4,7 @@ import (
 	"chain/lib"
 	log "chain/lib/zlog"
 	"chain/rpc/common/notification"
-	"chain/rpc/common/types"
+	"chain/rpc/common/setupTypes"
 	"chain/utils"
 	"context"
 	"fmt"
@@ -16,7 +16,7 @@ import (
 )
 
 // Subscription
-func (s *SetupService) SubscribeCommand(ctx context.Context, delegator types.DelegatorInfo) (*rpc.Subscription, error) {
+func (s *SetupService) SubscribeCommand(ctx context.Context, delegator setupTypes.DelegatorInfo) (*rpc.Subscription, error) {
 
 	if !strings.HasPrefix(delegator.App, lib.DelegatorApp) {
 		return nil, fmt.Errorf("unknown delegator %v", delegator.App)
@@ -104,18 +104,18 @@ func (s *SetupService) AddOrUpdateSubscription(clientSub *ClientSub) error {
 	return nil
 }
 
-func (s *SetupService) buildPingCmd(nodeID string) *types.CommandEnvelope {
+func (s *SetupService) buildPingCmd(nodeID string) *setupTypes.CommandEnvelope {
 
-	ping := &types.SetupPing{
+	ping := &setupTypes.SetupPing{
 		NodeID:    nodeID,
 		Timestamp: time.Now().UnixNano(),
 	}
 
 	payload, _ := cmtjson.Marshal(ping)
 
-	return &types.CommandEnvelope{
+	return &setupTypes.CommandEnvelope{
 		CommandID: utils.UUID(),
-		Cmd:       types.CmdPing,
+		Cmd:       setupTypes.CmdPing,
 		NodeID:    nodeID,
 		Payload:   payload,
 		IssuedAt:  utils.NowString(),
@@ -168,7 +168,7 @@ func (s *SetupService) PingClient(notifier *rpc.Notifier, subID rpc.ID, nodeID s
 }
 
 // Method
-func (s *SetupService) InitializationComplete(nodeID string, status *types.StatusNode) {
+func (s *SetupService) InitializationComplete(nodeID string, status *setupTypes.StatusNode) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
