@@ -15,8 +15,28 @@
 + provides a test web page to interactive with Cometbft ABCI app to read & write data. 
 + running node and master as a windows services. 
 
+## How to build from source
+1. Verify that you have the latest version of Go installed (refer to the [official guide for installing Go](https://golang.org/doc/install)):
+
+```bash
+$ go version
+go version go1.25.0 darwin/amd64
+```
 
 
+2. open a command prompt and clone code from repository
+```bash
+git clone https://gitea.com/StarOrg/ChainNode.git
+cd ChainNode
+go mod tidy
+```
+```bash
+go build ./cmd/nodeagent
+go build ./cmd/nodemaster
+```
+
+If everything goes ok, you will find nodeagent.exe and nodemaster.exe in current directory.
+you can replace these two binary files within inno directory of sample repository.
 
 ## How to install & test
 
