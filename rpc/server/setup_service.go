@@ -420,6 +420,61 @@ func (s *SetupService) BroadcaseAddValidator(peerInfo lib.Peer) error {
 	return totalErr.ErrorOrNil()
 }
 
+// RPC Method
+func (s *SetupService) BroadcaseRemoveValidator(targetNodeID string) error {
+	if !s.chainState.Initialized() {
+		return errors.New("please initialize chain node first before broadcast remove validator")
+	}
+
+	peerInfo := s.chainState.GetPeerByNodeID(targetNodeID)
+	if peerInfo == nil {
+		return errors.New("nodeID is invalid")
+	}
+
+	var totalErr = lib.NewMultiError()
+
+	for nodeID, clientStub := range s.subs {
+
+		if !s.isOriginalValidator(clientStub.StatusNode.NodeName) {
+			//no need to send the command to a non-validator node.
+			continue
+		}
+
+		if !s.IsNodeRpcAlive(nodeID) {
+			//no need to send the command to an offline node.
+			log.Infof("ignore the node: %v for adding validator:", s.FormatName(peerInfo.NodeId))
+			totalErr.Errors[nodeID] = fmt.Errorf("RPC of the node is not alive.")
+			continue
+		}
+
+		v := peerInfo.BuildValidator()
+		nodecmds := make(map[string]*nodeCommand)
+
+		nodecmds[nodeID] = &nodeCommand{
+			cmd: setupTypes.CmdRemoveValidator,
+			payload: setupTypes.SetupRemoveValidator{
+				RemoveValidatorReq: lib.RemoveValidatorReq{
+					PubType: v.PubKey.Type(),
+					PubKey:  base64.StdEncoding.EncodeToString(v.PubKey.Bytes()),
+					Power:   0, //set power to zero to remove validator from chain.
+					Name:    v.Name,
+				},
+			},
+		}
+
+		if err := s.sendNodeCommand(nodecmds); err != nil {
+			log.Info("send node command failure:", err)
+			totalErr.Errors["err"] = err
+			continue
+		}
+
+		totalErr.Clear()
+		break
+	}
+
+	return totalErr.ErrorOrNil()
+}
+
 func (s *SetupService) PeerInitializationCompleted(nodeIDs []string) {
 	for _, nodeID := range nodeIDs {
 		if clientStub, ok := s.subs[nodeID]; ok {

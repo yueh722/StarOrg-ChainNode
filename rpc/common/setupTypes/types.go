@@ -30,6 +30,10 @@ type SetupAddValidator struct {
 	lib.AddValidatorReq `json:"add_validator_req"`
 }
 
+type SetupRemoveValidator struct {
+	lib.RemoveValidatorReq `json:"remove_validator_req"`
+}
+
 type SetupPurgeChain struct{}
 
 type NodeAction string
@@ -105,6 +109,7 @@ const (
 	CmdInitializeChainNode CmdType = "setup_initialize_chain_node"
 	CmdUpdateChainCfg      CmdType = "setup_update_chain_cfg"
 	CmdAddValidator        CmdType = "setup_add_validator"
+	CmdRemoveValidator     CmdType = "setup_remove_validator"
 	CmdControlNode         CmdType = "setup_control_node"
 	CmdPurgeChain          CmdType = "setup_purge_chain"
 )

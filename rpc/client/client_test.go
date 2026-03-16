@@ -3,8 +3,8 @@ package client
 import (
 	"chain/lib"
 	"chain/rpc/common/namespace"
-	rpc2 "chain/rpc/common/rpc"
-	"chain/rpc/common/types"
+	rpc2 "chain/rpc/common/response"
+	types "chain/rpc/common/setupTypes"
 	"chain/rpc/server"
 	"chain/utils"
 	"encoding/json"
@@ -409,6 +409,15 @@ func Test_RestartAllNodes(t *testing.T) {
 
 func Test_StopAllNodes(t *testing.T) {
 	SetupService_ControlNode(t, types.NodeStop)
+}
+
+func Test_PurgeNode01(t *testing.T) {
+
+	nodeIDs := lo.Map(getActivatedStatusNodesByName(t, "1"), func(status types.StatusNode, _ int) string {
+		return status.NodeID
+	})
+
+	controlNodes(t, nodeIDs, types.NodePurge)
 }
 
 func Test_ResetNode01(t *testing.T) {

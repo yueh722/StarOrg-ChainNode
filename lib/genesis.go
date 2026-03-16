@@ -18,6 +18,13 @@ type AddValidatorReq struct {
 	Name    string `json:"name" binding:"required"`
 }
 
+type RemoveValidatorReq struct {
+	PubType string `json:"pub_type" binding:"required"`
+	PubKey  string `json:"pubkey" binding:"required"` // base64 编码的字符串
+	Power   int64  `json:"power" binding:"required"`
+	Name    string `json:"name" binding:"required"`
+}
+
 var pubKeyNameMap = map[string]string{
 	types.ABCIPubKeyTypeEd25519:   ed25519.PubKeyName,
 	types.ABCIPubKeyTypeSecp256k1: secp256k1.PubKeyName,
@@ -55,6 +62,25 @@ func SendAddValidatorRequest(webServiceAddr string, req *AddValidatorReq) error 
 	}
 
 	zlog.Info("send add validator request success:", result)
+
+	return nil
+}
+
+func SendRemoveValidatorRequest(webServiceAddr string, req *RemoveValidatorReq) error {
+
+	if webServiceAddr == "" {
+		return fmt.Errorf("web service address is empty")
+	}
+
+	zlog.Infof("sending remove validator request to %v with nodeName: %v", webServiceAddr, req.Name)
+
+	rawUrl := fmt.Sprintf("%s/validator/remove", webServiceAddr)
+	result, err := utils.HttpPost(rawUrl, req)
+	if err != nil {
+		return fmt.Errorf("send remove validator request failure: %v", err)
+	}
+
+	zlog.Info("send remove validator request success:", result)
 
 	return nil
 }

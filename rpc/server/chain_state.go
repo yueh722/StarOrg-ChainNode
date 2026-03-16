@@ -57,6 +57,16 @@ func (state *ChainStateInternal) IsNodeInitialized(nodeID string) bool {
 	return false
 }
 
+func (state *ChainStateInternal) GetPeerByNodeID(nodeID string) *lib.Peer {
+	for _, node := range state.Peers {
+		if node.NodeId == nodeID {
+			return &node
+		}
+	}
+
+	return nil
+}
+
 func NewChainState(chainID string, peers lib.PeerList) *ChainStateInternal {
 
 	GenesisDoc := lib.NewGenesisDoc(chainID, peers.BuildValidators())

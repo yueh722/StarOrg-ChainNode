@@ -10,6 +10,7 @@ import (
 	"chain/rpc/common/setupTypes"
 	"chain/utils"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"sync"
@@ -34,6 +35,7 @@ var router = map[setupTypes.CmdType]func(*SetupClient, *setupTypes.CommandEnvelo
 	setupTypes.CmdControlNode:         (*SetupClient).handleControlNodeCmd,
 	setupTypes.CmdPurgeChain:          (*SetupClient).handlePurgeChainCmd,
 	setupTypes.CmdAddValidator:        (*SetupClient).HandleAddValidator,
+	setupTypes.CmdRemoveValidator:     (*SetupClient).HandleRemoveValidator,
 	setupTypes.CmdPing:                (*SetupClient).HandlePing,
 }
 
@@ -251,6 +253,8 @@ func (c *SetupClient) handleControlNodeCmd(cmd *setupTypes.CommandEnvelope) erro
 		err = c.handleRestartNode()
 	case setupTypes.NodeReset:
 		err = c.handleResetNode()
+	case setupTypes.NodePurge:
+		err = c.handlePurgeNode()
 	default:
 		err = fmt.Errorf("invalid action")
 	}
@@ -394,6 +398,31 @@ func (c *SetupClient) HandleAddValidator(cmd *setupTypes.CommandEnvelope) error 
 	return nil
 }
 
+func (c *SetupClient) RemoveValidatorImpl(arg *setupTypes.SetupRemoveValidator) error {
+
+	if isvalidator, _ := lib.IsNodeOriginalValidator(c.cfg.NodeBaseDir); !isvalidator {
+		return errors.New("Ignore remove validator from current node. current node is not an original validator, which does not have right to commit transaction.")
+	}
+
+	if err := lib.SendRemoveValidatorRequest(c.GetCurrentPeer().WebServiceAddr(), &arg.RemoveValidatorReq); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// remove validator
+func (c *SetupClient) HandleRemoveValidator(cmd *setupTypes.CommandEnvelope) error {
+
+	arg := setupTypes.SetupRemoveValidator{}
+	err := cmtjson.Unmarshal(cmd.Payload, &arg)
+	if err != nil {
+		return err
+	}
+
+	return c.RemoveValidatorImpl(&arg)
+}
+
 func (c *SetupClient) HandlePing(cmd *setupTypes.CommandEnvelope) error {
 	arg := setupTypes.SetupPing{}
 	err := cmtjson.Unmarshal(cmd.Payload, &arg)
@@ -431,7 +460,32 @@ func (c *SetupClient) handleRestartNode() error {
 	return c.handleStartNode()
 }
 
-// reset state of one node to uninitialized
+// purge one node, the operation will remove all data of the node
+func (c *SetupClient) handlePurgeNode() error {
+	log.Info("[HandlePurgeNode] prepare to purge node")
+	defer log.Info("[HandlePurgeNode] purge node complete")
+
+	c.handleStopNode()
+
+	if err := lib.ResetState(c.cfg.NodeBaseDir); err != nil {
+		return fmt.Errorf("[HandlePurgeNode] failed to reset state, err: %v", err)
+	}
+
+	v := c.GetCurrentPeer().BuildValidator()
+
+	err := c.RemoveValidatorImpl(&setupTypes.SetupRemoveValidator{
+		RemoveValidatorReq: lib.RemoveValidatorReq{
+			PubType: v.PubKey.Type(),
+			PubKey:  base64.StdEncoding.EncodeToString(v.PubKey.Bytes()),
+			Power:   0, //set power to zero to remove validator from chain.
+			Name:    v.Name,
+		},
+	})
+
+	return err
+}
+
+// remove all wal data and block data of the node, but all these data will be synced after it restart.
 func (c *SetupClient) handleResetNode() error {
 
 	log.Info("[handleResetNode] prepare to reset node")
