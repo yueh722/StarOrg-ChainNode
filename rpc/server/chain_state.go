@@ -67,6 +67,20 @@ func (state *ChainStateInternal) GetPeerByNodeID(nodeID string) *lib.Peer {
 	return nil
 }
 
+func (state *ChainStateInternal) RemoveNodeAndSave(nodeID string, filePath string) error {
+	err := fmt.Errorf("not found node that had initialized, nodeID: %v", nodeID)
+	if state.IsNodeInitialized(nodeID) {
+		for i, node := range state.Peers {
+			if node.NodeId == nodeID {
+				state.Peers = append(state.Peers[:i], state.Peers[i+1:]...)
+				return state.Save(filePath)
+			}
+		}
+	}
+
+	return err
+}
+
 func NewChainState(chainID string, peers lib.PeerList) *ChainStateInternal {
 
 	GenesisDoc := lib.NewGenesisDoc(chainID, peers.BuildValidators())

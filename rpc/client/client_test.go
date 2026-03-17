@@ -21,6 +21,12 @@ import (
 
 type ArgNodeList []lib.ArgNodeInfo
 
+func init() {
+	// create config directories
+	utils.TryCreateDir(utils.GetAppDataPath("NodeAgent"))
+	utils.TryCreateDir(utils.GetAppDataPath("NodeMaster"))
+}
+
 func MakeLocalPeerList4() ArgNodeList {
 	peers := []lib.ArgNodeInfo{
 		{
@@ -162,7 +168,7 @@ func MakeLocalNet_Peer_05_06() ArgNodeList {
 			IsValidator:    true,
 		},
 		{
-			NodeName:       "node05",
+			NodeName:       "node07",
 			NodeId:         lib.NewNodeId(),
 			NodeDomainOrIP: "127.0.0.1",
 			P2PPort:        59656,
@@ -491,7 +497,41 @@ func TestAutoDeployFromScratch(t *testing.T) {
 	t.Log("start running nodes 03, 04...")
 	controlNodes(t, getNodeIDsFromArgNodeListByName(peers2), types.NodeStart)
 
-	Test_RestartAllNodes(t)
+	t.Log("purge nodes 01")
+	Test_PurgeNode01(t)
+
+	t.Log("fetch live state and print it...")
+	PrintState(t)
+	//Test_RestartAllNodes(t)
+
+	t.Log("start adding nodes 05...")
+	peers5 := MakeLocalNet_Peer_05_06()
+	addNodes(t, peers5)
+	sleepSec(10)
+	controlNodes(t, getNodeIDsFromArgNodeListByName(peers5), types.NodeStart)
+
+	t.Log("fetch live state and print it...")
+	PrintState(t)
+
+	t.Log("restart all nodes")
+	Test_StartAllNodes(t)
+}
+
+func PrintState(t *testing.T) {
+	myclient, err := getConnection(t)
+	if err != nil {
+		return
+	}
+	// CALL RPC METHOD
+
+	//get chain state
+	state, err := getChainState(myclient)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stateBytes, _ := json.MarshalIndent(state, "", "  ")
+	log.Println(string(stateBytes))
 }
 
 func TestAddValidator(t *testing.T) {

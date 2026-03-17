@@ -12,17 +12,17 @@ import (
 )
 
 type AddValidatorReq struct {
-	PubType string `json:"pub_type" binding:"required"`
-	PubKey  string `json:"pubkey" binding:"required"` // base64 编码的字符串
-	Power   int64  `json:"power" binding:"required"`
-	Name    string `json:"name" binding:"required"`
+	PubType string `json:"pub_type" `
+	PubKey  string `json:"pubkey" ` // base64 编码的字符串
+	Power   int64  `json:"power" `
+	Name    string `json:"name" `
 }
 
 type RemoveValidatorReq struct {
-	PubType string `json:"pub_type" binding:"required"`
-	PubKey  string `json:"pubkey" binding:"required"` // base64 编码的字符串
-	Power   int64  `json:"power" binding:"required"`
-	Name    string `json:"name" binding:"required"`
+	PubType string `json:"pub_type" `
+	PubKey  string `json:"pubkey" ` // base64 编码的字符串
+	Power   int64  `json:"power" `
+	Name    string `json:"name" `
 }
 
 var pubKeyNameMap = map[string]string{

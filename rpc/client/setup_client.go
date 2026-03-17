@@ -193,12 +193,12 @@ func (c *SetupClient) handleInitChainNodeCmd(cmd *setupTypes.CommandEnvelope) er
 	}
 
 	// use go-routine sending complete notification to prevent deadlock of master.
-	go c.CompleteInitNodeCmd(statusNode)
+	go c.ReportNodeStatus(statusNode)
 
 	return nil
 }
 
-func (c *SetupClient) CompleteInitNodeCmd(statusNode *setupTypes.StatusNode) {
+func (c *SetupClient) ReportNodeStatus(statusNode *setupTypes.StatusNode) {
 
 	if err := c.client.Call(nil, namespace.GetMethodName("InitializationComplete"), c.NodeID(), statusNode); err != nil {
 		log.Info("failed to call InitializationComplete, err:", err)
@@ -295,6 +295,13 @@ func (c *SetupClient) handlePurgeChainCmd(cmd *setupTypes.CommandEnvelope) error
 
 	c.cfg.NodeInfo = nodeInfo
 	c.cfg.Initialized = false
+
+	statusNode, err := BuildStatusNode(c.cfg, nil)
+	if err != nil {
+		log.Info("[handlePurgeChainCmd] failed to build status node after purged node, err:", err)
+	}
+
+	go c.ReportNodeStatus(statusNode)
 
 	return nil
 }
@@ -465,24 +472,34 @@ func (c *SetupClient) handlePurgeNode() error {
 	log.Info("[HandlePurgeNode] prepare to purge node")
 	defer log.Info("[HandlePurgeNode] purge node complete")
 
-	c.handleStopNode()
-
-	if err := lib.ResetState(c.cfg.NodeBaseDir); err != nil {
-		return fmt.Errorf("[HandlePurgeNode] failed to reset state, err: %v", err)
-	}
-
 	v := c.GetCurrentPeer().BuildValidator()
 
-	err := c.RemoveValidatorImpl(&setupTypes.SetupRemoveValidator{
+	if err := c.RemoveValidatorImpl(&setupTypes.SetupRemoveValidator{
 		RemoveValidatorReq: lib.RemoveValidatorReq{
 			PubType: v.PubKey.Type(),
 			PubKey:  base64.StdEncoding.EncodeToString(v.PubKey.Bytes()),
 			Power:   0, //set power to zero to remove validator from chain.
 			Name:    v.Name,
 		},
+	}); err != nil {
+		return err
+	}
+
+	//wait few secs to let app of Cometbft to finish task.
+	time.Sleep(5 * time.Second)
+
+	err := c.handlePurgeChainCmd(&setupTypes.CommandEnvelope{
+		CommandID: utils.UUID(),
+		Cmd:       setupTypes.CmdPurgeChain,
+		NodeID:    c.NodeID(),
+		IssuedAt:  utils.NowString(),
 	})
 
-	return err
+	if err != nil {
+		return fmt.Errorf("[HandlePurgeNode] failed to purge node, err: %v", err)
+	}
+
+	return nil
 }
 
 // remove all wal data and block data of the node, but all these data will be synced after it restart.

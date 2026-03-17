@@ -167,7 +167,7 @@ func (s *SetupService) PingClient(notifier *rpc.Notifier, subID rpc.ID, nodeID s
 	return nil
 }
 
-// Method
+// RPC Method that called from node agent
 func (s *SetupService) InitializationComplete(nodeID string, status *setupTypes.StatusNode) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -176,7 +176,18 @@ func (s *SetupService) InitializationComplete(nodeID string, status *setupTypes.
 		if status.NodeID == nodeID {
 			clientStub.StatusNode = *status
 			clientStub.StatusNode.Online = true
-			log.Infof("node initialization complete, nodeID: %v, nodeName: %v", status.NodeID, status.NodeName)
+			log.Infof("node status changed, nodeID: %v, nodeName: %v, initialized: %v", status.NodeID, status.NodeName, status.Initialized)
+
+			if !status.Initialized {
+				// node had changed to uninitialized
+				newChainState := s.chainState.Clone()
+				if err := newChainState.RemoveNodeAndSave(nodeID, chainStateFile); err != nil {
+					log.Infof("node status changed to uninitialized, Remove node and save chainstate failure, nodeID: %v, error: %v", nodeID, err)
+					return
+				}
+
+				s.chainState = newChainState
+			}
 		}
 	}
 }

@@ -90,6 +90,10 @@ func (p *Peer) PersistentPeerID() string {
 }
 
 func (p *Peer) RPCListenAddr() string {
+
+	if p.RPCPort == 0 {
+		return ""
+	}
 	// please note that cometbft node will listen rpc port which is always 127.0.0.1
 	// ref: config.toml -> [rpc].laddr
 	// default: laddr = "tcp://127.0.0.1:26657"
@@ -97,6 +101,9 @@ func (p *Peer) RPCListenAddr() string {
 }
 
 func (p *Peer) RPCAddr() string {
+	if p.RPCPort == 0 {
+		return ""
+	}
 	// please pay attention to listen address of RPCListenAddr before change the server address below.
 	return fmt.Sprintf("http://%s:%d", "127.0.0.1", p.RPCPort)
 }
@@ -109,14 +116,23 @@ func (p *Peer) RPCWebsocketAddrs() []string {
 }
 
 func (p *Peer) ProxyAppAddr() string {
+	if p.ABCIPort == 0 {
+		return ""
+	}
 	return fmt.Sprintf("tcp://%s:%d", "127.0.0.1", p.ABCIPort)
 }
 
 func (p *Peer) WebServiceAddr() string {
+	if p.WebServicePort == 0 {
+		return ""
+	}
 	return fmt.Sprintf("http://%s:%d", p.NodeAddress, p.WebServicePort)
 }
 
 func (p *Peer) WebServiceListenAddr() string {
+	if p.WebServicePort == 0 {
+		return ""
+	}
 	return fmt.Sprintf("%s:%d", "0.0.0.0", p.WebServicePort)
 }
 
