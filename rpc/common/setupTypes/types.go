@@ -95,11 +95,21 @@ type StatusCometbftProcess struct {
 // each client will report storage information of host to server freqently
 // method: RPC
 type StatusStorage struct {
-	Path        string `json:"path,omitempty"`
-	TotalSpace  string `json:"total_space,omitempty"`
-	FreeSpace   string `json:"free_space,omitempty"`
-	UsedSpace   string `json:"used_space,omitempty"`
-	UsedPercent string `json:"used_percent,omitempty"`
+	NodeID             string `json:"node_id,omitempty"`
+	NodeName           string `json:"node_name,omitempty"`
+	HostName           string `json:"host_name,omitempty"`
+	Path               string `json:"path,omitempty"`
+	TotalSpace         string `json:"total_space,omitempty"`
+	FreeSpace          string `json:"free_space,omitempty"`
+	UsedSpace          string `json:"used_space,omitempty"`
+	UsedPercent        string `json:"used_percent,omitempty"`
+	DiskTotalBytes     uint64 `json:"disk_total_bytes,omitempty"`
+	DiskFreeBytes      uint64 `json:"disk_free_bytes,omitempty"`
+	ChainDataSize      string `json:"chain_data_size,omitempty"`
+	TotalChainnodeSize string `json:"total_chainnode_size,omitempty"`
+	DataSizeBytes      int64  `json:"data_size_bytes,omitempty"`
+	TotalSizeBytes     int64  `json:"total_size_bytes,omitempty"`
+	UpdatedAt          string `json:"updated_at,omitempty"`
 }
 
 type CmdType string

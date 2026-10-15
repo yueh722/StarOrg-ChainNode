@@ -1,9 +1,9 @@
 package lib
 
 import (
-	"Chain/lib/log"
-	"Chain/lib/queuestore"
-	"Chain/utils"
+	"chain/lib/queuestore"
+	"chain/lib/zlog"
+	"chain/utils"
 	"testing"
 	"time"
 )
@@ -30,7 +30,7 @@ func TestInstance_StartNode(t *testing.T) {
 				"--home": "./node01",
 			},
 			Envs:   nil,
-			Logger: log.NewCometbftNodeLogger("node01", core),
+			Logger: zlog.NewCometbftNodeLogger("node01", utils.GetLogPath("nodeagent", "node01"), core),
 		},
 	)
 

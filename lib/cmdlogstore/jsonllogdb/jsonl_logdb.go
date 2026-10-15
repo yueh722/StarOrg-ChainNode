@@ -1,8 +1,8 @@
 package jsonllogdb
 
 import (
-	"Chain/lib/logdb"
 	"bufio"
+	logdb "chain/lib/cmdlogstore"
 	"encoding/base64"
 	"encoding/json"
 	"errors"

@@ -36,6 +36,7 @@ func init() {
 			"ReportNodeStatus",
 			"ReportStorageStatus",
 			"ReportCometbftProcessStatus",
+			"GetStorageStatus",
 		},
 
 		//livetx service

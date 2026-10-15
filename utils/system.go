@@ -148,3 +148,20 @@ func AnyFromFile(dataFile string, data interface{}) error {
 func DeviceID() string {
 	return UUID()
 }
+
+func GetDirectorySize(dirPath string) int64 {
+	var size int64
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		return 0
+	}
+	_ = filepath.Walk(dirPath, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return nil
+	})
+	return size
+}

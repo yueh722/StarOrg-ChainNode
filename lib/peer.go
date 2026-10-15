@@ -94,10 +94,9 @@ func (p *Peer) RPCListenAddr() string {
 	if p.RPCPort == 0 {
 		return ""
 	}
-	// please note that cometbft node will listen rpc port which is always 127.0.0.1
+	// 允許跨主機/跨網段查詢 CometBFT RPC 狀態
 	// ref: config.toml -> [rpc].laddr
-	// default: laddr = "tcp://127.0.0.1:26657"
-	return fmt.Sprintf("tcp://%s:%d", "127.0.0.1", p.RPCPort)
+	return fmt.Sprintf("tcp://%s:%d", "0.0.0.0", p.RPCPort)
 }
 
 func (p *Peer) RPCAddr() string {
@@ -105,7 +104,11 @@ func (p *Peer) RPCAddr() string {
 		return ""
 	}
 	// please pay attention to listen address of RPCListenAddr before change the server address below.
-	return fmt.Sprintf("http://%s:%d", "127.0.0.1", p.RPCPort)
+	host := "127.0.0.1"
+	if p.NodeAddress != "" {
+		host = p.NodeAddress
+	}
+	return fmt.Sprintf("http://%s:%d", host, p.RPCPort)
 }
 
 func (p *Peer) RPCWebsocketAddrs() []string {

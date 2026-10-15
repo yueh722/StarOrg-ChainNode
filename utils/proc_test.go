@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"chain/rpc/security"
-	"fmt"
 	"testing"
 
 	"github.com/tidwall/gjson"
@@ -51,8 +49,4 @@ func TestJson(t *testing.T) {
 	v2 := gjson.Get(ss, `result.c\.d.0`).String()
 
 	t.Log(v1, v2)
-}
-
-func TestRand(t *testing.T) {
-	fmt.Println(security.RandString(32))
 }
